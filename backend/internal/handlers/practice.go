@@ -80,9 +80,9 @@ func ListClientWorkspaces(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := `
-		SELECT e.id, e.tenant_id, t.workspace_name, o.rc_number, o.industry,
+		SELECT e.id, e.tenant_id, t.workspace_name, COALESCE(o.rc_number, 'RC-PENDING'), COALESCE(o.industry, 'General Commerce'),
 		       t.compliance_score, e.engagement_type, e.scope_summary, e.monthly_fee_ngn,
-		       e.status, e.start_date,
+		       e.status, TO_CHAR(e.start_date, 'YYYY-MM-DD'),
 		       (SELECT COUNT(*) FROM tenant_obligations to2 WHERE to2.tenant_id = t.id AND to2.is_urgent = true AND to2.status = 'PENDING') as urgent_count
 		FROM engagements e
 		JOIN tenants t ON e.tenant_id = t.id
