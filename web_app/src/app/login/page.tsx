@@ -12,9 +12,11 @@ import {
   Mail, 
   ShieldCheck, 
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { useAuth, DEMO_USERS } from "@/components/ahnara/AuthContext";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,9 +25,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState("adaeze@paywave.ng");
   const [password, setPassword] = useState("••••••••••••");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleRoleSelect = (role: "BUSINESS" | "EXPERT" | "AGENCY") => {
     setSelectedRole(role);
+    setErrorMsg(null);
     if (role === "BUSINESS") {
       setEmail("adaeze@paywave.ng");
     } else if (role === "EXPERT") {
@@ -35,23 +39,50 @@ export default function LoginPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
 
-    setTimeout(() => {
-      switchRole(selectedRole);
-      setLoading(false);
-      if (selectedRole === "BUSINESS") {
-        router.push("/business/dashboard");
-      } else {
-        router.push("/practice/dashboard");
+    const actualPassword = password === "••••••••••••" ? "password123" : password;
+
+    try {
+      const resp = await api.auth.login({ email, password: actualPassword });
+      if (resp && resp.token && resp.user) {
+        login(resp.token, {
+          id: resp.user.id,
+          name: resp.user.full_name,
+          email: resp.user.email,
+          role: selectedRole,
+          title: resp.user.title || DEMO_USERS[selectedRole].title,
+          company: resp.active_tenant?.workspace_name || DEMO_USERS[selectedRole].company,
+          avatar: resp.user.avatar_url || DEMO_USERS[selectedRole].avatar,
+          tenant_id: resp.active_tenant?.id || DEMO_USERS[selectedRole].tenant_id,
+        });
+
+        if (selectedRole === "BUSINESS") {
+          router.push("/business/dashboard");
+        } else {
+          router.push("/practice/dashboard");
+        }
+        return;
       }
-    }, 400);
+    } catch (err: any) {
+      console.warn("Backend login failed or offline, using fallback:", err);
+    }
+
+    // Fallback for seamless demo testing
+    switchRole(selectedRole);
+    setLoading(false);
+    if (selectedRole === "BUSINESS") {
+      router.push("/business/dashboard");
+    } else {
+      router.push("/practice/dashboard");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col items-center justify-center p-4 select-none">
       
       {/* Brand Header */}
       <div className="text-center mb-8">
@@ -77,6 +108,12 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {errorMsg && (
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold">
+            {errorMsg}
+          </div>
+        )}
+
         {/* 1-Click Interactive Persona Switcher */}
         <div className="space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -86,7 +123,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleRoleSelect("BUSINESS")}
-              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
                 selectedRole === "BUSINESS"
                   ? "bg-[#0089C1] text-white border-[#0089C1] shadow-xs font-bold"
                   : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
@@ -99,7 +136,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleRoleSelect("EXPERT")}
-              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
                 selectedRole === "EXPERT"
                   ? "bg-[#245C44] text-white border-[#245C44] shadow-xs font-bold"
                   : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
@@ -112,7 +149,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => handleRoleSelect("AGENCY")}
-              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
                 selectedRole === "AGENCY"
                   ? "bg-purple-700 text-white border-purple-700 shadow-xs font-bold"
                   : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
@@ -178,10 +215,13 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#1E293B] hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2"
+            className="w-full bg-[#1E293B] hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? (
-              <span>Authenticating Session...</span>
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Authenticating Session...</span>
+              </span>
             ) : (
               <>
                 <span>Enter Workspace</span>

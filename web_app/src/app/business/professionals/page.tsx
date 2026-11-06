@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   UserCheck, 
@@ -15,8 +15,11 @@ import {
   Eye,
   FileCheck2,
   Calendar,
-  CreditCard
+  CreditCard,
+  Loader2
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/components/ahnara/AuthContext";
 
 interface EngagedPro {
   id: string;
@@ -32,43 +35,87 @@ interface EngagedPro {
   status: "Active" | "Access Revoked" | "Pending Sign-off";
 }
 
-export default function BusinessProfessionalsPage() {
-  const [professionals, setProfessionals] = useState<EngagedPro[]>([
-    {
-      id: "pro-01",
-      name: "Tunde Bakare, CAMS",
-      avatar: "/character1.jpg",
-      specialisation: "AML/CFT & SCUML Practice Director",
-      firm: "Bakare Compliance Consultancy",
-      authorisedModules: ["HubAML", "HubAudit", "HubReport"],
-      dualApprovalRequired: true,
-      engagementType: "Fractional Retainer",
-      monthlyFee: 250000,
-      renewalDate: "15 Dec 2026",
-      status: "Active"
-    },
-    {
-      id: "pro-02",
-      name: "Barr. Folashade Adeleke, CDPO",
-      avatar: "/character2.jpg",
-      specialisation: "Licensed DPCO Lead Auditor",
-      firm: "Adeleke & Partners Legal Practitioners",
-      authorisedModules: ["HubPrivacy", "HubDocs"],
-      dualApprovalRequired: false,
-      engagementType: "Statutory Audit Engagement",
-      monthlyFee: 300000,
-      renewalDate: "30 Mar 2026",
-      status: "Active"
-    }
-  ]);
+const FALLBACK_PROS: EngagedPro[] = [
+  {
+    id: "77777777-7777-7777-7777-777777777701",
+    name: "Tunde Bakare, CAMS",
+    avatar: "/character1.jpg",
+    specialisation: "AML/CFT & SCUML Practice Director",
+    firm: "Bakare Compliance Consultancy",
+    authorisedModules: ["HubAML", "HubAudit", "HubReport"],
+    dualApprovalRequired: true,
+    engagementType: "Fractional Retainer",
+    monthlyFee: 250000,
+    renewalDate: "15 Dec 2026",
+    status: "Active"
+  },
+  {
+    id: "pro-02",
+    name: "Barr. Folashade Adeleke, CDPO",
+    avatar: "/character2.jpg",
+    specialisation: "Licensed DPCO Lead Auditor",
+    firm: "Adeleke & Partners Legal Practitioners",
+    authorisedModules: ["HubPrivacy", "HubDocs"],
+    dualApprovalRequired: false,
+    engagementType: "Statutory Audit Engagement",
+    monthlyFee: 300000,
+    renewalDate: "30 Mar 2026",
+    status: "Active"
+  }
+];
 
+export default function BusinessProfessionalsPage() {
+  const { activeTenantId } = useAuth();
+  const [professionals, setProfessionals] = useState<EngagedPro[]>(FALLBACK_PROS);
+  const [loading, setLoading] = useState(true);
   const [revokedBanner, setRevokedBanner] = useState<string | null>(null);
 
-  const handleRevoke = (id: string, name: string) => {
-    if (confirm(`Are you sure you want to revoke access for ${name}? Active sessions and API tokens will be terminated immediately pursuant to Blueprint Part 5.1.`)) {
+  const loadEngagements = async () => {
+    setLoading(true);
+    try {
+      const data = await api.practice.getEngagements();
+      if (data && Array.isArray(data) && data.length > 0) {
+        setProfessionals(
+          data.map((item: any) => ({
+            id: item.id,
+            name: item.professional_name || "Compliance Specialist",
+            avatar: item.avatar_url || "/character1.jpg",
+            specialisation: item.qualification ? `${item.qualification} Specialist` : "Regulatory Compliance",
+            firm: item.firm_name || "Independent Advisory",
+            authorisedModules: item.specialisations && item.specialisations.length > 0
+              ? item.specialisations.slice(0, 3)
+              : ["HubAML", "HubDocs", "HubReport"],
+            dualApprovalRequired: true,
+            engagementType: item.engagement_type === "FRACTIONAL_OFFICER" ? "Fractional Retainer" : "Project Audit",
+            monthlyFee: item.monthly_fee_ngn || 250000,
+            renewalDate: item.end_date || "Annual Rolling",
+            status: item.status === "ACTIVE" ? "Active" : "Access Revoked"
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn("Using fallback engagements:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEngagements();
+  }, [activeTenantId]);
+
+  const handleRevoke = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to revoke access for ${name}? Active sessions and API tokens will be terminated immediately pursuant to Blueprint Part 5.1.`)) {
+      return;
+    }
+
+    try {
+      await api.practice.revokeEngagement(id);
       setProfessionals(prev => prev.map(p => p.id === id ? { ...p, status: "Access Revoked" } : p));
-      setRevokedBanner(`Access immediately revoked for ${name}. Token invalidated across all endpoints.`);
-      setTimeout(() => setRevokedBanner(null), 5000);
+      setRevokedBanner(`Access immediately revoked for ${name}. Token invalidated across all endpoints in Neon DB.`);
+      setTimeout(() => setRevokedBanner(null), 6000);
+    } catch (err) {
+      alert("Failed to revoke engagement on server.");
     }
   };
 
@@ -191,18 +238,15 @@ export default function BusinessProfessionalsPage() {
               {pro.status === "Active" ? (
                 <button
                   onClick={() => handleRevoke(pro.id, pro.name)}
-                  className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-xs"
+                  className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Revoke Access</span>
                 </button>
               ) : (
-                <button
-                  onClick={() => setProfessionals(prev => prev.map(p => p.id === pro.id ? { ...p, status: "Active" } : p))}
-                  className="bg-[#0089C1] text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs"
-                >
-                  Reinstate Access
-                </button>
+                <span className="px-3 py-1.5 bg-red-100 text-red-700 font-bold text-xs rounded-xl">
+                  Revoked
+                </span>
               )}
             </div>
           </div>

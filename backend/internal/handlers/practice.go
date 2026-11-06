@@ -196,6 +196,74 @@ func ListPracticeTasks(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(tasks)
 }
 
+type TenantEngagementItem struct {
+	ID               string   `json:"id"`
+	TenantID         string   `json:"tenant_id"`
+	ProfessionalID   string   `json:"professional_id"`
+	EngagementType   string   `json:"engagement_type"`
+	ScopeSummary     string   `json:"scope_summary"`
+	MonthlyFeeNGN    float64  `json:"monthly_fee_ngn"`
+	StartDate        string   `json:"start_date"`
+	EndDate          *string  `json:"end_date"`
+	Status           string   `json:"status"`
+	ProfessionalName string   `json:"professional_name"`
+	AvatarURL        string   `json:"avatar_url"`
+	FirmName         string   `json:"firm_name"`
+	Qualification    string   `json:"qualification"`
+	Specialisations  []string `json:"specialisations"`
+}
+
+func ListTenantEngagements(w http.ResponseWriter, r *http.Request) {
+	tenantCtx := middleware.GetTenantContext(r)
+	if tenantCtx == nil {
+		http.Error(w, "Tenant not resolved", http.StatusBadRequest)
+		return
+	}
+
+	query := `
+		SELECT e.id, e.tenant_id, e.professional_id, e.engagement_type,
+		       e.scope_summary, e.monthly_fee_ngn, TO_CHAR(e.start_date, 'YYYY-MM-DD'),
+		       TO_CHAR(e.end_date, 'YYYY-MM-DD'), e.status,
+		       u.full_name, COALESCE(u.avatar_url, '/character1.jpg'),
+		       COALESCE(p.firm_name, 'Independent Advisory'), COALESCE(p.qualification, 'CAMS'),
+		       p.specialisations
+		FROM engagements e
+		JOIN professional_profiles p ON e.professional_id = p.id
+		JOIN users u ON p.user_id = u.id
+		WHERE e.tenant_id = $1
+		ORDER BY e.created_at DESC
+	`
+
+	rows, err := db.Pool.Query(r.Context(), query, tenantCtx.TenantID)
+	if err != nil {
+		http.Error(w, "Failed to query engagements: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var engagements []TenantEngagementItem
+	for rows.Next() {
+		var item TenantEngagementItem
+		if err := rows.Scan(
+			&item.ID, &item.TenantID, &item.ProfessionalID, &item.EngagementType,
+			&item.ScopeSummary, &item.MonthlyFeeNGN, &item.StartDate,
+			&item.EndDate, &item.Status,
+			&item.ProfessionalName, &item.AvatarURL,
+			&item.FirmName, &item.Qualification,
+			&item.Specialisations,
+		); err == nil {
+			engagements = append(engagements, item)
+		}
+	}
+
+	if engagements == nil {
+		engagements = []TenantEngagementItem{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(engagements)
+}
+
 func RevokeEngagement(w http.ResponseWriter, r *http.Request) {
 	tenantCtx := middleware.GetTenantContext(r)
 	if tenantCtx == nil {

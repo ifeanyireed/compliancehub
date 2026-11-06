@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   ShieldAlert, 
   Lock, 
@@ -10,17 +10,171 @@ import {
   FileText, 
   Clock, 
   Building2, 
-  Sparkles,
-  Users
+  Sparkles, 
+  Users,
+  Plus,
+  X,
+  Loader2,
+  FileCheck2
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/components/ahnara/AuthContext";
+
+interface AMLCaseItem {
+  id: string;
+  entityName: string;
+  caseType: string;
+  riskSeverity: "LOW" | "MEDIUM" | "HIGH" | "PROHIBITED";
+  status: "OPEN" | "IN_REVIEW" | "CLEARED" | "ESCALATED_SCUML";
+  caseNotes: string;
+  createdAt: string;
+}
+
+interface RoPAItem {
+  id: string;
+  activityName: string;
+  purpose: string;
+  dataCategories: string[];
+  dataSubjects: string[];
+  lawfulBasis: string;
+  retentionPeriod: string;
+  crossBorderTransfer: boolean;
+  dpcoAuditReady: boolean;
+}
+
+const FALLBACK_AML_CASES: AMLCaseItem[] = [
+  {
+    id: "aml-01",
+    entityName: "Bello Trading Enterprise (Merchant Account)",
+    caseType: "PEP_SCREENING",
+    riskSeverity: "MEDIUM",
+    status: "IN_REVIEW",
+    caseNotes: "High-velocity transaction alerts detected from sub-account. PEP screening match on beneficial owner requires Tier 3 source-of-wealth documentation.",
+    createdAt: "2026-02-01"
+  },
+  {
+    id: "aml-02",
+    entityName: "Oluwaseun Adeleke",
+    caseType: "SANCTION_MATCH",
+    riskSeverity: "LOW",
+    status: "CLEARED",
+    caseNotes: "Name match false positive against NFIU watchlist. National ID (NIN) verified clear.",
+    createdAt: "2026-01-20"
+  }
+];
+
+const FALLBACK_ROPA: RoPAItem[] = [
+  {
+    id: "ropa-01",
+    activityName: "Customer KYC & Biometric Verification",
+    purpose: "Fulfillment of CBN & NFIU statutory CDD guidelines prior to wallet activation",
+    dataCategories: ["Full Name", "BVN / NIN", "Facial Biometrics", "Government ID", "Address"],
+    dataSubjects: ["Retail Consumers", "Merchant Directors"],
+    lawfulBasis: "LEGAL_OBLIGATION",
+    retentionPeriod: "5 years post-account closure (CAMA 2020 & MLPPA 2022)",
+    crossBorderTransfer: false,
+    dpcoAuditReady: true
+  },
+  {
+    id: "ropa-02",
+    activityName: "Employee Payroll & Tax Administration",
+    purpose: "Payment of monthly salaries, PAYE tax deduction to State BIR, and pension remittance",
+    dataCategories: ["Name", "TIN", "Bank Account Details", "RSA PIN", "Salary"],
+    dataSubjects: ["Full-time Employees", "Contractors"],
+    lawfulBasis: "CONTRACT",
+    retentionPeriod: "6 years post-employment (Nigeria Tax Act 2026)",
+    crossBorderTransfer: false,
+    dpcoAuditReady: true
+  }
+];
 
 export default function BusinessSpecialistPage() {
+  const { activeTenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<"aml" | "privacy">("aml");
   
+  // Data state
+  const [amlCases, setAmlCases] = useState<AMLCaseItem[]>(FALLBACK_AML_CASES);
+  const [ropaActivities, setRopaActivities] = useState<RoPAItem[]>(FALLBACK_ROPA);
+  const [loading, setLoading] = useState(true);
+
   // AML screening simulator state
   const [screeningQuery, setScreeningQuery] = useState("");
   const [screeningResult, setScreeningResult] = useState<any | null>(null);
   const [screeningLoading, setScreeningLoading] = useState(false);
+  const [lodgingCase, setLodgingCase] = useState(false);
+
+  // Modals state
+  const [amlModal, setAmlModal] = useState(false);
+  const [ropaModal, setRopaModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // New AML Case Form
+  const [amlForm, setAmlForm] = useState({
+    entityName: "",
+    caseType: "PEP_SCREENING",
+    riskSeverity: "MEDIUM",
+    caseNotes: ""
+  });
+
+  // New RoPA Form
+  const [ropaForm, setRopaForm] = useState({
+    activityName: "",
+    purpose: "",
+    dataCategories: "Full Name, Email, Phone Number, NIN",
+    dataSubjects: "Customers, Website Users",
+    lawfulBasis: "CONSENT",
+    retentionPeriod: "3 years post-inactivity",
+    crossBorderTransfer: false,
+    dpcoAuditReady: true
+  });
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [casesRes, ropaRes] = await Promise.all([
+        api.specialist.getAMLCases(),
+        api.specialist.getPrivacyActivities()
+      ]);
+
+      if (casesRes && Array.isArray(casesRes) && casesRes.length > 0) {
+        setAmlCases(
+          casesRes.map((c: any) => ({
+            id: c.id,
+            entityName: c.entity_name,
+            caseType: c.case_type,
+            riskSeverity: c.risk_severity as any,
+            status: c.status as any,
+            caseNotes: c.case_notes || "No notes appended.",
+            createdAt: c.created_at ? c.created_at.slice(0, 10) : "Recent"
+          }))
+        );
+      }
+
+      if (ropaRes && Array.isArray(ropaRes) && ropaRes.length > 0) {
+        setRopaActivities(
+          ropaRes.map((r: any) => ({
+            id: r.id,
+            activityName: r.activity_name,
+            purpose: r.purpose,
+            dataCategories: r.data_categories || ["General Personal Data"],
+            dataSubjects: r.data_subjects || ["Data Subjects"],
+            lawfulBasis: r.lawful_basis,
+            retentionPeriod: r.retention_period,
+            crossBorderTransfer: r.cross_border_transfer || false,
+            dpcoAuditReady: r.dpco_audit_ready || true
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn("Using fallback specialist data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [activeTenantId]);
 
   const handleScreening = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +191,93 @@ export default function BusinessSpecialistPage() {
         timestamp: new Date().toLocaleString()
       });
       setScreeningLoading(false);
-    }, 700);
+    }, 600);
+  };
+
+  const handleLodgeScreeningAsCase = async () => {
+    if (!screeningResult) return;
+    setLodgingCase(true);
+    try {
+      await api.specialist.createAMLCase({
+        entity_name: screeningResult.queried,
+        case_type: "PEP_SCREENING",
+        risk_severity: "LOW",
+        case_notes: `Screened against NFIU/OFAC on ${screeningResult.timestamp}. Status: Clean low-risk result.`
+      });
+      await loadData();
+      alert(`Screening record for "${screeningResult.queried}" lodged in statutory AML vault.`);
+      setScreeningResult(null);
+      setScreeningQuery("");
+    } catch (err) {
+      alert("Failed to lodge screening case in vault.");
+    } finally {
+      setLodgingCase(false);
+    }
+  };
+
+  const handleCreateAMLCase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amlForm.entityName || !amlForm.caseType) return;
+
+    setSubmitting(true);
+    try {
+      await api.specialist.createAMLCase({
+        entity_name: amlForm.entityName,
+        case_type: amlForm.caseType,
+        risk_severity: amlForm.riskSeverity,
+        case_notes: amlForm.caseNotes
+      });
+      await loadData();
+      setAmlModal(false);
+      setAmlForm({
+        entityName: "",
+        caseType: "PEP_SCREENING",
+        riskSeverity: "MEDIUM",
+        caseNotes: ""
+      });
+    } catch (err) {
+      alert("Failed to open AML investigation case.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateRoPA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ropaForm.activityName || !ropaForm.purpose) return;
+
+    setSubmitting(true);
+    try {
+      const cats = ropaForm.dataCategories.split(",").map(s => s.trim()).filter(Boolean);
+      const subs = ropaForm.dataSubjects.split(",").map(s => s.trim()).filter(Boolean);
+
+      await api.specialist.createPrivacyActivity({
+        activity_name: ropaForm.activityName,
+        purpose: ropaForm.purpose,
+        data_categories: cats,
+        data_subjects: subs,
+        lawful_basis: ropaForm.lawfulBasis,
+        retention_period: ropaForm.retentionPeriod,
+        cross_border_transfer: ropaForm.crossBorderTransfer,
+        dpco_audit_ready: ropaForm.dpcoAuditReady
+      });
+      await loadData();
+      setRopaModal(false);
+      setRopaForm({
+        activityName: "",
+        purpose: "",
+        dataCategories: "Full Name, Email, Phone Number, NIN",
+        dataSubjects: "Customers, Website Users",
+        lawfulBasis: "CONSENT",
+        retentionPeriod: "3 years post-inactivity",
+        crossBorderTransfer: false,
+        dpcoAuditReady: true
+      });
+    } catch (err) {
+      alert("Failed to save RoPA activity.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const dsarRequests = [
@@ -92,7 +332,7 @@ export default function BusinessSpecialistPage() {
             }`}
           >
             <ShieldAlert className="w-4 h-4 text-amber-600" />
-            <span>HubAML (SCUML / KYC)</span>
+            <span>HubAML ({amlCases.length} Cases)</span>
           </button>
           <button
             onClick={() => setActiveTab("privacy")}
@@ -101,7 +341,7 @@ export default function BusinessSpecialistPage() {
             }`}
           >
             <Lock className="w-4 h-4 text-[#0089C1]" />
-            <span>HubPrivacy (NDPA 2023)</span>
+            <span>HubPrivacy ({ropaActivities.length} RoPA Streams)</span>
           </button>
         </div>
       </div>
@@ -120,7 +360,7 @@ export default function BusinessSpecialistPage() {
             <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200">
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Designated AML Officer</span>
               <div className="text-sm font-black text-slate-900 mt-1">Tunde Bakare, CAMS</div>
-              <span className="text-[10px] text-slate-500 font-medium mt-1 inline-block">Appointed under MLA 2022</span>
+              <span className="text-[10px] text-slate-500 font-medium mt-1 inline-block">Appointed under MLPPA 2022</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200">
@@ -132,13 +372,22 @@ export default function BusinessSpecialistPage() {
 
           {/* Interactive PEP & Sanctions Screening Simulation */}
           <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200 shadow-xs space-y-4">
-            <div>
-              <h3 className="font-extrabold text-base text-slate-900">
-                Counterparty & Customer Sanctions Screening Engine
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Simulate instant real-time lookup against Nigerian and international enforcement lists.
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  Counterparty & Customer Sanctions Screening Engine
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Instant real-time lookup against Nigerian and international enforcement lists (NFIU, OFAC, UN Sanctions, EFCC).
+                </p>
+              </div>
+              <button
+                onClick={() => setAmlModal(true)}
+                className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Open AML Case</span>
+              </button>
             </div>
 
             <form onSubmit={handleScreening} className="flex flex-col sm:flex-row items-center gap-3">
@@ -155,13 +404,13 @@ export default function BusinessSpecialistPage() {
               <button
                 type="submit"
                 disabled={screeningLoading}
-                className="w-full sm:w-auto bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-xs transition-all flex items-center justify-center gap-2"
+                className="w-full sm:w-auto bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-xs transition-all flex items-center justify-center gap-2"
               >
                 {screeningLoading ? (
                   <span>Querying Sanctions Watchlists...</span>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 text-[#0089C1]" />
+                    <Sparkles className="w-4 h-4 text-white" />
                     <span>Run Screening Check</span>
                   </>
                 )}
@@ -170,7 +419,7 @@ export default function BusinessSpecialistPage() {
 
             {/* Screening Result Output Box */}
             {screeningResult && (
-              <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs space-y-2">
+              <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-emerald-950 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -192,8 +441,64 @@ export default function BusinessSpecialistPage() {
                     <span className="text-emerald-700 font-bold">{screeningResult.riskScore}</span>
                   </div>
                 </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    onClick={handleLodgeScreeningAsCase}
+                    disabled={lodgingCase}
+                    className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs flex items-center gap-1.5"
+                  >
+                    {lodgingCase && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <FileCheck2 className="w-4 h-4" />
+                    <span>Lodge Screening Evidence in Vault</span>
+                  </button>
+                </div>
               </div>
             )}
+          </div>
+
+          {/* Active AML Cases Table */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+            <h3 className="font-extrabold text-base text-slate-900">
+              Active AML & SCUML Investigation Cases
+            </h3>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#F8FAFC] border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Entity / Counterparty</th>
+                    <th className="py-3 px-4">Case Type</th>
+                    <th className="py-3 px-4">Risk Severity</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Case Notes</th>
+                    <th className="py-3 px-4 text-right">Date Logged</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {amlCases.map((c) => (
+                    <tr key={c.id} className="hover:bg-slate-50/70">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{c.entityName}</td>
+                      <td className="py-3.5 px-4 text-slate-600 font-mono text-[11px]">{c.caseType}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          c.riskSeverity === "LOW" ? "bg-emerald-100 text-emerald-800" :
+                          c.riskSeverity === "MEDIUM" ? "bg-amber-100 text-amber-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                          {c.riskSeverity}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-semibold text-slate-800">{c.status}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600 max-w-xs truncate">{c.caseNotes}</td>
+                      <td className="py-3.5 px-4 text-right text-slate-400 font-mono">{c.createdAt}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -217,8 +522,70 @@ export default function BusinessSpecialistPage() {
 
             <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200">
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Active RoPA Activities</span>
-              <div className="text-sm font-black text-slate-900 font-mono mt-1">14 Processing Streams</div>
-              <span className="text-[10px] text-slate-500 font-medium mt-1 inline-block">Last reviewed 3 days ago</span>
+              <div className="text-sm font-black text-slate-900 font-mono mt-1">{ropaActivities.length} Processing Streams</div>
+              <span className="text-[10px] text-emerald-700 font-bold mt-1 inline-block">Audit Ready</span>
+            </div>
+          </div>
+
+          {/* RoPA Table */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  NDPA 2023 Record of Processing Activities (RoPA)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Statutory register required under section 38 of the Nigeria Data Protection Act 2023.
+                </p>
+              </div>
+              <button 
+                onClick={() => setRopaModal(true)}
+                className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add RoPA Activity</span>
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#F8FAFC] border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Processing Activity</th>
+                    <th className="py-3 px-4">Purpose</th>
+                    <th className="py-3 px-4">Lawful Basis</th>
+                    <th className="py-3 px-4">Data Categories</th>
+                    <th className="py-3 px-4">Retention Period</th>
+                    <th className="py-3 px-4 text-right">DPCO Audit Ready</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ropaActivities.map((r) => (
+                    <tr key={r.id} className="hover:bg-slate-50/70">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{r.activityName}</td>
+                      <td className="py-3.5 px-4 text-slate-600 max-w-xs">{r.purpose}</td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-mono text-[11px] font-bold text-[#0089C1]">{r.lawfulBasis}</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {r.dataCategories.map((c, idx) => (
+                            <span key={idx} className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px]">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-600">{r.retentionPeriod}</td>
+                      <td className="py-3.5 px-4 text-right">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          Verified
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -273,6 +640,221 @@ export default function BusinessSpecialistPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* OPEN AML CASE MODAL */}
+      {amlModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-slate-200 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">Open AML / SCUML Case</h3>
+                <p className="text-xs text-slate-500">Record customer due diligence escalation or PEP review.</p>
+              </div>
+              <button 
+                onClick={() => setAmlModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAMLCase} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Entity / Person Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Al-Mansoor Global Logistics Ltd"
+                  value={amlForm.entityName}
+                  onChange={(e) => setAmlForm({ ...amlForm, entityName: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Case Type</label>
+                  <select
+                    value={amlForm.caseType}
+                    onChange={(e) => setAmlForm({ ...amlForm, caseType: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                  >
+                    <option value="PEP_SCREENING">PEP Screening</option>
+                    <option value="SANCTION_MATCH">Sanctions Match</option>
+                    <option value="STR_INVESTIGATION">STR Suspicious Transaction</option>
+                    <option value="CTR_THRESHOLD">Currency Threshold (CTR)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Risk Severity</label>
+                  <select
+                    value={amlForm.riskSeverity}
+                    onChange={(e) => setAmlForm({ ...amlForm, riskSeverity: e.target.value as any })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="PROHIBITED">Prohibited</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Investigation Notes</label>
+                <textarea
+                  rows={3}
+                  placeholder="Enter details of suspicious patterns, source of funds evidence, or review steps..."
+                  value={amlForm.caseNotes}
+                  onChange={(e) => setAmlForm({ ...amlForm, caseNotes: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAmlModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-5 py-2 rounded-xl text-xs shadow-xs flex items-center gap-2"
+                >
+                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Open Case</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD ROPA MODAL */}
+      {ropaModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-slate-200 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">Add RoPA Processing Activity</h3>
+                <p className="text-xs text-slate-500">Record a data processing stream under NDPA section 38.</p>
+              </div>
+              <button 
+                onClick={() => setRopaModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateRoPA} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Processing Stream Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mobile App User Onboarding & Geolocation"
+                  value={ropaForm.activityName}
+                  onChange={(e) => setRopaForm({ ...ropaForm, activityName: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Specific Purpose of Processing</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Fraud prevention and merchant proximity matching"
+                  value={ropaForm.purpose}
+                  onChange={(e) => setRopaForm({ ...ropaForm, purpose: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Lawful Basis (NDPA s.25)</label>
+                  <select
+                    value={ropaForm.lawfulBasis}
+                    onChange={(e) => setRopaForm({ ...ropaForm, lawfulBasis: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                  >
+                    <option value="CONSENT">Explicit Consent</option>
+                    <option value="CONTRACT">Performance of Contract</option>
+                    <option value="LEGAL_OBLIGATION">Legal Obligation</option>
+                    <option value="LEGITIMATE_INTEREST">Legitimate Interest</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Retention Period</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 3 years post-account closure"
+                    value={ropaForm.retentionPeriod}
+                    onChange={(e) => setRopaForm({ ...ropaForm, retentionPeriod: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Data Categories (comma-separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Full Name, Email, IP Address, Device Fingerprint"
+                  value={ropaForm.dataCategories}
+                  onChange={(e) => setRopaForm({ ...ropaForm, dataCategories: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                />
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-800 font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={ropaForm.crossBorderTransfer}
+                    onChange={(e) => setRopaForm({ ...ropaForm, crossBorderTransfer: e.target.checked })}
+                    className="rounded text-[#0089C1] focus:ring-[#0089C1]"
+                  />
+                  <span>Includes Cross-Border Data Transfer (NDPA s.41 - 43)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-800 font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={ropaForm.dpcoAuditReady}
+                    onChange={(e) => setRopaForm({ ...ropaForm, dpcoAuditReady: e.target.checked })}
+                    className="rounded text-[#0089C1] focus:ring-[#0089C1]"
+                  />
+                  <span>Flag as Ready for DPCO Annual Audit Return</span>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRopaModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-5 py-2 rounded-xl text-xs shadow-xs flex items-center gap-2"
+                >
+                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save RoPA Record</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

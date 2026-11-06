@@ -200,6 +200,14 @@ func main() {
 		}
 	})))
 
+	mux.HandleFunc("/api/v1/engagements", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.ListTenantEngagements(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
 	mux.HandleFunc("/api/v1/engagements/", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/revoke") && r.Method == http.MethodPost {
 			handlers.RevokeEngagement(w, r)

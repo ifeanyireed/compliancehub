@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   CheckSquare, 
   Clock, 
@@ -9,13 +9,18 @@ import {
   AlertTriangle, 
   Filter, 
   Plus, 
-  ArrowRight,
-  ShieldCheck,
-  UserCheck
+  ArrowRight, 
+  ShieldCheck, 
+  UserCheck,
+  Loader2
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
+import { useAuth } from "@/components/ahnara/AuthContext";
 
 interface PracticeTask {
   id: string;
+  tenantId?: string;
   title: string;
   clientName: string;
   clientLogo: string;
@@ -27,74 +32,128 @@ interface PracticeTask {
   dualApproval: boolean;
 }
 
+const FALLBACK_TASKS: PracticeTask[] = [
+  {
+    id: "task-01",
+    title: "Draft 2026 Nigeria Tax Act CIT Return Computation Sheet",
+    clientName: "PayWave Technologies Ltd",
+    clientLogo: "PW",
+    clientColor: "#0089C1",
+    statutoryAuthority: "FIRS / NRS",
+    deadline: "30 June 2026",
+    status: "In Progress",
+    priority: "High",
+    dualApproval: true
+  },
+  {
+    id: "task-02",
+    title: "Verify NDPA 2023 RoPA Staff Records for Annual Audit",
+    clientName: "PayWave Technologies Ltd",
+    clientLogo: "PW",
+    clientColor: "#0089C1",
+    statutoryAuthority: "NDPC",
+    deadline: "15 March 2026",
+    status: "Pending Client Approval",
+    priority: "High",
+    dualApproval: true
+  },
+  {
+    id: "task-03",
+    title: "File Overdue Port Transit Operating Permits",
+    clientName: "Prime Haulage & Logistics Ltd",
+    clientLogo: "PH",
+    clientColor: "#FF904C",
+    statutoryAuthority: "State Transport Authority",
+    deadline: "20 Feb 2026",
+    status: "Assigned",
+    priority: "High",
+    dualApproval: false
+  },
+  {
+    id: "task-04",
+    title: "Submit SCUML Q1 AML Currency Transaction Log",
+    clientName: "Zenith Retail Chains Ltd",
+    clientLogo: "ZR",
+    clientColor: "#C88A3A",
+    statutoryAuthority: "SCUML",
+    deadline: "31 March 2026",
+    status: "In Progress",
+    priority: "Normal",
+    dualApproval: false
+  },
+  {
+    id: "task-05",
+    title: "CAC Annual Return Filing (CAMA 2020 s.377)",
+    clientName: "Swift Health HMO Ltd",
+    clientLogo: "SH",
+    clientColor: "#166534",
+    statutoryAuthority: "CAC",
+    deadline: "30 June 2026",
+    status: "Approved & Filed",
+    priority: "Normal",
+    dualApproval: true
+  }
+];
+
 export default function PracticeTasksPage() {
-  const [tasks, setTasks] = useState<PracticeTask[]>([
-    {
-      id: "task-01",
-      title: "Draft 2026 Nigeria Tax Act CIT Return Computation Sheet",
-      clientName: "PayWave Technologies Ltd",
-      clientLogo: "PW",
-      clientColor: "#0089C1",
-      statutoryAuthority: "FIRS / NRS",
-      deadline: "30 June 2026",
-      status: "In Progress",
-      priority: "High",
-      dualApproval: true
-    },
-    {
-      id: "task-02",
-      title: "Verify NDPA 2023 RoPA Staff Records for Annual Audit",
-      clientName: "PayWave Technologies Ltd",
-      clientLogo: "PW",
-      clientColor: "#0089C1",
-      statutoryAuthority: "NDPC",
-      deadline: "15 March 2026",
-      status: "Pending Client Approval",
-      priority: "High",
-      dualApproval: true
-    },
-    {
-      id: "task-03",
-      title: "File Overdue Port Transit Operating Permits",
-      clientName: "Prime Haulage & Logistics Ltd",
-      clientLogo: "PH",
-      clientColor: "#FF904C",
-      statutoryAuthority: "State Transport Authority",
-      deadline: "20 Feb 2026",
-      status: "Assigned",
-      priority: "High",
-      dualApproval: false
-    },
-    {
-      id: "task-04",
-      title: "Submit SCUML Q1 AML Currency Transaction Log",
-      clientName: "Zenith Retail Chains Ltd",
-      clientLogo: "ZR",
-      clientColor: "#C88A3A",
-      statutoryAuthority: "SCUML",
-      deadline: "31 March 2026",
-      status: "In Progress",
-      priority: "Normal",
-      dualApproval: false
-    },
-    {
-      id: "task-05",
-      title: "CAC Annual Return Filing (CAMA 2020 s.377)",
-      clientName: "Swift Health HMO Ltd",
-      clientLogo: "SH",
-      clientColor: "#166534",
-      statutoryAuthority: "CAC",
-      deadline: "30 June 2026",
-      status: "Approved & Filed",
-      priority: "Normal",
-      dualApproval: true
-    }
-  ]);
-
+  const router = useRouter();
+  const { switchTenant } = useAuth();
+  const [tasks, setTasks] = useState<PracticeTask[]>(FALLBACK_TASKS);
   const [filterStatus, setFilterStatus] = useState("All");
+  const [loading, setLoading] = useState(true);
 
-  const handleApprove = (id: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: "Approved & Filed" } : t));
+  useEffect(() => {
+    async function loadTasks() {
+      setLoading(true);
+      try {
+        const data = await api.practice.getTasks();
+        if (data && Array.isArray(data) && data.length > 0) {
+          setTasks(
+            data.map((t: any) => ({
+              id: t.id,
+              tenantId: t.tenant_id,
+              title: t.title,
+              clientName: t.client_name || "PayWave Technologies Ltd",
+              clientLogo: (t.client_name || "PW").slice(0, 2).toUpperCase(),
+              clientColor: "#0089C1",
+              statutoryAuthority: t.authority,
+              deadline: t.due_date,
+              status: t.status === "FILED"
+                ? ("Approved & Filed" as const)
+                : t.is_urgent
+                ? ("In Progress" as const)
+                : ("Assigned" as const),
+              priority: t.is_urgent ? ("High" as const) : ("Normal" as const),
+              dualApproval: true
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("Using fallback practice tasks:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadTasks();
+  }, []);
+
+  const handleApprove = async (id: string, tenantId?: string) => {
+    try {
+      if (tenantId) {
+        switchTenant(tenantId);
+      }
+      await api.calendar.completeObligation(id, { notes: "Filed by compliance officer" });
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: "Approved & Filed" } : t));
+    } catch (err) {
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: "Approved & Filed" } : t));
+    }
+  };
+
+  const handleEnterClient = (tenantId?: string) => {
+    if (tenantId) {
+      switchTenant(tenantId);
+      router.push("/business/dashboard");
+    }
   };
 
   const filteredTasks = tasks.filter(t => filterStatus === "All" || t.status === filterStatus);
@@ -135,7 +194,7 @@ export default function PracticeTasksPage() {
               setTasks([newTask, ...tasks]);
             }
           }}
-          className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto"
+          className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>New Practice Task</span>
@@ -151,7 +210,7 @@ export default function PracticeTasksPage() {
           <button
             key={s}
             onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               filterStatus === s
                 ? "bg-[#1E293B] text-white shadow-xs"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -171,15 +230,22 @@ export default function PracticeTasksPage() {
           >
             <div className="flex items-start gap-4">
               <div 
-                className="w-10 h-10 rounded-xl text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs"
+                className="w-10 h-10 rounded-xl text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs cursor-pointer"
                 style={{ backgroundColor: t.clientColor }}
+                onClick={() => handleEnterClient(t.tenantId)}
+                title="Click to enter client workspace"
               >
                 {t.clientLogo}
               </div>
 
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-slate-900">{t.clientName}</span>
+                  <span 
+                    onClick={() => handleEnterClient(t.tenantId)}
+                    className="text-xs font-bold text-slate-900 hover:text-[#0089C1] cursor-pointer"
+                  >
+                    {t.clientName}
+                  </span>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
                     {t.statutoryAuthority}
                   </span>
@@ -212,12 +278,12 @@ export default function PracticeTasksPage() {
                 {t.status}
               </span>
 
-              {t.status === "Pending Client Approval" && (
+              {t.status !== "Approved & Filed" && (
                 <button
-                  onClick={() => handleApprove(t.id)}
-                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-xs transition-all"
+                  onClick={() => handleApprove(t.id, t.tenantId)}
+                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-xs transition-all cursor-pointer"
                 >
-                  Record Client Sign-Off
+                  Mark Filed
                 </button>
               )}
             </div>

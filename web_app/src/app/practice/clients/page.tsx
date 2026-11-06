@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   Building2, 
   Search, 
@@ -12,15 +13,61 @@ import {
   CheckCircle2, 
   Clock, 
   FileCheck2,
-  Sparkles
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
+import { api } from "@/lib/api";
+import { useAuth } from "@/components/ahnara/AuthContext";
 
 export default function PracticeClientsPage() {
+  const router = useRouter();
+  const { switchTenant } = useAuth();
   const [clients, setClients] = useState(MOCK_CLIENT_WORKSPACES);
   const [search, setSearch] = useState("");
   const [selectedRisk, setSelectedRisk] = useState("All");
-  const [inviteModal, setInviteModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadWorkspaces() {
+      setLoading(true);
+      try {
+        const data = await api.practice.getClients();
+        if (data && Array.isArray(data) && data.length > 0) {
+          setClients(
+            data.map((c: any) => ({
+              id: c.tenant_id,
+              name: c.company_name,
+              rcNumber: c.rc_number || "RC-Pending",
+              industry: c.industry || "General Industry",
+              state: "Lagos",
+              employees: 24,
+              readinessScore: c.compliance_score || 80,
+              riskLevel: c.compliance_score < 70 ? ("High" as const) : c.compliance_score < 85 ? ("Medium" as const) : ("Low" as const),
+              activeModules: ["HubCalendar", "HubDocs", "HubAML", "HubReport"],
+              assignedExpert: "Tunde Bakare, CAMS",
+              retainerMonthly: c.monthly_fee_ngn || 250000,
+              openTasksCount: c.urgent_count || 1,
+              pendingApprovalsCount: 1,
+              upcomingDeadlinesCount: c.urgent_count || 2,
+              colorScheme: "#0089C1",
+              logoText: (c.company_name || "CL").slice(0, 2).toUpperCase()
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("Using fallback client workspaces:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadWorkspaces();
+  }, []);
+
+  const handleEnterWorkspace = (tenantId: string) => {
+    switchTenant(tenantId);
+    router.push("/business/dashboard");
+  };
 
   const filtered = clients.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -54,7 +101,7 @@ export default function PracticeClientsPage() {
               alert(`Delegation invitation dispatched to ${clientName}. They will configure their workspace and grant your authorized modules.`);
             }
           }}
-          className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto"
+          className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Invite New Client Business</span>
@@ -69,7 +116,7 @@ export default function PracticeClientsPage() {
             <button
               key={r}
               onClick={() => setSelectedRisk(r)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 selectedRisk === r
                   ? "bg-[#1E293B] text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -167,12 +214,13 @@ export default function PracticeClientsPage() {
                 </span>
               </div>
 
-              <Link href={`/practice/clients/${c.id}`}>
-                <button className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all">
-                  <span>Enter Workspace</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </Link>
+              <button
+                onClick={() => handleEnterWorkspace(c.id)}
+                className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+              >
+                <span>Enter Workspace</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         ))}

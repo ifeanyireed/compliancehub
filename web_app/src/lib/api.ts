@@ -204,6 +204,7 @@ export const api = {
       const query = specialisation && specialisation !== "All" ? `?specialisation=${encodeURIComponent(specialisation)}` : "";
       return apiFetch(`/v1/professionals${query}`, { method: "GET" });
     },
+    getEngagements: () => apiFetch("/v1/engagements", { method: "GET" }),
     revokeEngagement: (engagementId: string) =>
       apiFetch(`/v1/engagements/${engagementId}/revoke`, { method: "POST", body: JSON.stringify({}) }),
   },
