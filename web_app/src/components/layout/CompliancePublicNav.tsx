@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  ShieldCheck, 
   Menu, 
   X, 
   Sparkles
@@ -48,12 +47,6 @@ export function CompliancePublicNav() {
               </span>
             </div>
           </Link>
-
-          {/* Quick Regulatory Badge */}
-          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-emerald-800 text-xs font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>2026 Nigeria Tax Act & NDPA Ready</span>
-          </div>
         </div>
 
         {/* Desktop Mid Navigation Links */}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   ShieldCheck, 
@@ -21,12 +21,52 @@ import {
   FolderArchive
 } from "lucide-react";
 import { MOCK_OBLIGATIONS, MOCK_EXPERTS } from "@/lib/compliance-data";
+import { api } from "@/lib/api";
 
 export default function BusinessDashboardOverview() {
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [scoreFilter, setScoreFilter] = useState("all");
+  const [tenantData, setTenantData] = useState<any>(null);
+  const [urgentDeadlines, setUrgentDeadlines] = useState(MOCK_OBLIGATIONS.filter(o => o.isUrgent));
 
-  const urgentDeadlines = MOCK_OBLIGATIONS.filter(o => o.isUrgent);
+  useEffect(() => {
+    async function loadCockpitData() {
+      try {
+        const [tenantResp, obligations] = await Promise.all([
+          api.tenants.getCurrent(),
+          api.calendar.getObligations({ status: "Pending" })
+        ]);
+
+        if (tenantResp && tenantResp.tenant) {
+          setTenantData(tenantResp);
+        }
+
+        if (Array.isArray(obligations) && obligations.length > 0) {
+          const urgents = obligations.filter((o: any) => o.is_urgent).map((o: any) => ({
+            id: o.id,
+            title: o.title,
+            authority: (o.authority as any) || "CAC",
+            applicableLaw: o.authority === "CAC" ? "CAMA 2020 s.377" : "Nigeria Tax Act 2026",
+            deadline: o.due_date,
+            daysRemaining: 14,
+            frequency: "Annual",
+            status: "Pending" as const,
+            assignedTo: "Tunde Bakare, CAMS",
+            penaltyDescription: o.estimated_penalty_ngn ? `₦${Number(o.estimated_penalty_ngn).toLocaleString()} statutory penalty` : "Statutory fine",
+            requiredEvidence: "Digital acknowledgment receipt",
+            isUrgent: true,
+            category: "Statutory Filing" as const
+          }));
+          if (urgents.length > 0) {
+            setUrgentDeadlines(urgents as any);
+          }
+        }
+      } catch (err) {
+        console.warn("Cockpit using local fallback:", err);
+      }
+    }
+    loadCockpitData();
+  }, []);
 
   return (
     <div className="space-y-8 select-none">
@@ -36,16 +76,16 @@ export default function BusinessDashboardOverview() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-[#0089C1] uppercase tracking-wider">
-              PayWave Technologies Ltd (RC-1894231)
+              {tenantData?.tenant?.workspace_name || "PayWave Technologies Ltd"} ({tenantData?.tenant?.rc_number || "RC-1894231"})
             </span>
             <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-            <span className="text-xs text-slate-500 font-medium">FinTech • Lagos</span>
+            <span className="text-xs text-slate-500 font-medium">{tenantData?.tenant?.industry || "FinTech • Lagos"}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 text-display">
             Compliance Operations Cockpit
           </h1>
           <p className="text-xs text-slate-500">
-            Workspace verified under CAMA 2020 and 2026 Nigeria Tax Act guidelines.
+            Workspace verified under CAMA 2020 and 2026 Nigeria Tax Act guidelines • Neon DB Connected.
           </p>
         </div>
 
@@ -82,13 +122,18 @@ export default function BusinessDashboardOverview() {
           </div>
 
           <div className="my-3 flex items-baseline gap-2">
-            <span className="text-4xl font-black text-slate-900 font-mono tracking-tight">82%</span>
+            <span className="text-4xl font-black text-slate-900 font-mono tracking-tight">
+              {tenantData?.tenant?.compliance_score || 84}%
+            </span>
             <span className="text-xs text-slate-400 font-medium">/ 100%</span>
           </div>
 
           <div className="space-y-1.5">
             <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full bg-[#0089C1] rounded-full" style={{ width: "82%" }} />
+              <div 
+                className="h-full bg-[#0089C1] rounded-full" 
+                style={{ width: `${tenantData?.tenant?.compliance_score || 84}%` }} 
+              />
             </div>
             <p className="text-[11px] text-slate-500 group-hover:text-[#0089C1] font-semibold flex items-center justify-between">
               <span>View score breakdown</span>

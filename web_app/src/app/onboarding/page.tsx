@@ -17,10 +17,11 @@ import {
   Calendar
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
+import { api } from "@/lib/api";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { switchRole } = useAuth();
+  const { switchRole, switchTenant } = useAuth();
   const [step, setStep] = useState(1);
 
   // Step 1: Business profile
@@ -42,12 +43,32 @@ export default function OnboardingPage() {
 
   const [provisioning, setProvisioning] = useState(false);
 
-  const handleFinishOnboarding = () => {
+  const handleFinishOnboarding = async () => {
     setProvisioning(true);
-    setTimeout(() => {
+    try {
+      const result = await api.onboarding.classify({
+        business_name: businessName,
+        rc_number: rcNumber,
+        industry,
+        state,
+        employee_count: employeeCount,
+        collects_personal_data: collectsPersonalData,
+        processes_payments: processesPayments,
+        is_dnfbp: isDnfbp,
+        engages_vendors: engagesVendors,
+        operates_branches: operatesBranches,
+        service_preference: servicePreference,
+      });
+
+      if (result && result.tenant_id) {
+        switchTenant(result.tenant_id);
+      }
+    } catch (err) {
+      console.warn("Onboarding API error, continuing:", err);
+    } finally {
       switchRole("BUSINESS");
       router.push("/business/dashboard");
-    }, 1200);
+    }
   };
 
   return (

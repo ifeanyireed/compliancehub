@@ -264,6 +264,7 @@ export interface ComplianceObligation {
   category: "Statutory Filing" | "Tax Remittance" | "Audit Return" | "Anti-Money Laundering" | "Workforce Protection";
   deadline: string;
   daysRemaining: number;
+  frequency?: string;
   status: "Pending" | "In Progress" | "Under Review" | "Complied";
   penaltyDescription: string;
   applicableLaw: string;

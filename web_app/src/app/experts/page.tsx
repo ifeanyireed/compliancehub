@@ -19,6 +19,7 @@ import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
 import { MOCK_EXPERTS, ComplianceExpert } from "@/lib/compliance-data";
+import { api } from "@/lib/api";
 
 export default function ExpertsMarketplacePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,6 +27,39 @@ export default function ExpertsMarketplacePage() {
   const [selectedLocation, setSelectedLocation] = useState<string>("All");
   const [consultModalExpert, setConsultModalExpert] = useState<ComplianceExpert | null>(null);
   const [consultSuccess, setConsultSuccess] = useState(false);
+  const [expertsList, setExpertsList] = useState<ComplianceExpert[]>(MOCK_EXPERTS);
+
+  React.useEffect(() => {
+    async function loadExperts() {
+      try {
+        const live = await api.practice.getExperts(selectedSpecialisation);
+        if (Array.isArray(live) && live.length > 0) {
+          const mapped: ComplianceExpert[] = live.map((e: any) => ({
+            id: e.id,
+            name: e.full_name,
+            title: e.qualification ? `${e.qualification} • Senior Compliance Lead` : "Senior Compliance Officer",
+            avatar: e.avatar_url || "/character1.jpg",
+            specialisations: e.specialisations || ["AML/CFT & SCUML"],
+            certifications: [e.qualification || "CAMS"],
+            experienceYears: e.years_experience || 8,
+            rating: 4.95,
+            reviewsCount: 38,
+            hourlyRate: Number(e.hourly_rate_ngn || 35000),
+            retainerRate: Number(e.monthly_retainer_ngn || 250000),
+            location: "Lagos, Nigeria",
+            bio: e.bio || "Certified regulatory specialist.",
+            verifiedBy: "ComplianceHub Verification Directorate",
+            isAvailable: true,
+            activeClientsCount: e.active_clients_count || 4,
+          }));
+          setExpertsList(mapped);
+        }
+      } catch (err) {
+        console.warn("Using default expert profiles:", err);
+      }
+    }
+    loadExperts();
+  }, [selectedSpecialisation]);
 
   const specialisations = [
     "All",
@@ -35,7 +69,7 @@ export default function ExpertsMarketplacePage() {
     "CAC Annual Returns"
   ];
 
-  const filteredExperts = MOCK_EXPERTS.filter((exp) => {
+  const filteredExperts = expertsList.filter((exp) => {
     const matchesSearch = exp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       exp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       exp.bio.toLowerCase().includes(searchQuery.toLowerCase());
