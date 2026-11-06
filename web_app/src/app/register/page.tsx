@@ -1,0 +1,178 @@
+"use client";
+
+import React, { useState, Suspense } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { 
+  Building2, 
+  Briefcase, 
+  Users2, 
+  ArrowRight, 
+  Lock, 
+  Mail, 
+  User, 
+  Sparkles,
+  ShieldCheck
+} from "lucide-react";
+import { useAuth } from "@/components/ahnara/AuthContext";
+
+function RegisterForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialRole = (searchParams.get("role") || "BUSINESS") as "BUSINESS" | "EXPERT" | "AGENCY";
+  
+  const { switchRole } = useAuth();
+  const [role, setRole] = useState<"BUSINESS" | "EXPERT" | "AGENCY">(initialRole);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    switchRole(role);
+    if (role === "BUSINESS") {
+      router.push("/onboarding");
+    } else {
+      router.push("/practice/dashboard");
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-[36px] max-w-lg w-full p-8 border border-slate-200/80 shadow-xl space-y-6">
+      <div>
+        <h1 className="text-xl font-black text-slate-900 text-display">Choose Account Type</h1>
+        <p className="text-xs text-slate-500 mt-1">
+          Select how you will participate in the ComplianceHub ecosystem.
+        </p>
+      </div>
+
+      {/* 3 Account Types */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <button
+          type="button"
+          onClick={() => setRole("BUSINESS")}
+          className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-2 ${
+            role === "BUSINESS"
+              ? "bg-[#0089C1] text-white border-[#0089C1] shadow-xs"
+              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+          }`}
+        >
+          <Building2 className="w-5 h-5" />
+          <span className="text-[11px] font-bold leading-tight">Business (HubBusiness)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setRole("EXPERT")}
+          className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-2 ${
+            role === "EXPERT"
+              ? "bg-[#245C44] text-white border-[#245C44] shadow-xs"
+              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+          }`}
+        >
+          <Briefcase className="w-5 h-5" />
+          <span className="text-[11px] font-bold leading-tight">Practitioner (HubAgents)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setRole("AGENCY")}
+          className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-2 ${
+            role === "AGENCY"
+              ? "bg-purple-700 text-white border-purple-700 shadow-xs"
+              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+          }`}
+        >
+          <Users2 className="w-5 h-5" />
+          <span className="text-[11px] font-bold leading-tight">Agency (HubAgency)</span>
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">Full Legal Name</label>
+          <div className="relative">
+            <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              required
+              placeholder="e.g. Adaeze Nwosu"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">Work Email</label>
+          <div className="relative">
+            <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="email"
+              required
+              placeholder="e.g. adaeze@company.ng"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">Password</label>
+          <div className="relative">
+            <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="password"
+              required
+              placeholder="Minimum 8 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-[#1E293B] hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2"
+        >
+          <span>Create Account & Continue</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </form>
+
+      <div className="pt-2 text-center border-t border-slate-100 text-xs text-slate-500">
+        Already have an account?{" "}
+        <Link href="/login" className="font-bold text-[#0089C1] hover:underline">
+          Sign In
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col items-center justify-center p-4">
+      <div className="text-center mb-6">
+        <Link href="/" className="inline-flex items-center gap-2.5 mb-2 group">
+          <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 p-1.5 shadow-xs flex items-center justify-center">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+          </div>
+          <span className="text-2xl font-black tracking-tight text-slate-900 text-display">
+            ComplianceHub<span className="text-[#0089C1]">.ng</span>
+          </span>
+        </Link>
+        <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+          Create Your Compliance Environment
+        </p>
+      </div>
+
+      <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading registration form...</div>}>
+        <RegisterForm />
+      </Suspense>
+    </div>
+  );
+}

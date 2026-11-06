@@ -1,0 +1,183 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { 
+  Building2, 
+  Search, 
+  Filter, 
+  Plus, 
+  ArrowRight, 
+  ShieldAlert, 
+  CheckCircle2, 
+  Clock, 
+  FileCheck2,
+  Sparkles
+} from "lucide-react";
+import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
+
+export default function PracticeClientsPage() {
+  const [clients, setClients] = useState(MOCK_CLIENT_WORKSPACES);
+  const [search, setSearch] = useState("");
+  const [selectedRisk, setSelectedRisk] = useState("All");
+  const [inviteModal, setInviteModal] = useState(false);
+
+  const filtered = clients.filter((c) => {
+    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.rcNumber.toLowerCase().includes(search.toLowerCase()) ||
+      c.industry.toLowerCase().includes(search.toLowerCase());
+    const matchesRisk = selectedRisk === "All" || c.riskLevel === selectedRisk;
+    return matchesSearch && matchesRisk;
+  });
+
+  return (
+    <div className="space-y-6 select-none">
+      
+      {/* Top Banner */}
+      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span className="text-xs font-black text-[#245C44] uppercase tracking-wider block mb-1">
+            HubAgents Cockpit
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 text-display">
+            Client Business Portfolio
+          </h1>
+          <p className="text-xs text-slate-500">
+            Secure multi-tenant boundaries. Select any client entity to operate within their authorised modules.
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            const clientName = prompt("Enter the name of the new client entity to invite:");
+            if (clientName) {
+              alert(`Delegation invitation dispatched to ${clientName}. They will configure their workspace and grant your authorized modules.`);
+            }
+          }}
+          className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Invite New Client Business</span>
+        </button>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-400 mr-1">Risk Filter:</span>
+          {["All", "Low", "Medium", "High"].map((r) => (
+            <button
+              key={r}
+              onClick={() => setSelectedRisk(r)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                selectedRisk === r
+                  ? "bg-[#1E293B] text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full sm:w-72">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search client name, RC number, or sector..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#245C44]/30"
+          />
+        </div>
+      </div>
+
+      {/* Client Portfolio Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filtered.map((c) => (
+          <div
+            key={c.id}
+            className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-[#245C44] transition-all flex flex-col justify-between space-y-6 group"
+          >
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-12 h-12 rounded-2xl text-white font-black text-sm flex items-center justify-center shadow-xs"
+                    style={{ backgroundColor: c.colorScheme }}
+                  >
+                    {c.logoText}
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base text-slate-900 group-hover:text-[#245C44] transition-colors leading-snug">
+                      {c.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-mono">{c.rcNumber} • {c.state}</p>
+                  </div>
+                </div>
+
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                  c.riskLevel === "Low"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : c.riskLevel === "Medium"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-red-100 text-red-800"
+                }`}>
+                  {c.riskLevel} Risk
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Readiness Score</span>
+                  <span className="font-mono font-bold text-slate-900">{c.readinessScore}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all"
+                    style={{ 
+                      width: `${c.readinessScore}%`,
+                      backgroundColor: c.readinessScore >= 80 ? "#166534" : c.readinessScore >= 70 ? "#C88A3A" : "#EF4444" 
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Authorised Modules */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                  Authorised Delegated Modules:
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {c.activeModules.map((m, i) => (
+                    <span key={i} className="text-[10px] font-mono font-bold bg-[#E8EFF4] text-slate-800 px-2 py-0.5 rounded">
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">Monthly Retainer</span>
+                <span className="text-sm font-black text-slate-900 font-mono">
+                  ₦{c.retainerMonthly.toLocaleString()}<span className="text-xs font-normal text-slate-500">/mo</span>
+                </span>
+              </div>
+
+              <Link href={`/practice/clients/${c.id}`}>
+                <button className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all">
+                  <span>Enter Workspace</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+
+    </div>
+  );
+}

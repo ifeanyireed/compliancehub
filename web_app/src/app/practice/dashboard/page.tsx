@@ -1,0 +1,200 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { 
+  Building2, 
+  CheckSquare, 
+  Clock, 
+  AlertTriangle, 
+  CreditCard, 
+  Users2, 
+  ArrowRight, 
+  ShieldCheck, 
+  ChevronRight, 
+  Sparkles,
+  TrendingUp,
+  FileCheck2
+} from "lucide-react";
+import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
+
+export default function PracticeDashboardPage() {
+  const [clients] = useState(MOCK_CLIENT_WORKSPACES);
+
+  return (
+    <div className="space-y-8 select-none">
+      
+      {/* Top Welcome Banner */}
+      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-[#245C44] uppercase tracking-wider">
+              HubAgents Practice Suite
+            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+            <span className="text-xs text-slate-500 font-medium">Tunde Bakare, CAMS • 14 Active Clients</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 text-display">
+            Practice Management Cockpit
+          </h1>
+          <p className="text-xs text-slate-500">
+            Multi-tenant delegated administration across your assigned Nigerian corporate portfolios.
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3">
+          <Link href="/practice/clients">
+            <button className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs flex items-center gap-2 transition-all">
+              <Building2 className="w-4 h-4" />
+              <span>Client Portfolio</span>
+            </button>
+          </Link>
+          <Link href="/practice/tasks">
+            <button className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs flex items-center gap-2 transition-all">
+              <CheckSquare className="w-4 h-4" />
+              <span>Pending Reviews (5)</span>
+            </button>
+          </Link>
+        </div>
+      </div>
+
+      {/* KPI Cards (Blueprint Part 3.4 Screen 1) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        
+        {/* Metric 1 */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Clients</span>
+          <div className="text-3xl font-black text-slate-900 font-mono my-2">14</div>
+          <span className="text-[10px] text-emerald-700 font-bold">+2 this month</span>
+        </div>
+
+        {/* Metric 2 */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Open Tasks</span>
+          <div className="text-3xl font-black text-slate-900 font-mono my-2">27</div>
+          <span className="text-[10px] text-slate-500 font-medium">Across all tenants</span>
+        </div>
+
+        {/* Metric 3 */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Deadlines (30d)</span>
+          <div className="text-3xl font-black text-red-600 font-mono my-2">9</div>
+          <span className="text-[10px] text-red-600 font-bold">4 statutory filings</span>
+        </div>
+
+        {/* Metric 4 */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Client Sign-offs</span>
+          <div className="text-3xl font-black text-amber-600 font-mono my-2">5</div>
+          <span className="text-[10px] text-amber-700 font-bold">Dual approval req.</span>
+        </div>
+
+        {/* Metric 5 */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">High Risk Alerts</span>
+          <div className="text-3xl font-black text-red-600 font-mono my-2">2</div>
+          <span className="text-[10px] text-slate-500 font-medium">Prime Haul & Nexa</span>
+        </div>
+
+        {/* Metric 6 */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Monthly Retainers</span>
+          <div className="text-xl font-black text-emerald-800 font-mono my-2">₦3.1M</div>
+          <span className="text-[10px] text-emerald-700 font-bold">Paystack Verified</span>
+        </div>
+
+      </div>
+
+      {/* Client Portfolio Health Overview */}
+      <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="font-extrabold text-base text-slate-900">
+              Assigned Client Business Health Matrix
+            </h3>
+            <p className="text-xs text-slate-500">
+              Select any client entity to securely enter their delegated workspace.
+            </p>
+          </div>
+          <Link href="/practice/clients" className="text-xs font-bold text-[#245C44] hover:underline flex items-center gap-1">
+            <span>View All 14 Clients</span>
+            <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {clients.map((c) => (
+            <div
+              key={c.id}
+              className="bg-[#F8FAFC] rounded-2xl p-5 border border-slate-200/80 hover:border-[#245C44] transition-all flex flex-col justify-between space-y-4 group"
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-10 h-10 rounded-xl text-white font-black text-xs flex items-center justify-center shadow-xs"
+                      style={{ backgroundColor: c.colorScheme }}
+                    >
+                      {c.logoText}
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-900 group-hover:text-[#245C44] transition-colors">
+                        {c.name}
+                      </h4>
+                      <span className="text-[10px] text-slate-400 font-mono">{c.rcNumber}</span>
+                    </div>
+                  </div>
+
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    c.riskLevel === "Low"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : c.riskLevel === "Medium"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-red-100 text-red-800"
+                  }`}>
+                    {c.riskLevel} Risk
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Readiness Score</span>
+                    <span className="font-mono font-bold text-slate-900">{c.readinessScore}%</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                    <div 
+                      className="h-full rounded-full"
+                      style={{ 
+                        width: `${c.readinessScore}%`,
+                        backgroundColor: c.readinessScore >= 80 ? "#166534" : c.readinessScore >= 70 ? "#C88A3A" : "#EF4444" 
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                  <span>Open Tasks: <strong className="text-slate-800">{c.openTasksCount}</strong></span>
+                  <span>Deadlines: <strong className="text-slate-800">{c.upcomingDeadlinesCount}</strong></span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200/60 flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-slate-700">
+                  ₦{c.retainerMonthly.toLocaleString()}/mo
+                </span>
+                <Link href={`/practice/clients/${c.id}`}>
+                  <button className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-xs transition-all">
+                    <span>Enter Workspace</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
