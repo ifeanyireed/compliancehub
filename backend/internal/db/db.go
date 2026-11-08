@@ -138,7 +138,7 @@ func SeedSupportAndBlog(ctx context.Context, pool *pgxpool.Pool) error {
 			'5 min read',
 			'PUBLISHED',
 			'/article_professional.jpg',
-			1420,
+			0,
 			'2026 Nigeria Tax Act: Corporate Guide to Withholding, CIT & TaxPro-MAX',
 			'Operational guide for Nigerian managing directors and compliance officers navigating withholding tax and TaxPro-MAX 2026 reforms.'
 		),
@@ -155,7 +155,7 @@ func SeedSupportAndBlog(ctx context.Context, pool *pgxpool.Pool) error {
 			'7 min read',
 			'PUBLISHED',
 			'/article_business.jpg',
-			980,
+			0,
 			'March 15 Statutory NDPC Filing Cutoff: Audit Preparation Checklist',
 			'Detailed checklist for data controllers submitting annual compliance returns to the Nigeria Data Protection Commission.'
 		),
@@ -172,7 +172,7 @@ func SeedSupportAndBlog(ctx context.Context, pool *pgxpool.Pool) error {
 			'6 min read',
 			'PUBLISHED',
 			'/article_agency.jpg',
-			1150,
+			0,
 			'SCUML AML/CFT Compliance Framework for Nigerian DNFBPs (2026)',
 			'Step-by-step guidance on EFCC SCUML registration, PEP screening, and CTR filing for Nigerian designated non-financial businesses.'
 		);`

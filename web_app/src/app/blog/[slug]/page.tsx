@@ -109,7 +109,7 @@ VAT returns remain due strictly on the **21st day** of every subsequent month. T
   read_time: "5 min read",
   status: "PUBLISHED",
   cover_image: "https://cdn.punchng.com/wp-content/uploads/2023/07/11175654/FIRS-headquarters.jpg",
-  view_count: 1420,
+  view_count: 0,
   published_at: "2026-02-01"
 };
 
@@ -120,7 +120,7 @@ export default function SingleBlogPostPage() {
   const [post, setPost] = useState<BlogPost>(FALLBACK_POST);
   const [comments, setComments] = useState<Comment[]>([]);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
-  const [views, setViews] = useState<number>(1420);
+  const [views, setViews] = useState<number>(0);
   const [renderedHtml, setRenderedHtml] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
@@ -139,7 +139,7 @@ export default function SingleBlogPostPage() {
         const data = await api.blog.getPost(slug);
         if (data && data.title) {
           setPost(data);
-          setViews(data.view_count || 0);
+          setViews(Number(data.view_count) || 0);
           if (Array.isArray(data.comments)) {
             setComments(data.comments);
           }
@@ -174,10 +174,14 @@ export default function SingleBlogPostPage() {
     if (typeof window !== "undefined" && !sessionStorage.getItem(sessionKey)) {
       sessionStorage.setItem(sessionKey, "1");
       api.blog.incrementView(slug).then((res) => {
-        if (res && res.view_count) {
+        if (res && typeof res.view_count === "number") {
           setViews(res.view_count);
+        } else {
+          setViews((prev) => prev + 1);
         }
-      }).catch(() => {});
+      }).catch(() => {
+        setViews((prev) => prev + 1);
+      });
     }
   }, [slug]);
 
@@ -249,7 +253,7 @@ export default function SingleBlogPostPage() {
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold ml-auto">
                 <Eye className="w-3.5 h-3.5 text-[#0089C1]" />
-                {views} verified reads
+                {views.toLocaleString()} verified {views === 1 ? "read" : "reads"}
               </span>
             </div>
 

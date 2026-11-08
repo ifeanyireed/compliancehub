@@ -66,7 +66,7 @@ const FALLBACK_POSTS: BlogPost[] = [
     read_time: "5 min read",
     status: "PUBLISHED",
     cover_image: "https://cdn.punchng.com/wp-content/uploads/2023/07/11175654/FIRS-headquarters.jpg",
-    view_count: 1420,
+    view_count: 0,
     published_at: "2026-02-01"
   },
   {
@@ -83,7 +83,7 @@ const FALLBACK_POSTS: BlogPost[] = [
     read_time: "7 min read",
     status: "PUBLISHED",
     cover_image: "https://cdn.punchng.com/wp-content/uploads/2023/06/22152817/NDPC.jpg",
-    view_count: 980,
+    view_count: 0,
     published_at: "2026-01-28"
   },
   {
@@ -100,7 +100,7 @@ const FALLBACK_POSTS: BlogPost[] = [
     read_time: "4 min read",
     status: "PUBLISHED",
     cover_image: "https://cdn.punchng.com/wp-content/uploads/2021/04/14221759/CAC-headquarters.jpg",
-    view_count: 1240,
+    view_count: 0,
     published_at: "2026-01-20"
   },
   {
@@ -117,7 +117,7 @@ const FALLBACK_POSTS: BlogPost[] = [
     read_time: "6 min read",
     status: "PUBLISHED",
     cover_image: "https://cdn.punchng.com/wp-content/uploads/2022/07/04172421/NFIU-logo.jpg",
-    view_count: 1150,
+    view_count: 0,
     published_at: "2026-01-14"
   }
 ];
@@ -342,7 +342,7 @@ export default function BlogListingPage() {
                           {featuredPost.view_count !== undefined && (
                             <span className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold ml-auto">
                               <Eye className="w-3 h-3" />
-                              {featuredPost.view_count} reads
+                              {Number(featuredPost.view_count || 0).toLocaleString()} {featuredPost.view_count === 1 ? "read" : "reads"}
                             </span>
                           )}
                         </div>
@@ -426,7 +426,7 @@ export default function BlogListingPage() {
                               {post.view_count !== undefined && (
                                 <span className="ml-auto flex items-center gap-1 text-slate-400">
                                   <Eye className="w-3 h-3" />
-                                  {post.view_count}
+                                  {Number(post.view_count || 0).toLocaleString()}
                                 </span>
                               )}
                             </div>

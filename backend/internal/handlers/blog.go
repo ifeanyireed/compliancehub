@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -254,25 +255,39 @@ func IncrementBlogPostView(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	parts := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
+	trimmed := strings.TrimSuffix(r.URL.Path, "/")
+	parts := strings.Split(trimmed, "/")
 	// e.g. /api/blog/{slug}/view -> target is slug
-	target := parts[len(parts)-2]
-	if target == "blog" || target == "api" {
+	var target string
+	if len(parts) >= 2 && parts[len(parts)-1] == "view" {
+		target = parts[len(parts)-2]
+	} else {
 		target = parts[len(parts)-1]
+	}
+	if unescaped, err := url.PathUnescape(target); err == nil {
+		target = unescaped
+	}
+	target = strings.TrimSpace(target)
+
+	if target == "" || target == "blog" || target == "api" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid blog post slug or ID"})
+		return
 	}
 
 	var newViewCount int64
 	query := `
 		UPDATE blog_posts 
 		SET view_count = COALESCE(view_count, 0) + 1 
-		WHERE slug = $1 OR id::text = $1 
+		WHERE slug = $1 OR LOWER(slug) = LOWER($1) OR id::text = $1 
 		RETURNING view_count
 	`
 	err := db.Pool.QueryRow(ctx, query, target).Scan(&newViewCount)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Post not found to increment views"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "Post not found to increment views: " + err.Error()})
 		return
 	}
 

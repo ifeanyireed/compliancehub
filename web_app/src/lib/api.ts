@@ -285,7 +285,7 @@ export const api = {
 
   // Regulatory Intelligence & Editorial Blog CMS
   blog: {
-    getPosts: (params?: { category?: string; status?: string; search?: string; tag?: string; page?: number; limit?: number }) => {
+    getPosts: async (params?: { category?: string; status?: string; search?: string; tag?: string; page?: number; limit?: number }) => {
       const q = new URLSearchParams();
       if (params?.category && params.category !== "ALL" && params.category !== "All") q.set("category", params.category);
       if (params?.status && params.status !== "ALL") q.set("status", params.status);
@@ -294,10 +294,39 @@ export const api = {
       if (params?.page) q.set("page", String(params.page));
       if (params?.limit) q.set("limit", String(params.limit));
       const queryStr = q.toString() ? `?${q.toString()}` : "";
+
+      try {
+        const localRes = await fetch(`/api/blog${queryStr}`);
+        if (localRes.ok) {
+          const data = await localRes.json();
+          if (Array.isArray(data) && data.length > 0) return data;
+        }
+      } catch (_) {}
+
       return apiFetch(`/blog${queryStr}`, { method: "GET" });
     },
-    getPost: (slugOrId: string) => apiFetch(`/blog/${encodeURIComponent(slugOrId)}`, { method: "GET" }),
-    incrementView: (slugOrId: string) => apiFetch(`/blog/${encodeURIComponent(slugOrId)}/view`, { method: "POST" }),
+    getPost: async (slugOrId: string) => {
+      try {
+        const localRes = await fetch(`/api/blog/${encodeURIComponent(slugOrId)}`);
+        if (localRes.ok) {
+          const data = await localRes.json();
+          if (data && (data.title || data.id)) return data;
+        }
+      } catch (_) {}
+
+      return apiFetch(`/blog/${encodeURIComponent(slugOrId)}`, { method: "GET" });
+    },
+    incrementView: async (slugOrId: string) => {
+      try {
+        const localRes = await fetch(`/api/blog/${encodeURIComponent(slugOrId)}/view`, { method: "POST" });
+        if (localRes.ok) {
+          const data = await localRes.json();
+          if (data && typeof data.view_count === "number") return data;
+        }
+      } catch (_) {}
+
+      return apiFetch(`/blog/${encodeURIComponent(slugOrId)}/view`, { method: "POST" });
+    },
     createPost: (post: any) => apiFetch("/blog", { method: "POST", body: JSON.stringify(post) }),
     updatePost: (id: number | string, post: any) => apiFetch(`/blog/${id}`, { method: "PUT", body: JSON.stringify(post) }),
     deletePost: (id: number | string) => apiFetch(`/blog/${id}`, { method: "DELETE" }),

@@ -371,7 +371,8 @@ func main() {
 	}))
 
 	mux.HandleFunc("/api/blog/", withCORS(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/view") {
+		trimmedPath := strings.TrimSuffix(r.URL.Path, "/")
+		if strings.HasSuffix(trimmedPath, "/view") {
 			if r.Method == http.MethodPost {
 				handlers.IncrementBlogPostView(w, r)
 				return
