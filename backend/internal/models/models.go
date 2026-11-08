@@ -330,21 +330,64 @@ type ActivityLog struct {
 // ==========================================
 
 type BlogPost struct {
-	ID           int       `json:"id"`
-	Title        string    `json:"title"`
-	Slug         string    `json:"slug"`
-	Excerpt      string    `json:"excerpt"`
-	Content      string    `json:"content"`
-	AuthorName   string    `json:"author_name"`
-	AuthorRole   string    `json:"author_role"`
-	AuthorAvatar string    `json:"author_avatar"`
-	Category     string    `json:"category"`
-	Tags         []string  `json:"tags"`
-	ReadTime     string    `json:"read_time"`
-	Status       string    `json:"status"` // PUBLISHED, DRAFT
-	CoverImage   string    `json:"cover_image"`
-	PublishedAt  time.Time `json:"published_at"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID              int       `json:"id"`
+	Title           string    `json:"title"`
+	Slug            string    `json:"slug"`
+	Excerpt         string    `json:"excerpt"`
+	Content         string    `json:"content"`
+	AuthorName      string    `json:"author_name"`
+	AuthorRole      string    `json:"author_role"`
+	AuthorAvatar    string    `json:"author_avatar"`
+	AuthorBio       string    `json:"author_bio,omitempty"`
+	Category        string    `json:"category"`
+	Tags            []string  `json:"tags"`
+	ReadTime        string    `json:"read_time"`
+	Status          string    `json:"status"` // PUBLISHED, DRAFT, ARCHIVED
+	CoverImage      string    `json:"cover_image"`
+	ViewCount       int64     `json:"view_count"`
+	MetaTitle       string    `json:"meta_title,omitempty"`
+	MetaDescription string    `json:"meta_description,omitempty"`
+	CanonicalURL    string    `json:"canonical_url,omitempty"`
+	OgImage         string    `json:"og_image,omitempty"`
+	PublishedAt     time.Time `json:"published_at"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type BlogCategory struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Slug        string    `json:"slug"`
+	Description string    `json:"description,omitempty"`
+	PostCount   int       `json:"post_count,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type BlogTag struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	Slug      string    `json:"slug"`
+	PostCount int       `json:"post_count,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type BlogComment struct {
+	ID          int       `json:"id"`
+	PostID      int       `json:"post_id"`
+	PostTitle   string    `json:"post_title,omitempty"`
+	AuthorName  string    `json:"author_name"`
+	AuthorEmail string    `json:"author_email"`
+	Content     string    `json:"content"`
+	Status      string    `json:"status"` // APPROVED, PENDING, REJECTED
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type BlogSubscriber struct {
+	ID        int       `json:"id"`
+	Email     string    `json:"email"`
+	Source    string    `json:"source"`
+	Status    string    `json:"status"` // ACTIVE, UNSUBSCRIBED
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type SupportTicket struct {

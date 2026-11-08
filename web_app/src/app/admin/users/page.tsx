@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import { 
   Users2, 
   Search, 
@@ -21,9 +22,8 @@ export default function AdminUsersPage() {
   useEffect(() => {
     async function loadUsers() {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const res = await fetch(`${apiUrl}/api/admin/users`);
-        if (res.ok) setUsers(await res.json());
+        const data = await api.admin.getUsers();
+        if (data && Array.isArray(data)) setUsers(data);
       } catch (e) {
         console.warn("Using fallback users", e);
       }

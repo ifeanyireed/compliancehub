@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import { 
   Receipt, 
   Search, 
@@ -18,9 +19,8 @@ export default function AdminInvoicesPage() {
   useEffect(() => {
     async function loadInvoices() {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const res = await fetch(`${apiUrl}/api/admin/invoices`);
-        if (res.ok) setInvoices(await res.json());
+        const data = await api.admin.getInvoices();
+        if (data && Array.isArray(data)) setInvoices(data);
       } catch (e) {
         console.warn("Using fallback invoices", e);
       }

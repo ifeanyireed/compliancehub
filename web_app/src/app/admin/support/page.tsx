@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { api } from "@/lib/api";
 import { 
   Headphones, 
   MessageSquare, 
@@ -49,13 +50,12 @@ export default function AdminSupportPage() {
   useEffect(() => {
     async function loadSupportData() {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const [tickRes, chatRes] = await Promise.all([
-          fetch(`${apiUrl}/api/support/tickets`),
-          fetch(`${apiUrl}/api/chat/sessions`)
+        const [tickData, chatData] = await Promise.all([
+          api.support.getTickets(),
+          api.chat.getSessions()
         ]);
-        if (tickRes.ok) setTickets(await tickRes.json());
-        if (chatRes.ok) setSessions(await chatRes.json());
+        if (tickData && Array.isArray(tickData)) setTickets(tickData);
+        if (chatData && Array.isArray(chatData)) setSessions(chatData);
       } catch (e) {
         console.warn("Using local fallback support records", e);
       }

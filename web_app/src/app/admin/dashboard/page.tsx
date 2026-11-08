@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { api } from "@/lib/api";
 import { 
   Building2, 
   FileCheck2, 
@@ -34,10 +35,8 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     async function fetchMetrics() {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const res = await fetch(`${apiUrl}/api/admin/metrics`);
-        if (res.ok) {
-          const data = await res.json();
+        const data = await api.admin.getMetrics();
+        if (data) {
           setMetrics(data);
         }
       } catch (err) {

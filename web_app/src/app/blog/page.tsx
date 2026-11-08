@@ -13,11 +13,18 @@ import {
   ShieldCheck, 
   ChevronRight, 
   Bookmark,
-  Share2
+  Share2,
+  Eye,
+  Mail,
+  CheckCircle2,
+  Calendar,
+  Layers,
+  Scale
 } from "lucide-react";
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
+import { api } from "@/lib/api";
 
 interface BlogPost {
   id: number;
@@ -33,7 +40,15 @@ interface BlogPost {
   read_time: string;
   status: string;
   cover_image: string;
+  view_count?: number;
   published_at: string;
+}
+
+interface BlogCategory {
+  id: number;
+  name: string;
+  slug: string;
+  post_count?: number;
 }
 
 const FALLBACK_POSTS: BlogPost[] = [
@@ -50,23 +65,25 @@ const FALLBACK_POSTS: BlogPost[] = [
     tags: ["Tax Act 2026", "FIRS", "TaxPro-MAX", "CIT"],
     read_time: "5 min read",
     status: "PUBLISHED",
-    cover_image: "/article_professional.jpg",
+    cover_image: "https://cdn.punchng.com/wp-content/uploads/2023/07/11175654/FIRS-headquarters.jpg",
+    view_count: 1420,
     published_at: "2026-02-01"
   },
   {
     id: 2,
-    title: "NDPA 2023 Statutory Compliance: March 15 Data Protection Audit Filing Deadlines",
-    slug: "ndpa-2023-statutory-compliance-march-15-filing-deadlines",
-    excerpt: "The Nigeria Data Protection Commission (NDPC) mandates all Major Data Controllers to conduct and submit external DPCO audits. Here is your roadmap to audit compliance.",
+    title: "The March 15 Statutory NDPC Filing Cutoff: Audit Preparation Checklist",
+    slug: "march-15-statutory-ndpc-filing-cutoff-audit-preparation",
+    excerpt: "Everything data controllers and compliance officers need to verify before submitting their annual compliance returns to the Nigeria Data Protection Commission.",
     content: "Under Section 48 of the NDPA 2023...",
     author_name: "Chiamaka Eze",
     author_role: "Principal Partner, Apex Advisory",
     author_avatar: "/character2.jpg",
     category: "Data Privacy & NDPA",
-    tags: ["NDPA", "NDPC", "Data Audit", "Privacy"],
-    read_time: "6 min read",
+    tags: ["NDPA 2023", "NDPC", "DPCO", "RoPA"],
+    read_time: "7 min read",
     status: "PUBLISHED",
-    cover_image: "/article_health.jpg",
+    cover_image: "https://cdn.punchng.com/wp-content/uploads/2023/06/22152817/NDPC.jpg",
+    view_count: 980,
     published_at: "2026-01-28"
   },
   {
@@ -82,301 +99,369 @@ const FALLBACK_POSTS: BlogPost[] = [
     tags: ["CAC", "CAMA 2020", "Annual Returns", "PSC"],
     read_time: "4 min read",
     status: "PUBLISHED",
-    cover_image: "/article_realestate.jpg",
+    cover_image: "https://cdn.punchng.com/wp-content/uploads/2021/04/14221759/CAC-headquarters.jpg",
+    view_count: 1240,
     published_at: "2026-01-20"
   },
   {
     id: 4,
-    title: "DNFBPs and the SCUML Framework: Essential AML/CFT Rules for 2026",
-    slug: "scuml-aml-cft-rules-for-dnfbps-in-nigeria",
-    excerpt: "Designated Non-Financial Businesses & Professions face stringent anti-money laundering reporting requirements under NFIU and EFCC scrutiny.",
+    title: "SCUML Anti-Money Laundering Framework: Step-by-Step for DNFBPs in 2026",
+    slug: "scuml-anti-money-laundering-framework-dnfbps-2026",
+    excerpt: "Designated Non-Financial Businesses & Professions face heightened inspection scrutiny under EFCC guidelines. Essential AML/CFT rules for DNFBPs.",
     content: "Under the Money Laundering Act 2022...",
     author_name: "Tunde Bakare, CAMS",
     author_role: "Senior AML & Regulatory Officer",
     author_avatar: "/character1.jpg",
     category: "AML & SCUML",
-    tags: ["SCUML", "AML/CFT", "NFIU", "EFCC"],
-    read_time: "7 min read",
+    tags: ["SCUML", "AML/CFT", "NFIU", "PEP Screening"],
+    read_time: "6 min read",
     status: "PUBLISHED",
-    cover_image: "/antifake-analytics.jpg",
-    published_at: "2026-01-15"
+    cover_image: "https://cdn.punchng.com/wp-content/uploads/2022/07/04172421/NFIU-logo.jpg",
+    view_count: 1150,
+    published_at: "2026-01-14"
   }
 ];
 
-const CATEGORIES = [
-  "All",
-  "Taxation & FIRS",
-  "Data Privacy & NDPA",
-  "Corporate & CAC",
-  "AML & SCUML"
-];
-
-export default function BlogPublicPage() {
+export default function BlogListingPage() {
   const [posts, setPosts] = useState<BlogPost[]>(FALLBACK_POSTS);
+  const [categories, setCategories] = useState<string[]>([
+    "All",
+    "Taxation & FIRS",
+    "Data Privacy & NDPA",
+    "Corporate & CAC",
+    "AML & SCUML",
+    "Labour & Pension",
+    "Immigration & Expatriate"
+  ]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Newsletter state
+  const [subEmail, setSubEmail] = useState("");
+  const [subStatus, setSubStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [subMessage, setSubMessage] = useState("");
 
   useEffect(() => {
-    async function fetchPosts() {
+    async function loadData() {
+      setLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-        const res = await fetch(`${apiUrl}/api/blog`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setPosts(data);
-          }
+        const [postsRes, catsRes] = await Promise.all([
+          api.blog.getPosts({ status: "PUBLISHED" }),
+          api.blog.getCategories()
+        ]);
+
+        if (Array.isArray(postsRes) && postsRes.length > 0) {
+          setPosts(postsRes);
+        }
+        if (Array.isArray(catsRes) && catsRes.length > 0) {
+          const catNames = ["All", ...catsRes.map((c: any) => c.name)];
+          setCategories(Array.from(new Set(catNames)));
         }
       } catch (err) {
-        console.warn("Using fallback regulatory posts", err);
+        console.warn("Failed loading live blog data, using fallbacks:", err);
+      } finally {
+        setLoading(false);
       }
     }
-    fetchPosts();
+    loadData();
   }, []);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subEmail || !subEmail.includes("@")) return;
+
+    setSubStatus("loading");
+    try {
+      const res = await api.blog.subscribe(subEmail, "BLOG_DIRECTORY_HEADER");
+      if (res && res.success) {
+        setSubStatus("success");
+        setSubMessage("Successfully subscribed to ComplianceHub Statutory Alerts!");
+        setSubEmail("");
+      } else {
+        setSubStatus("error");
+        setSubMessage(res?.error || "Could not register subscription. Please try again.");
+      }
+    } catch {
+      setSubStatus("error");
+      setSubMessage("Subscription service unavailable.");
+    }
+  };
 
   const filteredPosts = posts.filter(post => {
     const matchesCategory = selectedCategory === "All" || post.category === selectedCategory;
-    const matchesSearch = searchQuery === "" || 
+    const matchesSearch = 
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.tags?.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      (post.tags && post.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
     return matchesCategory && matchesSearch;
   });
 
-  const featuredPost = posts[0] || FALLBACK_POSTS[0];
+  const featuredPost = filteredPosts.length > 0 ? filteredPosts[0] : null;
+  const standardPosts = filteredPosts.length > 1 ? filteredPosts.slice(1) : [];
 
   return (
     <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] flex flex-col font-sans">
       <CompliancePublicNav />
 
       <main className="flex-1 pb-24">
-        {/* Hero Section */}
-        <section className="pt-12 pb-16 px-6 max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-slate-200/80 shadow-xs mb-4">
-              <span className="w-2 h-2 rounded-full bg-[#0089C1] animate-pulse" />
-              <span className="text-xs font-bold text-slate-800">ComplianceHub Intelligence Blog</span>
-            </div>
-            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
-              Nigerian Regulatory & Legal <span className="text-[#0089C1]">Intelligence</span>
-            </h1>
-            <p className="mt-4 text-base sm:text-lg text-slate-600 font-medium">
-              Authoritative statutory analysis, 2026 Nigeria Tax Act briefings, NDPA compliance checklists, and practical CAMA 2020 operational guidance.
-            </p>
-          </div>
-
-          {/* Search & Category Filter Bar */}
-          <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-12">
-            {/* Categories */}
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                    selectedCategory === cat
-                      ? "bg-[#0089C1] text-white shadow-xs"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input */}
-            <div className="relative w-full md:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search articles, acts, TINs..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-100/90 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
-              />
-            </div>
-          </div>
-
-          {/* Featured Article Card */}
-          {selectedCategory === "All" && searchQuery === "" && featuredPost && (
-            <div className="mb-14">
-              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md overflow-hidden hover:shadow-xl transition-all grid grid-cols-1 lg:grid-cols-12 group">
-                <div className="lg:col-span-7 h-64 lg:h-auto relative overflow-hidden bg-slate-100">
-                  <img
-                    src={featuredPost.cover_image}
-                    alt={featuredPost.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-4 left-4">
-                    <span className="px-3 py-1 rounded-full bg-slate-900/85 backdrop-blur-md text-white text-xs font-bold">
-                      Featured Regulatory Insight
-                    </span>
-                  </div>
+        {/* Header Hero Banner */}
+        <section className="bg-white border-b border-slate-200/80 pt-16 pb-12 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-50 border border-sky-200/70 text-[#0089C1] text-xs font-bold mb-4">
+                  <Scale className="w-3.5 h-3.5" />
+                  <span>Regulatory Intelligence & Statutory Dispatches</span>
                 </div>
+                <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+                  The Compliance Journal
+                </h1>
+                <p className="mt-3 text-sm sm:text-base text-slate-600 font-medium leading-relaxed">
+                  Operational breakdowns, deadline schedules, and statutory advisories covering the 2026 Nigeria Tax Act, NDPA 2023, CAMA 2020, and EFCC SCUML oversight.
+                </p>
+              </div>
 
-                <div className="lg:col-span-5 p-8 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="px-2.5 py-1 rounded-full bg-sky-100 text-[#0089C1] text-[11px] font-bold">
-                        {featuredPost.category}
-                      </span>
-                      <span className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold">
-                        <Clock className="w-3.5 h-3.5" />
-                        {featuredPost.read_time}
-                      </span>
-                    </div>
-
-                    <Link href={`/blog/${featuredPost.slug}`}>
-                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug group-hover:text-[#0089C1] transition-colors mb-3">
-                        {featuredPost.title}
-                      </h2>
-                    </Link>
-
-                    <p className="text-sm text-slate-600 line-clamp-3 leading-relaxed mb-6 font-medium">
-                      {featuredPost.excerpt}
-                    </p>
+              {/* Newsletter Quick Card */}
+              <div className="w-full md:w-96 bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 mb-1">
+                  <Mail className="w-4 h-4 text-[#0089C1]" />
+                  <span>Receive Statutory Alerts</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mb-3 font-medium">
+                  Stay ahead of FIRS, CAC, and NDPC statutory deadlines every Monday morning.
+                </p>
+                {subStatus === "success" ? (
+                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>{subMessage}</span>
                   </div>
+                ) : (
+                  <form onSubmit={handleSubscribe} className="flex gap-2">
+                    <input
+                      type="email"
+                      placeholder="compliance@yourcompany.ng"
+                      value={subEmail}
+                      onChange={(e) => setSubEmail(e.target.value)}
+                      required
+                      className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={subStatus === "loading"}
+                      className="px-3.5 py-2 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs shadow-xs transition-all shrink-0"
+                    >
+                      {subStatus === "loading" ? "..." : "Join"}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
 
-                  <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+            {/* Search and Filters */}
+            <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                      selectedCategory === cat
+                        ? "bg-[#0089C1] text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative w-full md:w-72 shrink-0">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search statutes, circulars..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Articles Content Container */}
+        <section className="max-w-6xl mx-auto px-6 mt-10">
+          {filteredPosts.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center my-12">
+              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-slate-800">No regulatory articles match your filter</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                Try searching for another keyword or switch category to view published circulars.
+              </p>
+              <button
+                onClick={() => { setSelectedCategory("All"); setSearchQuery(""); }}
+                className="mt-4 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700"
+              >
+                Clear all filters
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {/* Featured Lead Post */}
+              {featuredPost && (
+                <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                  <div className="grid grid-cols-1 lg:grid-cols-12">
+                    <div className="lg:col-span-7 h-64 sm:h-80 lg:h-auto relative overflow-hidden bg-slate-900">
                       <img
-                        src={featuredPost.author_avatar}
-                        alt={featuredPost.author_name}
-                        className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                        src={featuredPost.cover_image}
+                        alt={featuredPost.title}
+                        referrerPolicy="no-referrer"
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900">{featuredPost.author_name}</div>
-                        <div className="text-[10px] text-slate-500 font-medium">{featuredPost.author_role}</div>
+                      <div className="absolute top-4 left-4">
+                        <span className="px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold border border-white/20">
+                          Featured Intelligence
+                        </span>
                       </div>
                     </div>
 
-                    <Link href={`/blog/${featuredPost.slug}`}>
-                      <button className="flex items-center gap-1 text-xs font-bold text-[#0089C1] hover:text-sky-700">
-                        <span>Read Analysis</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </Link>
+                    <div className="lg:col-span-5 p-6 sm:p-8 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="px-2.5 py-0.5 rounded-md bg-sky-50 text-[#0089C1] text-[11px] font-bold border border-sky-200/60">
+                            {featuredPost.category}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold">
+                            <Clock className="w-3 h-3" />
+                            {featuredPost.read_time}
+                          </span>
+                          {featuredPost.view_count !== undefined && (
+                            <span className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold ml-auto">
+                              <Eye className="w-3 h-3" />
+                              {featuredPost.view_count} reads
+                            </span>
+                          )}
+                        </div>
+
+                        <Link href={`/blog/${featuredPost.slug}`}>
+                          <h2 className="text-xl sm:text-2xl font-black text-slate-900 group-hover:text-[#0089C1] transition-colors leading-snug">
+                            {featuredPost.title}
+                          </h2>
+                        </Link>
+
+                        <p className="mt-3 text-xs sm:text-sm text-slate-600 line-clamp-3 leading-relaxed font-medium">
+                          {featuredPost.excerpt}
+                        </p>
+                      </div>
+
+                      <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={featuredPost.author_avatar || "/character1.jpg"}
+                            alt={featuredPost.author_name}
+                            className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                          />
+                          <div>
+                            <div className="text-xs font-bold text-slate-800">{featuredPost.author_name}</div>
+                            <div className="text-[10px] text-slate-400">{featuredPost.author_role}</div>
+                          </div>
+                        </div>
+
+                        <Link
+                          href={`/blog/${featuredPost.slug}`}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0089C1] hover:text-sky-600"
+                        >
+                          <span>Read Full Story</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* Grid of Articles */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPosts.map((post) => (
-              <motion.div
-                key={post.id}
-                whileHover={{ y: -4 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-lg transition-all flex flex-col overflow-hidden group"
-              >
-                <div className="h-48 relative overflow-hidden bg-slate-100">
-                  <img
-                    src={post.cover_image}
-                    alt={post.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 left-3">
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/90 backdrop-blur-md text-[11px] font-bold text-slate-800 shadow-xs">
-                      {post.category}
+              {/* Grid of Remaining Posts */}
+              {standardPosts.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-6">
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight">Recent Statutory Briefs</h3>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[11px] font-bold">
+                      {standardPosts.length}
                     </span>
                   </div>
-                </div>
 
-                <div className="p-6 flex-1 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-400 mb-2">
-                      <Clock className="w-3 h-3" />
-                      <span>{post.read_time}</span>
-                      <span>•</span>
-                      <span>{post.published_at}</span>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {standardPosts.map((post) => (
+                      <div
+                        key={post.id}
+                        className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+                      >
+                        <div>
+                          <div className="h-44 w-full relative overflow-hidden bg-slate-100">
+                            <img
+                              src={post.cover_image}
+                              alt={post.title}
+                              referrerPolicy="no-referrer"
+                              loading="lazy"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <div className="absolute top-3 left-3">
+                              <span className="px-2.5 py-0.5 rounded-md bg-white/95 backdrop-blur-md text-[#0089C1] text-[10px] font-bold shadow-xs">
+                                {post.category}
+                              </span>
+                            </div>
+                          </div>
 
-                    <Link href={`/blog/${post.slug}`}>
-                      <h3 className="text-base font-extrabold text-slate-900 group-hover:text-[#0089C1] transition-colors leading-snug line-clamp-2 mb-2">
-                        {post.title}
-                      </h3>
-                    </Link>
+                          <div className="p-5">
+                            <div className="flex items-center gap-2 text-[10px] text-slate-400 font-semibold mb-2">
+                              <Clock className="w-3 h-3" />
+                              <span>{post.read_time}</span>
+                              <span>•</span>
+                              <Calendar className="w-3 h-3" />
+                              <span>{post.published_at ? new Date(post.published_at).toLocaleDateString() : "Statutory"}</span>
+                              {post.view_count !== undefined && (
+                                <span className="ml-auto flex items-center gap-1 text-slate-400">
+                                  <Eye className="w-3 h-3" />
+                                  {post.view_count}
+                                </span>
+                              )}
+                            </div>
 
-                    <p className="text-xs text-slate-600 line-clamp-3 mb-4 leading-relaxed font-medium">
-                      {post.excerpt}
-                    </p>
+                            <Link href={`/blog/${post.slug}`}>
+                              <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-[#0089C1] transition-colors leading-snug line-clamp-2">
+                                {post.title}
+                              </h4>
+                            </Link>
 
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {post.tags?.slice(0, 3).map((tag) => (
-                        <span key={tag} className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-semibold">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
+                            <p className="mt-2 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                              {post.excerpt}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="px-5 pb-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+                          <div className="text-[11px] font-bold text-slate-700 truncate max-w-[150px]">
+                            {post.author_name}
+                          </div>
+                          <Link
+                            href={`/blog/${post.slug}`}
+                            className="text-xs font-bold text-[#0089C1] hover:underline flex items-center gap-1"
+                          >
+                            <span>Read</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={post.author_avatar}
-                        alt={post.author_name}
-                        className="w-7 h-7 rounded-full object-cover border border-slate-200"
-                      />
-                      <span className="text-xs font-bold text-slate-800 truncate max-w-[130px]">
-                        {post.author_name}
-                      </span>
-                    </div>
-
-                    <Link href={`/blog/${post.slug}`}>
-                      <span className="text-xs font-bold text-[#0089C1] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-                        Read
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </span>
-                    </Link>
-                  </div>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-
-          {filteredPosts.length === 0 && (
-            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-lg mx-auto">
-              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-base font-bold text-slate-800">No articles matched your filter</h3>
-              <p className="text-xs text-slate-500 mt-1">Try selecting another category or resetting your search query.</p>
-              <button
-                onClick={() => { setSelectedCategory("All"); setSearchQuery(""); }}
-                className="mt-4 px-4 py-2 rounded-xl bg-[#0089C1] text-white text-xs font-bold"
-              >
-                Reset Filters
-              </button>
+              )}
             </div>
           )}
-
-          {/* Newsletter Signup */}
-          <div className="mt-16 bg-gradient-to-tr from-[#1E293B] to-slate-900 rounded-3xl p-8 sm:p-12 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="max-w-xl">
-              <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
-                <Sparkles className="w-4 h-4" />
-                <span>Statutory Alerts Dispatch</span>
-              </div>
-              <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Never miss a Nigerian compliance deadline.
-              </h3>
-              <p className="mt-2 text-sm text-slate-300 leading-relaxed">
-                Receive our monthly regulatory intel dispatch covering FIRS circulars, CAC gazettes, NDPC compliance cutoffs, and PENCOM audit notices.
-              </p>
-            </div>
-
-            <div className="w-full md:w-auto flex flex-col sm:flex-row items-center gap-2">
-              <input
-                type="email"
-                placeholder="Enter corporate email"
-                className="w-full sm:w-64 px-4 py-3 rounded-xl bg-slate-800/90 border border-slate-700 text-white placeholder-slate-400 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
-              />
-              <button className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#0089C1] hover:bg-sky-500 transition-all text-white text-xs font-bold shadow-md whitespace-nowrap">
-                Subscribe Intel
-              </button>
-            </div>
-          </div>
         </section>
       </main>
 

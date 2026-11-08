@@ -266,6 +266,16 @@ func MigrateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			created_at TIMESTAMPTZ DEFAULT NOW()
 		);`,
 
+		// 18. Password Resets
+		`CREATE TABLE IF NOT EXISTS password_resets (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token TEXT UNIQUE NOT NULL,
+			expires_at TIMESTAMPTZ NOT NULL,
+			is_used BOOLEAN DEFAULT FALSE,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		);`,
+
 		// Pre-existing tables
 		`CREATE TABLE IF NOT EXISTS blog_posts (
 			id SERIAL PRIMARY KEY,
@@ -282,6 +292,48 @@ func MigrateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			status TEXT DEFAULT 'PUBLISHED',
 			cover_image TEXT,
 			published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);`,
+
+		`ALTER TABLE blog_posts 
+			ADD COLUMN IF NOT EXISTS view_count BIGINT DEFAULT 0,
+			ADD COLUMN IF NOT EXISTS meta_title VARCHAR(255) DEFAULT '',
+			ADD COLUMN IF NOT EXISTS meta_description TEXT DEFAULT '',
+			ADD COLUMN IF NOT EXISTS canonical_url TEXT DEFAULT '',
+			ADD COLUMN IF NOT EXISTS og_image TEXT DEFAULT '',
+			ADD COLUMN IF NOT EXISTS author_bio TEXT DEFAULT '',
+			ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();`,
+
+		`CREATE TABLE IF NOT EXISTS blog_categories (
+			id SERIAL PRIMARY KEY,
+			name VARCHAR(100) UNIQUE NOT NULL,
+			slug VARCHAR(100) UNIQUE NOT NULL,
+			description TEXT,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);`,
+
+		`CREATE TABLE IF NOT EXISTS blog_tags (
+			id SERIAL PRIMARY KEY,
+			name VARCHAR(100) UNIQUE NOT NULL,
+			slug VARCHAR(100) UNIQUE NOT NULL,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);`,
+
+		`CREATE TABLE IF NOT EXISTS blog_comments (
+			id SERIAL PRIMARY KEY,
+			post_id INT REFERENCES blog_posts(id) ON DELETE CASCADE,
+			author_name VARCHAR(100) NOT NULL,
+			author_email VARCHAR(100) NOT NULL,
+			content TEXT NOT NULL,
+			status VARCHAR(50) DEFAULT 'APPROVED',
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		);`,
+
+		`CREATE TABLE IF NOT EXISTS blog_subscribers (
+			id SERIAL PRIMARY KEY,
+			email VARCHAR(255) UNIQUE NOT NULL,
+			source VARCHAR(100) DEFAULT 'BLOG_FOOTER',
+			status VARCHAR(50) DEFAULT 'ACTIVE',
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);`,
 
@@ -341,6 +393,179 @@ func MigrateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			views INT DEFAULT 0,
 			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);`,
+
+		// 19. Defense-in-Depth Row-Level Security (RLS) & Policies
+		`DO $$
+		BEGIN
+			-- documents
+			ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE documents FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'documents' AND policyname = 'tenant_isolation_documents') THEN
+				CREATE POLICY tenant_isolation_documents ON documents FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- tenant_obligations
+			ALTER TABLE tenant_obligations ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE tenant_obligations FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_obligations' AND policyname = 'tenant_isolation_tenant_obligations') THEN
+				CREATE POLICY tenant_isolation_tenant_obligations ON tenant_obligations FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- employees
+			ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE employees FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'employees' AND policyname = 'tenant_isolation_employees') THEN
+				CREATE POLICY tenant_isolation_employees ON employees FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- vendors
+			ALTER TABLE vendors ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE vendors FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'vendors' AND policyname = 'tenant_isolation_vendors') THEN
+				CREATE POLICY tenant_isolation_vendors ON vendors FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- aml_cases
+			ALTER TABLE aml_cases ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE aml_cases FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'aml_cases' AND policyname = 'tenant_isolation_aml_cases') THEN
+				CREATE POLICY tenant_isolation_aml_cases ON aml_cases FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- privacy_processing_activities
+			ALTER TABLE privacy_processing_activities ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE privacy_processing_activities FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'privacy_processing_activities' AND policyname = 'tenant_isolation_privacy_processing_activities') THEN
+				CREATE POLICY tenant_isolation_privacy_processing_activities ON privacy_processing_activities FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- activity_logs
+			ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE activity_logs FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'activity_logs' AND policyname = 'tenant_isolation_activity_logs') THEN
+				CREATE POLICY tenant_isolation_activity_logs ON activity_logs FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- engagements
+			ALTER TABLE engagements ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE engagements FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'engagements' AND policyname = 'tenant_isolation_engagements') THEN
+				CREATE POLICY tenant_isolation_engagements ON engagements FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- tenant_members
+			ALTER TABLE tenant_members ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE tenant_members FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_members' AND policyname = 'tenant_isolation_tenant_members') THEN
+				CREATE POLICY tenant_isolation_tenant_members ON tenant_members FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+		END $$;`,
+
+		// 20. Application Role for RLS Enforcement
+		`DO $$
+		BEGIN
+			IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'compliancehub_app') THEN
+				CREATE ROLE compliancehub_app NOBYPASSRLS;
+			END IF;
+			GRANT USAGE ON SCHEMA public TO compliancehub_app;
+			GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO compliancehub_app;
+			GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO compliancehub_app;
+			BEGIN
+				EXECUTE format('GRANT compliancehub_app TO %I;', current_user);
+			EXCEPTION WHEN OTHERS THEN
+				-- Ignore if already granted or not permitted
+			END;
+		END $$;`,
 	}
 
 	for i, q := range queries {

@@ -60,6 +60,15 @@ func CreateEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !tenantCtx.CanManageWorkforce() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: Workspace management authority (OWNER, ADMIN, or COMPLIANCE_LEAD) required to register workforce records",
+		})
+		return
+	}
+
 	var req models.Employee
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
@@ -87,6 +96,19 @@ func CreateEmployee(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create employee: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit trail log
+	user := middleware.GetUserFromContext(r)
+	actorName := "Compliance Officer"
+	var actorID *string
+	if user != nil {
+		actorName = user.FullName
+		actorID = &user.ID
+	}
+	_, _ = db.Pool.Exec(r.Context(), `
+		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
+		VALUES ($1, $2, $3, $4, 'CREATE_EMPLOYEE', $5)
+	`, tenantCtx.TenantID, actorID, actorName, tenantCtx.Role, "Registered employee compliance profile: "+req.FullName)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -147,6 +169,15 @@ func CreateVendor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !tenantCtx.CanManageWorkforce() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: Workspace management authority (OWNER, ADMIN, or COMPLIANCE_LEAD) required to onboard vendors",
+		})
+		return
+	}
+
 	var req models.Vendor
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
@@ -180,6 +211,19 @@ func CreateVendor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create vendor: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit trail log
+	user := middleware.GetUserFromContext(r)
+	actorName := "Compliance Officer"
+	var actorID *string
+	if user != nil {
+		actorName = user.FullName
+		actorID = &user.ID
+	}
+	_, _ = db.Pool.Exec(r.Context(), `
+		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
+		VALUES ($1, $2, $3, $4, 'CREATE_VENDOR', $5)
+	`, tenantCtx.TenantID, actorID, actorName, tenantCtx.Role, "Onboarded third-party vendor: "+req.CompanyName)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

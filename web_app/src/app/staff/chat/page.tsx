@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { api } from "@/lib/api";
 import { 
   MessageSquare, 
   Send, 
@@ -64,10 +65,8 @@ export default function StaffLiveChatPage() {
 
   const fetchSessions = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const res = await fetch(`${apiUrl}/api/chat/sessions`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.chat.getSessions();
+      if (data && Array.isArray(data)) {
         setSessions(data);
         if (!activeSessionId && data.length > 0) {
           setActiveSessionId(data[0].id);
@@ -81,10 +80,8 @@ export default function StaffLiveChatPage() {
 
   const fetchMessages = async (sessionId: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const res = await fetch(`${apiUrl}/api/chat/messages?session_id=${sessionId}`);
-      if (res.ok) {
-        const msgs = await res.json();
+      const msgs = await api.chat.getMessages(sessionId);
+      if (msgs && Array.isArray(msgs)) {
         setMessages(msgs);
       }
     } catch (e) {
@@ -120,11 +117,11 @@ export default function StaffLiveChatPage() {
     if (!customText) setInputMessage("");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      await fetch(`${apiUrl}/api/chat/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMsg)
+      await api.chat.sendMessage({
+        session_id: activeSessionId,
+        sender_name: "Babajide Sanwo (Support)",
+        sender_role: "STAFF",
+        message: textToSend
       });
       fetchSessions();
     } catch (e) {

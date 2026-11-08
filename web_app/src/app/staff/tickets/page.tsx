@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { api } from "@/lib/api";
 import { 
   Ticket, 
   Search, 
@@ -49,10 +50,8 @@ export default function StaffTicketsPage() {
 
   const fetchTickets = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const res = await fetch(`${apiUrl}/api/support/tickets`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.support.getTickets();
+      if (data && Array.isArray(data)) {
         setTickets(data);
       }
     } catch (e) {
@@ -62,10 +61,8 @@ export default function StaffTicketsPage() {
 
   const fetchTicketDetails = async (ticketId: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const res = await fetch(`${apiUrl}/api/support/tickets/${ticketId}`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.support.getTicket(ticketId);
+      if (data) {
         setSelectedTicket(data);
       }
     } catch (e) {
@@ -87,18 +84,13 @@ export default function StaffTicketsPage() {
     setSendingReply(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const res = await fetch(`${apiUrl}/api/support/tickets/${selectedTicket.id}/reply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sender_name: "Babajide Sanwo (Support)",
-          sender_role: "STAFF",
-          message: replyText
-        })
+      const res = await api.support.replyTicket(selectedTicket.id, {
+        sender_name: "Babajide Sanwo (Support)",
+        sender_role: "STAFF",
+        message: replyText
       });
 
-      if (res.ok) {
+      if (res) {
         setReplyText("");
         fetchTicketDetails(selectedTicket.id);
         fetchTickets();
@@ -113,12 +105,7 @@ export default function StaffTicketsPage() {
   const handleStatusChange = async (newStatus: string) => {
     if (!selectedTicket) return;
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      await fetch(`${apiUrl}/api/support/tickets/${selectedTicket.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus })
-      });
+      await api.support.updateTicketStatus(selectedTicket.id, newStatus);
       fetchTicketDetails(selectedTicket.id);
       fetchTickets();
     } catch (e) {}

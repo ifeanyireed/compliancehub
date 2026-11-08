@@ -79,6 +79,15 @@ func CreateCustomObligation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if tenantCtx.Role == "VIEWER" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: Read-only viewers cannot create or schedule statutory deadlines",
+		})
+		return
+	}
+
 	var req struct {
 		Title               string  `json:"title"`
 		Authority           string  `json:"authority"`
@@ -110,15 +119,17 @@ func CreateCustomObligation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := middleware.GetUserFromContext(r)
-	actorName := "System"
+	actorName := "Operator"
+	var userID *string
 	if user != nil {
 		actorName = user.FullName
+		userID = &user.ID
 	}
 
 	_, _ = db.Pool.Exec(r.Context(), `
 		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
-		VALUES ($1, $2, $3, 'OPERATOR', 'CREATE_OBLIGATION', $4)
-	`, tenantCtx.TenantID, user.ID, actorName, "Scheduled regulatory deadline: "+req.Title)
+		VALUES ($1, $2, $3, $4, 'CREATE_OBLIGATION', $5)
+	`, tenantCtx.TenantID, userID, actorName, tenantCtx.Role, "Scheduled regulatory deadline: "+req.Title)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -132,6 +143,15 @@ func CompleteObligation(w http.ResponseWriter, r *http.Request) {
 	tenantCtx := middleware.GetTenantContext(r)
 	if tenantCtx == nil {
 		http.Error(w, "Tenant not resolved", http.StatusBadRequest)
+		return
+	}
+
+	if !tenantCtx.CanApproveFiling("hubcalendar") {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: Sign-off and statutory filing completion requires OWNER, ADMIN, COMPLIANCE_LEAD, or delegated filing sign-off permission",
+		})
 		return
 	}
 

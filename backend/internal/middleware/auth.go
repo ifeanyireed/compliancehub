@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,9 +34,125 @@ type Claims struct {
 }
 
 type TenantContext struct {
-	TenantID   string
-	Role       string // OWNER, ADMIN, MEMBER, DELEGATED_EXPERT, SYSTEM_ADMIN
-	IsExternal bool
+	TenantID     string
+	Role         string // OWNER, ADMIN, MEMBER, DELEGATED_EXPERT, SYSTEM_ADMIN, COMPLIANCE_LEAD, VIEWER
+	IsExternal   bool
+	EngagementID *string
+	Permissions  map[string]models.EngagementPermission
+}
+
+// CanManageWorkspace checks if the user has administrative governance authority over the workspace
+func (tc *TenantContext) CanManageWorkspace() bool {
+	if tc == nil {
+		return false
+	}
+	role := strings.ToUpper(tc.Role)
+	return role == "SYSTEM_ADMIN" || role == "OWNER" || role == "ADMIN"
+}
+
+// CanManageWorkforce checks if the user has authority to register employees and vendor compliance records
+func (tc *TenantContext) CanManageWorkforce() bool {
+	if tc == nil {
+		return false
+	}
+	role := strings.ToUpper(tc.Role)
+	return role == "SYSTEM_ADMIN" || role == "OWNER" || role == "ADMIN" || role == "COMPLIANCE_LEAD" || tc.IsExternal
+}
+
+// CanDeleteResource checks if the user has permission to delete regulatory documents or records
+func (tc *TenantContext) CanDeleteResource() bool {
+	if tc == nil {
+		return false
+	}
+	role := strings.ToUpper(tc.Role)
+	return role == "SYSTEM_ADMIN" || role == "OWNER" || role == "ADMIN"
+}
+
+// CanUploadEvidence checks if the user has permission to upload regulatory evidence
+func (tc *TenantContext) CanUploadEvidence(moduleCode string) bool {
+	if tc == nil {
+		return false
+	}
+	role := strings.ToUpper(tc.Role)
+	if role == "SYSTEM_ADMIN" || role == "OWNER" || role == "ADMIN" || role == "COMPLIANCE_LEAD" || role == "MEMBER" {
+		return true
+	}
+	if role == "VIEWER" {
+		return false
+	}
+	if tc.IsExternal {
+		if tc.Permissions == nil || len(tc.Permissions) == 0 {
+			return true // default permissive for demo seeds if permissions not yet granularly configured
+		}
+		if perm, ok := tc.Permissions[strings.ToLower(moduleCode)]; ok {
+			return perm.CanUpload
+		}
+		return true
+	}
+	return false
+}
+
+// CanApproveFiling checks if the user has authority to complete or sign off on statutory filings
+func (tc *TenantContext) CanApproveFiling(moduleCode string) bool {
+	if tc == nil {
+		return false
+	}
+	role := strings.ToUpper(tc.Role)
+	if role == "SYSTEM_ADMIN" || role == "OWNER" || role == "ADMIN" || role == "COMPLIANCE_LEAD" {
+		return true
+	}
+	if role == "VIEWER" || role == "MEMBER" {
+		return false
+	}
+	if tc.IsExternal {
+		if tc.Permissions == nil || len(tc.Permissions) == 0 {
+			return true
+		}
+		if perm, ok := tc.Permissions[strings.ToLower(moduleCode)]; ok {
+			return perm.CanApprove
+		}
+		return true
+	}
+	return false
+}
+
+// CanExport checks if the user has authorization to export audit logs or regulatory report summaries
+func (tc *TenantContext) CanExport(moduleCode string) bool {
+	if tc == nil {
+		return false
+	}
+	role := strings.ToUpper(tc.Role)
+	if role == "SYSTEM_ADMIN" || role == "OWNER" || role == "ADMIN" || role == "COMPLIANCE_LEAD" {
+		return true
+	}
+	if tc.IsExternal {
+		if tc.Permissions == nil || len(tc.Permissions) == 0 {
+			return true
+		}
+		if perm, ok := tc.Permissions[strings.ToLower(moduleCode)]; ok {
+			return perm.CanExport
+		}
+		return true
+	}
+	return false
+}
+
+func isProduction() bool {
+	env := strings.ToLower(os.Getenv("APP_ENV"))
+	if env == "" {
+		env = strings.ToLower(os.Getenv("ENV"))
+	}
+	return env == "production" || env == "prod"
+}
+
+func getTokenTTL() time.Duration {
+	ttlHoursStr := os.Getenv("TOKEN_TTL_HOURS")
+	if ttlHoursStr != "" {
+		if hours, err := strconv.Atoi(ttlHoursStr); err == nil && hours > 0 {
+			return time.Duration(hours) * time.Hour
+		}
+	}
+	return 72 * time.Hour // 3 days default in production
 }
 
 func getJWTSecret() []byte {
@@ -46,7 +164,7 @@ func getJWTSecret() []byte {
 }
 
 func GenerateToken(user models.User, defaultTenantID string) (string, error) {
-	expirationTime := time.Now().Add(7 * 24 * time.Hour)
+	expirationTime := time.Now().Add(getTokenTTL())
 	claims := &Claims{
 		UserID:     user.ID,
 		Email:      user.Email,
@@ -74,6 +192,14 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		return nil, errors.New("invalid or expired token")
 	}
 
+	if claims.Issuer != "compliancehub.ng" {
+		return nil, errors.New("invalid token issuer")
+	}
+
+	if claims.UserID == "" {
+		return nil, errors.New("invalid token user payload")
+	}
+
 	return claims, nil
 }
 
@@ -82,14 +208,16 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			// Check demo token bypass for frontend seamless preview
-			demoRole := r.Header.Get("X-Demo-Role")
-			if demoRole != "" {
-				user := getDemoUser(demoRole)
-				if user != nil {
-					ctx := context.WithValue(r.Context(), UserContextKey, user)
-					next(w, r.WithContext(ctx))
-					return
+			// Check demo token bypass for frontend preview ONLY in non-production
+			if !isProduction() {
+				demoRole := r.Header.Get("X-Demo-Role")
+				if demoRole != "" {
+					user := getDemoUser(demoRole)
+					if user != nil {
+						ctx := context.WithValue(r.Context(), UserContextKey, user)
+						next(w, r.WithContext(ctx))
+						return
+					}
 				}
 			}
 
@@ -109,8 +237,8 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 		tokenStr := parts[1]
 
-		// Support demo tokens for instant client-side testing without breaking
-		if strings.HasPrefix(tokenStr, "demo-token-") {
+		// Support demo tokens for instant client-side testing ONLY in non-production
+		if !isProduction() && strings.HasPrefix(tokenStr, "demo-token-") {
 			role := strings.ToUpper(strings.TrimPrefix(tokenStr, "demo-token-"))
 			user := getDemoUser(role)
 			if user != nil {
@@ -137,6 +265,35 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 		ctx := context.WithValue(r.Context(), UserContextKey, user)
 		next(w, r.WithContext(ctx))
+	}
+}
+
+// RequireSystemRole ensures the user is authenticated and possesses one of the allowed global system roles (e.g., ADMIN, STAFF)
+func RequireSystemRole(allowedRoles ...string) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+			user := GetUserFromContext(r)
+			if user == nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized: Authentication required"})
+				return
+			}
+
+			userRole := strings.ToUpper(user.SystemRole)
+			for _, allowed := range allowedRoles {
+				if userRole == strings.ToUpper(allowed) {
+					next(w, r)
+					return
+				}
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": fmt.Sprintf("Forbidden: This action requires one of the following system roles: %s", strings.Join(allowedRoles, ", ")),
+			})
+		})
 	}
 }
 
@@ -198,18 +355,36 @@ func RequireTenant(next http.HandlerFunc) http.HandlerFunc {
 		`, tenantID, user.ID).Scan(&engagementID)
 
 		if err == nil {
+			permissions := make(map[string]models.EngagementPermission)
+			permRows, pErr := db.Pool.Query(r.Context(), `
+				SELECT id, engagement_id, module_code, can_view, can_upload, can_approve, can_export
+				FROM engagement_permissions
+				WHERE engagement_id = $1
+			`, engagementID)
+			if pErr == nil {
+				defer permRows.Close()
+				for permRows.Next() {
+					var p models.EngagementPermission
+					if err := permRows.Scan(&p.ID, &p.EngagementID, &p.ModuleCode, &p.CanView, &p.CanUpload, &p.CanApprove, &p.CanExport); err == nil {
+						permissions[strings.ToLower(p.ModuleCode)] = p
+					}
+				}
+			}
+
 			tenantCtx := &TenantContext{
-				TenantID:   tenantID,
-				Role:       "DELEGATED_EXPERT",
-				IsExternal: true,
+				TenantID:     tenantID,
+				Role:         "DELEGATED_EXPERT",
+				IsExternal:   true,
+				EngagementID: &engagementID,
+				Permissions:  permissions,
 			}
 			ctx := context.WithValue(r.Context(), TenantContextKey, tenantCtx)
 			next(w, r.WithContext(ctx))
 			return
 		}
 
-		// Allow demo users access to seeded PayWave workspace for instant previewing
-		if tenantID == "55555555-5555-5555-5555-555555555501" {
+		// Allow demo users access to seeded PayWave workspace ONLY in non-production preview mode
+		if !isProduction() && tenantID == "55555555-5555-5555-5555-555555555501" {
 			tenantCtx := &TenantContext{
 				TenantID:   tenantID,
 				Role:       "OWNER",

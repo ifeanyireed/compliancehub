@@ -78,21 +78,37 @@ func main() {
 	// ==========================================
 	// Auth & Multi-Tenant Routes
 	// ==========================================
-	mux.HandleFunc("/api/v1/auth/register", withCORS(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/auth/register", withCORS(middleware.RateLimitAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			handlers.Register(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	}))
+	})))
 
-	mux.HandleFunc("/api/v1/auth/login", withCORS(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/auth/login", withCORS(middleware.RateLimitAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			handlers.Login(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	}))
+	})))
+
+	mux.HandleFunc("/api/v1/auth/forgot-password", withCORS(middleware.RateLimitAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handlers.ForgotPassword(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/v1/auth/reset-password", withCORS(middleware.RateLimitAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handlers.ResetPassword(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
 
 	mux.HandleFunc("/api/v1/auth/me", withCORS(middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -267,14 +283,109 @@ func main() {
 	})))
 
 	// ==========================================
-	// Pre-existing Blog, Support, Chat, Admin
+	// Regulatory Intelligence Blog & CMS Routes
 	// ==========================================
-	mux.HandleFunc("/api/blog/categories", withCORS(handlers.ListCategories))
+	mux.HandleFunc("/api/blog/categories/", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.DeleteCategory)(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/blog/categories", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.ListCategories(w, r)
+		case http.MethodPost:
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.CreateCategory)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/blog/tags/", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.DeleteTag)(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/blog/tags", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.ListTags(w, r)
+		case http.MethodPost:
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.CreateTag)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/blog/comments/", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPatch, http.MethodPut:
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.UpdateCommentStatus)(w, r)
+		case http.MethodDelete:
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.DeleteComment)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/blog/comments", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.ListComments(w, r)
+		case http.MethodPost:
+			handlers.CreateComment(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/blog/subscribe", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handlers.SubscribeNewsletter(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/blog/subscribers/", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.DeleteSubscriber)(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/blog/subscribers", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.ListSubscribers)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 
 	mux.HandleFunc("/api/blog/", withCORS(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
+		if strings.HasSuffix(r.URL.Path, "/view") {
+			if r.Method == http.MethodPost {
+				handlers.IncrementBlogPostView(w, r)
+				return
+			}
+		}
+
+		switch r.Method {
+		case http.MethodGet:
 			handlers.GetBlogPostBySlug(w, r)
-		} else {
+		case http.MethodPut, http.MethodPatch:
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.UpdateBlogPost)(w, r)
+		case http.MethodDelete:
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.DeleteBlogPost)(w, r)
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
@@ -284,7 +395,7 @@ func main() {
 		case http.MethodGet:
 			handlers.ListBlogPosts(w, r)
 		case http.MethodPost:
-			handlers.CreateBlogPost(w, r)
+			middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.CreateBlogPost)(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -294,14 +405,14 @@ func main() {
 
 	mux.HandleFunc("/api/support/tickets/", withCORS(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/reply") {
-			handlers.ReplyTicket(w, r)
+			middleware.RequireAuth(handlers.ReplyTicket)(w, r)
 			return
 		}
 		switch r.Method {
 		case http.MethodGet:
-			handlers.GetTicket(w, r)
+			middleware.RequireAuth(handlers.GetTicket)(w, r)
 		case http.MethodPatch, http.MethodPut:
-			handlers.UpdateTicketStatus(w, r)
+			middleware.RequireSystemRole("STAFF", "ADMIN")(handlers.UpdateTicketStatus)(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -310,7 +421,7 @@ func main() {
 	mux.HandleFunc("/api/support/tickets", withCORS(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			handlers.ListTickets(w, r)
+			middleware.RequireAuth(handlers.ListTickets)(w, r)
 		case http.MethodPost:
 			handlers.CreateTicket(w, r)
 		default:
@@ -321,7 +432,7 @@ func main() {
 	mux.HandleFunc("/api/chat/sessions", withCORS(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			handlers.ListChatSessions(w, r)
+			middleware.RequireSystemRole("STAFF", "ADMIN")(handlers.ListChatSessions)(w, r)
 		case http.MethodPost:
 			handlers.CreateChatSession(w, r)
 		default:
@@ -340,9 +451,30 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/admin/metrics", withCORS(handlers.GetAdminMetrics))
-	mux.HandleFunc("/api/admin/users", withCORS(handlers.ListAdminUsers))
-	mux.HandleFunc("/api/admin/invoices", withCORS(handlers.ListAdminInvoices))
+	// Admin Cockpit: strictly requires platform ADMIN system role
+	mux.HandleFunc("/api/admin/metrics", withCORS(middleware.RequireSystemRole("ADMIN")(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.GetAdminMetrics(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/admin/users", withCORS(middleware.RequireSystemRole("ADMIN")(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.ListAdminUsers(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/admin/invoices", withCORS(middleware.RequireSystemRole("ADMIN")(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.ListAdminInvoices(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("🚀 ComplianceHub Go API server listening on http://localhost%s", addr)

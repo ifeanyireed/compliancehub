@@ -62,6 +62,15 @@ func CreateAMLCase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if tenantCtx.Role == "VIEWER" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: Read-only viewers cannot open AML compliance investigations",
+		})
+		return
+	}
+
 	var req models.AMLCase
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid body", http.StatusBadRequest)
@@ -141,6 +150,15 @@ func CreatePrivacyActivity(w http.ResponseWriter, r *http.Request) {
 	tenantCtx := middleware.GetTenantContext(r)
 	if tenantCtx == nil {
 		http.Error(w, "Tenant not resolved", http.StatusBadRequest)
+		return
+	}
+
+	if tenantCtx.Role == "VIEWER" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: Read-only viewers cannot create NDPA privacy processing records",
+		})
 		return
 	}
 

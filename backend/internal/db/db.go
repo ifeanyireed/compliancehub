@@ -6,10 +6,72 @@ import (
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var Pool *pgxpool.Pool
+
+// WithTenantTx executes a database operation inside a transaction scoped to a specific tenant ID.
+// This sets the PostgreSQL session variable 'app.current_tenant_id' locally for the duration of the
+// transaction, activating Row Level Security (RLS) enforcement at the database engine level.
+// When the transaction commits or rolls back, the local setting is automatically discarded,
+// preventing session bleeding across the connection pool.
+func WithTenantTx(ctx context.Context, tenantID string, fn func(tx pgx.Tx) error) error {
+	if Pool == nil {
+		return fmt.Errorf("database pool is not initialized")
+	}
+
+	tx, err := Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin tenant transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if tenantID != "" {
+		// Switch to non-bypass application role for strict RLS enforcement if available
+		var hasRole bool
+		_ = tx.QueryRow(ctx, "SELECT pg_has_role(current_user, 'compliancehub_app', 'MEMBER')").Scan(&hasRole)
+		if hasRole {
+			if _, err := tx.Exec(ctx, "SET LOCAL ROLE compliancehub_app"); err != nil {
+				log.Printf("⚠️ Note: SET LOCAL ROLE compliancehub_app: %v", err)
+			}
+		}
+
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.current_tenant_id', $1, true)", tenantID); err != nil {
+			return fmt.Errorf("failed to set local tenant context: %w", err)
+		}
+	}
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+// WithBypassRLSTx executes a transaction with 'app.bypass_rls = on' for super-admin or system routines.
+func WithBypassRLSTx(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	if Pool == nil {
+		return fmt.Errorf("database pool is not initialized")
+	}
+
+	tx, err := Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin bypass-RLS transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.bypass_rls', 'on', true)"); err != nil {
+		return fmt.Errorf("failed to enable RLS bypass: %w", err)
+	}
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
 
 func InitDB(databaseURL string) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(databaseURL)
@@ -61,7 +123,7 @@ func SeedSupportAndBlog(ctx context.Context, pool *pgxpool.Pool) error {
 	pool.QueryRow(ctx, "SELECT COUNT(*) FROM blog_posts").Scan(&blogCount)
 	if blogCount == 0 {
 		seedBlogSQL := `
-		INSERT INTO blog_posts (title, slug, excerpt, content, author_name, author_role, author_avatar, category, tags, read_time, status, cover_image)
+		INSERT INTO blog_posts (title, slug, excerpt, content, author_name, author_role, author_avatar, category, tags, read_time, status, cover_image, view_count, meta_title, meta_description)
 		VALUES
 		(
 			'Navigating the 2026 Nigeria Tax Act: A Corporate Guide to Withholding, CIT, and TaxPro-MAX',
@@ -75,7 +137,10 @@ func SeedSupportAndBlog(ctx context.Context, pool *pgxpool.Pool) error {
 			ARRAY['Tax Act 2026', 'FIRS', 'TaxPro-MAX', 'CIT'],
 			'5 min read',
 			'PUBLISHED',
-			'/article_professional.jpg'
+			'/article_professional.jpg',
+			1420,
+			'2026 Nigeria Tax Act: Corporate Guide to Withholding, CIT & TaxPro-MAX',
+			'Operational guide for Nigerian managing directors and compliance officers navigating withholding tax and TaxPro-MAX 2026 reforms.'
 		),
 		(
 			'The March 15 Statutory NDPC Filing Cutoff: Audit Preparation Checklist',
@@ -85,11 +150,14 @@ func SeedSupportAndBlog(ctx context.Context, pool *pgxpool.Pool) error {
 			'Chiamaka Eze',
 			'Principal Partner, Apex Advisory',
 			'/character2.jpg',
-			'Data Privacy',
+			'Data Privacy & NDPA',
 			ARRAY['NDPA 2023', 'NDPC', 'DPCO', 'RoPA'],
 			'7 min read',
 			'PUBLISHED',
-			'/article_business.jpg'
+			'/article_business.jpg',
+			980,
+			'March 15 Statutory NDPC Filing Cutoff: Audit Preparation Checklist',
+			'Detailed checklist for data controllers submitting annual compliance returns to the Nigeria Data Protection Commission.'
 		),
 		(
 			'SCUML Anti-Money Laundering Framework: Step-by-Step for DNFBPs in 2026',
@@ -103,9 +171,56 @@ func SeedSupportAndBlog(ctx context.Context, pool *pgxpool.Pool) error {
 			ARRAY['SCUML', 'AML', 'NFIU', 'PEP Screening'],
 			'6 min read',
 			'PUBLISHED',
-			'/article_agency.jpg'
+			'/article_agency.jpg',
+			1150,
+			'SCUML AML/CFT Compliance Framework for Nigerian DNFBPs (2026)',
+			'Step-by-step guidance on EFCC SCUML registration, PEP screening, and CTR filing for Nigerian designated non-financial businesses.'
 		);`
 		pool.Exec(ctx, seedBlogSQL)
+	}
+
+	// Seed Blog Categories if empty
+	var catCount int
+	pool.QueryRow(ctx, "SELECT COUNT(*) FROM blog_categories").Scan(&catCount)
+	if catCount == 0 {
+		seedCatSQL := `
+		INSERT INTO blog_categories (name, slug, description)
+		VALUES
+		('Taxation & FIRS', 'taxation-firs', 'Corporate income tax, withholding tax, TaxPro-MAX and 2026 Nigeria Tax Act regulations'),
+		('Data Privacy & NDPA', 'data-privacy-ndpa', 'NDPA 2023 compliance, annual DPCO audits, RoPA and data subject rights'),
+		('Corporate & CAC', 'corporate-cac', 'CAMA 2020 annual returns, PSC filings, share capital allotments and corporate governance'),
+		('AML & SCUML', 'aml-scuml', 'EFCC SCUML registration, PEP screening, CTR/STR filing requirements for DNFBPs'),
+		('Labour & Pension', 'labour-pension', 'PenCom remittances, NSITF, ITF statutory training levies and Nigerian Labour Law'),
+		('Immigration & Expatriate', 'immigration-expatriate', 'Expatriate quota allocations, CERPAC, business permits and regulatory approvals')
+		ON CONFLICT (name) DO NOTHING;`
+		pool.Exec(ctx, seedCatSQL)
+	}
+
+	// Seed Blog Tags if empty
+	var tagCount int
+	pool.QueryRow(ctx, "SELECT COUNT(*) FROM blog_tags").Scan(&tagCount)
+	if tagCount == 0 {
+		seedTagSQL := `
+		INSERT INTO blog_tags (name, slug)
+		VALUES
+		('Tax Act 2026', 'tax-act-2026'),
+		('FIRS', 'firs'),
+		('TaxPro-MAX', 'taxpro-max'),
+		('CIT', 'cit'),
+		('NDPA 2023', 'ndpa-2023'),
+		('NDPC', 'ndpc'),
+		('DPCO', 'dpco'),
+		('RoPA', 'ropa'),
+		('CAC', 'cac'),
+		('CAMA 2020', 'cama-2020'),
+		('Annual Returns', 'annual-returns'),
+		('SCUML', 'scuml'),
+		('AML/CFT', 'aml-cft'),
+		('NFIU', 'nfiu'),
+		('PenCom', 'pencom'),
+		('PRA 2014', 'pra-2014')
+		ON CONFLICT (name) DO NOTHING;`
+		pool.Exec(ctx, seedTagSQL)
 	}
 
 	// Seed Support Tickets if empty

@@ -103,6 +103,8 @@ export const api = {
   auth: {
     login: (body: { email: string; password: string }) => apiFetch("/v1/auth/login", { method: "POST", body: JSON.stringify(body) }),
     register: (body: any) => apiFetch("/v1/auth/register", { method: "POST", body: JSON.stringify(body) }),
+    forgotPassword: (body: { email: string }) => apiFetch("/v1/auth/forgot-password", { method: "POST", body: JSON.stringify(body) }),
+    resetPassword: (body: { token: string; new_password: string }) => apiFetch("/v1/auth/reset-password", { method: "POST", body: JSON.stringify(body) }),
     getMe: () => apiFetch("/v1/auth/me", { method: "GET" }),
   },
 
@@ -242,5 +244,90 @@ export const api = {
       operates_branches: boolean;
       service_preference?: string;
     }) => apiFetch("/v1/onboarding/classify", { method: "POST", body: JSON.stringify(data) }),
+  },
+
+  // Admin Cockpit (Requires ADMIN system role)
+  admin: {
+    getMetrics: () => apiFetch("/admin/metrics", { method: "GET" }),
+    getUsers: () => apiFetch("/admin/users", { method: "GET" }),
+    getInvoices: () => apiFetch("/admin/invoices", { method: "GET" }),
+  },
+
+  // Support Operations & Tickets
+  support: {
+    getTickets: (params?: { status?: string; category?: string }) => {
+      let query = "";
+      if (params) {
+        const q = new URLSearchParams();
+        if (params.status && params.status !== "ALL") q.set("status", params.status);
+        if (params.category && params.category !== "ALL") q.set("category", params.category);
+        const str = q.toString();
+        if (str) query = `?${str}`;
+      }
+      return apiFetch(`/support/tickets${query}`, { method: "GET" });
+    },
+    getTicket: (id: string) => apiFetch(`/support/tickets/${id}`, { method: "GET" }),
+    createTicket: (body: any) => apiFetch("/support/tickets", { method: "POST", body: JSON.stringify(body) }),
+    replyTicket: (id: string, body: { sender_name: string; sender_role: string; message: string }) =>
+      apiFetch(`/support/tickets/${id}/reply`, { method: "POST", body: JSON.stringify(body) }),
+    updateTicketStatus: (id: string, status: string) =>
+      apiFetch(`/support/tickets/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    getKb: () => apiFetch("/support/kb", { method: "GET" }),
+  },
+
+  // Live Support Chat
+  chat: {
+    getSessions: () => apiFetch("/chat/sessions", { method: "GET" }),
+    getMessages: (sessionId: string) => apiFetch(`/chat/messages?session_id=${sessionId}`, { method: "GET" }),
+    sendMessage: (body: { session_id: string; sender_name: string; sender_role: string; message: string }) =>
+      apiFetch("/chat/messages", { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  // Regulatory Intelligence & Editorial Blog CMS
+  blog: {
+    getPosts: (params?: { category?: string; status?: string; search?: string; tag?: string; page?: number; limit?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.category && params.category !== "ALL" && params.category !== "All") q.set("category", params.category);
+      if (params?.status && params.status !== "ALL") q.set("status", params.status);
+      if (params?.search) q.set("search", params.search);
+      if (params?.tag) q.set("tag", params.tag);
+      if (params?.page) q.set("page", String(params.page));
+      if (params?.limit) q.set("limit", String(params.limit));
+      const queryStr = q.toString() ? `?${q.toString()}` : "";
+      return apiFetch(`/blog${queryStr}`, { method: "GET" });
+    },
+    getPost: (slugOrId: string) => apiFetch(`/blog/${encodeURIComponent(slugOrId)}`, { method: "GET" }),
+    incrementView: (slugOrId: string) => apiFetch(`/blog/${encodeURIComponent(slugOrId)}/view`, { method: "POST" }),
+    createPost: (post: any) => apiFetch("/blog", { method: "POST", body: JSON.stringify(post) }),
+    updatePost: (id: number | string, post: any) => apiFetch(`/blog/${id}`, { method: "PUT", body: JSON.stringify(post) }),
+    deletePost: (id: number | string) => apiFetch(`/blog/${id}`, { method: "DELETE" }),
+    // Categories
+    getCategories: () => apiFetch("/blog/categories", { method: "GET" }),
+    createCategory: (cat: { name: string; slug?: string; description?: string }) =>
+      apiFetch("/blog/categories", { method: "POST", body: JSON.stringify(cat) }),
+    deleteCategory: (id: number | string) => apiFetch(`/blog/categories/${id}`, { method: "DELETE" }),
+    // Tags
+    getTags: () => apiFetch("/blog/tags", { method: "GET" }),
+    createTag: (tag: { name: string; slug?: string }) =>
+      apiFetch("/blog/tags", { method: "POST", body: JSON.stringify(tag) }),
+    deleteTag: (id: number | string) => apiFetch(`/blog/tags/${id}`, { method: "DELETE" }),
+    // Comments
+    getComments: (params?: { post_id?: number | string; status?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.post_id) q.set("post_id", String(params.post_id));
+      if (params?.status && params.status !== "ALL") q.set("status", params.status);
+      const queryStr = q.toString() ? `?${q.toString()}` : "";
+      return apiFetch(`/blog/comments${queryStr}`, { method: "GET" });
+    },
+    createComment: (comment: { post_id: number; author_name: string; author_email: string; content: string }) =>
+      apiFetch("/blog/comments", { method: "POST", body: JSON.stringify(comment) }),
+    updateCommentStatus: (id: number | string, status: string) =>
+      apiFetch(`/blog/comments/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    deleteComment: (id: number | string) => apiFetch(`/blog/comments/${id}`, { method: "DELETE" }),
+    // Subscribers
+    getSubscribers: () => apiFetch("/blog/subscribers", { method: "GET" }),
+    subscribe: (email: string, source: string = "BLOG_EDITORIAL") =>
+      apiFetch("/blog/subscribe", { method: "POST", body: JSON.stringify({ email, source }) }),
+    deleteSubscriber: (id: number | string) => apiFetch(`/blog/subscribers/${id}`, { method: "DELETE" }),
   },
 };

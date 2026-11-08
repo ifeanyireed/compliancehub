@@ -271,6 +271,15 @@ func RevokeEngagement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !tenantCtx.CanManageWorkspace() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: Only workspace owners and administrators can terminate professional engagements",
+		})
+		return
+	}
+
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) < 4 {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
@@ -289,6 +298,19 @@ func RevokeEngagement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Revocation failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit trail log
+	user := middleware.GetUserFromContext(r)
+	actorName := "Administrator"
+	var actorID *string
+	if user != nil {
+		actorName = user.FullName
+		actorID = &user.ID
+	}
+	_, _ = db.Pool.Exec(r.Context(), `
+		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
+		VALUES ($1, $2, $3, $4, 'REVOKE_ENGAGEMENT', $5)
+	`, tenantCtx.TenantID, actorID, actorName, tenantCtx.Role, "Terminated delegated compliance officer engagement: "+engagementID)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

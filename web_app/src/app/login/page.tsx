@@ -26,6 +26,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("••••••••••••");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotStatus, setForgotStatus] = useState<string | null>(null);
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotSubmitting(true);
+    setForgotStatus(null);
+    try {
+      const res = await api.auth.forgotPassword({ email: forgotEmail || email });
+      setForgotStatus(res?.message || "Password reset instructions dispatched.");
+    } catch (err: any) {
+      setForgotStatus("If this email is registered, password reset instructions have been dispatched.");
+    } finally {
+      setForgotSubmitting(false);
+    }
+  };
 
   const handleRoleSelect = (role: "BUSINESS" | "EXPERT" | "AGENCY") => {
     setSelectedRole(role);
@@ -196,9 +214,17 @@ export default function LoginPage() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-bold text-slate-700">Password</label>
-              <span className="text-[10px] font-bold text-[#0089C1] hover:underline cursor-pointer">
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(email);
+                  setShowForgotModal(true);
+                  setForgotStatus(null);
+                }}
+                className="text-[10px] font-bold text-[#0089C1] hover:underline cursor-pointer bg-transparent border-none p-0"
+              >
                 Forgot password?
-              </span>
+              </button>
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -239,6 +265,58 @@ export default function LoginPage() {
         </div>
       </div>
 
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900">Reset Password</h3>
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              Enter your registered enterprise email address to receive password recovery instructions.
+            </p>
+            {forgotStatus ? (
+              <div className="space-y-3">
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+                  {forgotStatus}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(false)}
+                  className="w-full bg-[#1E293B] text-white font-bold py-2.5 rounded-xl text-xs"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-3">
+                <input
+                  type="email"
+                  required
+                  placeholder="name@company.ng"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                />
+                <button
+                  type="submit"
+                  disabled={forgotSubmitting}
+                  className="w-full bg-[#1E293B] hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {forgotSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send Reset Link"}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

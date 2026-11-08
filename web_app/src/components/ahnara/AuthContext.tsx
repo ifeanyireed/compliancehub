@@ -99,8 +99,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (typeof window !== "undefined") {
         const storedRole = localStorage.getItem("compliancehub_role") as "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN" | null;
         const storedTenant = getActiveTenantID();
+        const storedUser = localStorage.getItem("compliancehub_user");
+
         if (storedTenant) {
           setActiveTenantIdState(storedTenant);
+        }
+
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            setLoading(false);
+            return;
+          } catch (e) {
+            console.warn("Failed to parse stored user, falling back to role preset", e);
+          }
         }
 
         if (storedRole && DEMO_USERS[storedRole]) {
@@ -108,6 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setUser(DEMO_USERS.BUSINESS);
           localStorage.setItem("compliancehub_role", "BUSINESS");
+          localStorage.setItem("compliancehub_user", JSON.stringify(DEMO_USERS.BUSINESS));
           setAuthToken("demo-token-business");
           setActiveTenantID("55555555-5555-5555-5555-555555555501");
         }
@@ -127,6 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     if (typeof window !== "undefined") {
       localStorage.setItem("compliancehub_role", userData.role);
+      localStorage.setItem("compliancehub_user", JSON.stringify(userData));
     }
   };
 
@@ -135,6 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(newUser);
     if (typeof window !== "undefined") {
       localStorage.setItem("compliancehub_role", role);
+      localStorage.setItem("compliancehub_user", JSON.stringify(newUser));
       setAuthToken(`demo-token-${role.toLowerCase()}`);
       if (newUser.tenant_id) {
         setActiveTenantID(newUser.tenant_id);
@@ -146,6 +162,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const switchTenant = (tenantId: string) => {
     setActiveTenantID(tenantId);
     setActiveTenantIdState(tenantId);
+    setUser((prev) => (prev ? { ...prev, tenant_id: tenantId } : null));
+    if (typeof window !== "undefined" && user) {
+      localStorage.setItem("compliancehub_user", JSON.stringify({ ...user, tenant_id: tenantId }));
+    }
   };
 
   const logout = () => {
@@ -153,6 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("compliancehub_role");
       localStorage.removeItem("compliancehub_tenant_id");
+      localStorage.removeItem("compliancehub_user");
     }
     setUser(null);
     router.push("/login");

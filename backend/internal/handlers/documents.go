@@ -20,6 +20,15 @@ func GenerateUploadSignature(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !tenantCtx.CanUploadEvidence("hubdocs") {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: You do not have permission to upload evidence in this workspace",
+		})
+		return
+	}
+
 	var req models.CloudinarySignatureRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
@@ -206,6 +215,15 @@ func DeleteDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !tenantCtx.CanDeleteResource() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Forbidden: Only workspace owners and administrators can permanently delete regulatory evidence",
+		})
+		return
+	}
+
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 	if len(parts) < 4 {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
@@ -221,6 +239,19 @@ func DeleteDocument(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Delete failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit trail logging
+	user := middleware.GetUserFromContext(r)
+	actorName := "Operator"
+	var actorID *string
+	if user != nil {
+		actorName = user.FullName
+		actorID = &user.ID
+	}
+	_, _ = db.Pool.Exec(r.Context(), `
+		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
+		VALUES ($1, $2, $3, $4, 'DELETE_DOCUMENT', $5)
+	`, tenantCtx.TenantID, actorID, actorName, tenantCtx.Role, fmt.Sprintf("Permanently deleted regulatory evidence document: %s", docID))
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
