@@ -102,13 +102,13 @@ VAT returns remain due strictly on the **21st day** of every subsequent month. T
 3. **Engage an Accredited Tax Practitioner**: Complex corporate transactions require certified CITN or ICAN chartered review to avoid retrospective liabilities.`,
   author_name: "Tunde Bakare, CAMS",
   author_role: "Senior AML & Regulatory Officer",
-  author_avatar: "/character1.jpg",
+  author_avatar: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187304/compliancehub/authors/tunde_bakare.jpg",
   author_bio: "Fellow of the Institute of Chartered Accountants of Nigeria (ICAN) and Certified Anti-Money Laundering Specialist with over 14 years advising commercial banks and multinational entities across Lagos and Abuja.",
   category: "Taxation & FIRS",
   tags: ["Tax Act 2026", "FIRS", "TaxPro-MAX", "CIT", "Corporate Tax"],
   read_time: "5 min read",
   status: "PUBLISHED",
-  cover_image: "https://cdn.punchng.com/wp-content/uploads/2023/07/11175654/FIRS-headquarters.jpg",
+  cover_image: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187614/compliancehub/blog/firs_tax_act_2026_guide.jpg",
   view_count: 0,
   published_at: "2026-02-01"
 };
