@@ -44,7 +44,9 @@ export const OpsSidebar = () => {
 
       <nav className="flex-1 px-4 space-y-2 mt-8">
         {menuItems.map((item, i) => {
-          const isActive = pathname === item.href;
+          const normalizedPath = (pathname || "").replace(/\/+$/, "");
+          const itemHrefClean = item.href.replace(/\/+$/, "");
+          const isActive = normalizedPath === itemHrefClean || normalizedPath.startsWith(`${itemHrefClean}/`);
           return (
             <Link href={item.href} key={i}>
               <button

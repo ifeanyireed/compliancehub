@@ -106,7 +106,11 @@ export default function SuperAdminLayout({
             </div>
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const normalizedPath = (pathname || "").replace(/\/+$/, "");
+              const itemHrefClean = item.href.replace(/\/+$/, "");
+              const isActive =
+                normalizedPath === itemHrefClean ||
+                (itemHrefClean !== "/admin" && normalizedPath.startsWith(`${itemHrefClean}/`));
               return (
                 <Link
                   key={item.href}

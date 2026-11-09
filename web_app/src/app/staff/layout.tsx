@@ -102,7 +102,11 @@ export default function StaffLayout({
             </div>
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const normalizedPath = (pathname || "").replace(/\/+$/, "");
+              const itemHrefClean = item.href.replace(/\/+$/, "");
+              const isActive =
+                normalizedPath === itemHrefClean ||
+                (itemHrefClean !== "/staff" && normalizedPath.startsWith(`${itemHrefClean}/`));
               return (
                 <Link
                   key={item.href}

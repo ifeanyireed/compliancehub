@@ -126,19 +126,23 @@ export default function BusinessDashboardLayout({ children }: { children: React.
           {/* Center: Top Capsule Pill Tab Menu */}
           <nav className="flex items-center gap-1 bg-[#DDEEF3] p-1 rounded-2xl border border-slate-300/30 overflow-x-auto max-w-full">
             {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/business/dashboard" && pathname.startsWith(item.href));
+              const normalizedPath = (pathname || "").replace(/\/+$/, "");
+              const itemHrefClean = item.href.replace(/\/+$/, "");
+              const isActive =
+                normalizedPath === itemHrefClean ||
+                (itemHrefClean !== "/business" && normalizedPath.startsWith(`${itemHrefClean}/`));
               const Icon = item.icon;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${
                     isActive
-                      ? "bg-[#1E293B] text-white shadow-sm"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-300/20"
+                      ? "bg-[#1E293B] text-white shadow-sm font-bold"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-300/20 font-semibold"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className={`w-4 h-4 ${isActive ? "text-[#0089C1]" : "text-slate-500"}`} />
                   <span>{item.name}</span>
                 </Link>
               );

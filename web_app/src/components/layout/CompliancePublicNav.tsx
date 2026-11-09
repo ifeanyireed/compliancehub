@@ -15,6 +15,7 @@ export function CompliancePublicNav() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const cleanPath = (pathname || "").replace(/\/+$/, "");
   const { user } = useAuth();
 
   useEffect(() => {
@@ -53,43 +54,43 @@ export function CompliancePublicNav() {
         <nav className="hidden lg:flex items-center gap-7 text-sm font-semibold text-slate-600">
           <Link 
             href="/solutions" 
-            className={`transition-colors hover:text-slate-950 ${pathname === "/solutions" ? "text-slate-950 font-bold" : ""}`}
+            className={`transition-colors hover:text-slate-950 ${cleanPath === "/solutions" ? "text-slate-950 font-bold" : ""}`}
           >
             Solutions
           </Link>
           <Link 
             href="/modules" 
-            className={`transition-colors hover:text-slate-950 ${pathname === "/modules" ? "text-slate-950 font-bold" : ""}`}
+            className={`transition-colors hover:text-slate-950 ${cleanPath === "/modules" ? "text-slate-950 font-bold" : ""}`}
           >
             12 Modules
           </Link>
           <Link 
             href="/experts" 
-            className={`transition-colors hover:text-slate-950 ${pathname === "/experts" ? "text-slate-950 font-bold" : ""}`}
+            className={`transition-colors hover:text-slate-950 ${cleanPath === "/experts" ? "text-slate-950 font-bold" : ""}`}
           >
             Find an Expert
           </Link>
           <Link 
             href="/resources" 
-            className={`transition-colors hover:text-slate-950 ${pathname === "/resources" ? "text-slate-950 font-bold" : ""}`}
+            className={`transition-colors hover:text-slate-950 ${cleanPath === "/resources" ? "text-slate-950 font-bold" : ""}`}
           >
             Regulatory Intel
           </Link>
           <Link 
             href="/blog" 
-            className={`transition-colors hover:text-slate-950 ${pathname?.startsWith("/blog") ? "text-slate-950 font-bold" : ""}`}
+            className={`transition-colors hover:text-slate-950 ${cleanPath.startsWith("/blog") ? "text-slate-950 font-bold" : ""}`}
           >
             Blog
           </Link>
           <Link 
             href="/support" 
-            className={`transition-colors hover:text-slate-950 ${pathname?.startsWith("/support") ? "text-slate-950 font-bold" : ""}`}
+            className={`transition-colors hover:text-slate-950 ${cleanPath.startsWith("/support") ? "text-slate-950 font-bold" : ""}`}
           >
             Support
           </Link>
           <Link 
             href="/pricing" 
-            className={`transition-colors hover:text-slate-950 ${pathname === "/pricing" ? "text-slate-950 font-bold" : ""}`}
+            className={`transition-colors hover:text-slate-950 ${cleanPath === "/pricing" ? "text-slate-950 font-bold" : ""}`}
           >
             Pricing
           </Link>
