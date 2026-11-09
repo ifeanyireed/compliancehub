@@ -16,14 +16,13 @@ import {
   Sparkles,
   Loader2
 } from "lucide-react";
-import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/ahnara/AuthContext";
 
 export default function PracticeClientsPage() {
   const router = useRouter();
   const { switchTenant } = useAuth();
-  const [clients, setClients] = useState(MOCK_CLIENT_WORKSPACES);
+  const [clients, setClients] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selectedRisk, setSelectedRisk] = useState("All");
   const [loading, setLoading] = useState(true);
@@ -33,7 +32,7 @@ export default function PracticeClientsPage() {
       setLoading(true);
       try {
         const data = await api.practice.getClients();
-        if (data && Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setClients(
             data.map((c: any) => ({
               id: c.tenant_id,
@@ -54,9 +53,12 @@ export default function PracticeClientsPage() {
               logoText: (c.company_name || "CL").slice(0, 2).toUpperCase()
             }))
           );
+        } else {
+          setClients([]);
         }
       } catch (err) {
-        console.warn("Using fallback client workspaces:", err);
+        console.error("Failed to load client workspaces from database:", err);
+        setClients([]);
       } finally {
         setLoading(false);
       }
@@ -196,7 +198,7 @@ export default function PracticeClientsPage() {
                   Authorised Delegated Modules:
                 </span>
                 <div className="flex flex-wrap gap-1">
-                  {c.activeModules.map((m, i) => (
+                  {c.activeModules.map((m: string, i: number) => (
                     <span key={i} className="text-[10px] font-mono font-bold bg-[#E8EFF4] text-slate-800 px-2 py-0.5 rounded">
                       {m}
                     </span>

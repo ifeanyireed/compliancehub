@@ -383,6 +383,24 @@ func MigrateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);`,
 
+		// 19. Invoices & Commercial Billing
+		`CREATE TABLE IF NOT EXISTS invoices (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			invoice_number VARCHAR(100) UNIQUE NOT NULL,
+			tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+			client_name VARCHAR(255) NOT NULL,
+			amount_ngn NUMERIC(12, 2) NOT NULL,
+			invoice_type VARCHAR(50) NOT NULL DEFAULT 'RETAINER',
+			status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+			payout_ref VARCHAR(100),
+			due_date DATE NOT NULL,
+			paid_at TIMESTAMPTZ,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		);`,
+
+		`ALTER TABLE organisations ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '';`,
+		`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '';`,
+
 		`CREATE TABLE IF NOT EXISTS knowledge_articles (
 			id TEXT PRIMARY KEY,
 			title TEXT NOT NULL,

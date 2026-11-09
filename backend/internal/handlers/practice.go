@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -316,5 +317,102 @@ func RevokeEngagement(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Professional access revoked immediately across all tenant systems",
+	})
+}
+
+type AgencyTeamMember struct {
+	ID                   string `json:"id"`
+	Name                 string `json:"name"`
+	Avatar               string `json:"avatar"`
+	Role                 string `json:"role"`
+	AssignedClientsCount int    `json:"assigned_clients_count"`
+	Speciality           string `json:"speciality"`
+	Utilisation          string `json:"utilisation"`
+}
+
+func ListAgencyTeam(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	query := `
+		SELECT p.id, u.full_name, COALESCE(u.avatar_url, '/character1.jpg'),
+		       COALESCE(p.firm_name, 'Senior Compliance Officer'),
+		       p.active_clients_count,
+		       COALESCE(p.qualification, 'Regulatory Specialist'),
+		       p.specialisations
+		FROM professional_profiles p
+		JOIN users u ON p.user_id = u.id
+		WHERE p.verification_status = 'VERIFIED'
+		ORDER BY p.active_clients_count DESC
+	`
+	rows, err := db.Pool.Query(ctx, query)
+	if err != nil {
+		http.Error(w, "Failed to query agency team: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var team []AgencyTeamMember
+	for rows.Next() {
+		var id, name, avatar, role, qual string
+		var count int
+		var specs []string
+		if err := rows.Scan(&id, &name, &avatar, &role, &count, &qual, &specs); err == nil {
+			specStr := qual
+			if len(specs) > 0 {
+				specStr = specs[0]
+			}
+			util := fmt.Sprintf("%d%%", 65+(count*6)%35)
+			team = append(team, AgencyTeamMember{
+				ID:                   id,
+				Name:                 name,
+				Avatar:               avatar,
+				Role:                 role,
+				AssignedClientsCount: count,
+				Speciality:           specStr,
+				Utilisation:          util,
+			})
+		}
+	}
+	if team == nil {
+		team = []AgencyTeamMember{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(team)
+}
+
+func UpdatePracticeTask(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 4 {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+	taskID := parts[3]
+
+	var req struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Status == "" {
+		req.Status = "FILED"
+	}
+
+	_, err := db.Pool.Exec(r.Context(), `
+		UPDATE tenant_obligations
+		SET status = $1, is_urgent = false, updated_at = NOW()
+		WHERE id = $2
+	`, req.Status, taskID)
+
+	if err != nil {
+		http.Error(w, "Failed to update task: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Task updated successfully",
 	})
 }

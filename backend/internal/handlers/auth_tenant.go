@@ -330,7 +330,8 @@ func GetCurrentTenant(w http.ResponseWriter, r *http.Request) {
 	var tenant models.Tenant
 	err := db.Pool.QueryRow(ctx, `
 		SELECT t.id, t.organisation_id, t.workspace_name, t.slug, t.plan_tier, t.compliance_score, t.is_active,
-		       o.legal_name, o.rc_number, o.industry
+		       o.legal_name, COALESCE(o.rc_number, ''), COALESCE(o.industry, ''),
+		       COALESCE(o.address, t.address, ''), COALESCE(o.tin, '')
 		FROM tenants t
 		JOIN organisations o ON t.organisation_id = o.id
 		WHERE t.id = $1
@@ -338,6 +339,7 @@ func GetCurrentTenant(w http.ResponseWriter, r *http.Request) {
 		&tenant.ID, &tenant.OrganisationID, &tenant.WorkspaceName, &tenant.Slug,
 		&tenant.PlanTier, &tenant.ComplianceScore, &tenant.IsActive,
 		&tenant.OrganisationName, &tenant.RCNumber, &tenant.Industry,
+		&tenant.Address, &tenant.TIN,
 	)
 
 	if err != nil {
@@ -358,6 +360,104 @@ func GetCurrentTenant(w http.ResponseWriter, r *http.Request) {
 		"documents_count":  docCount,
 		"employees_count":  empCount,
 		"urgent_deadlines": urgentCount,
+	})
+}
+
+func ListAllTenants(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	query := `
+		SELECT t.id, t.organisation_id, t.workspace_name, t.slug, t.plan_tier, t.compliance_score, t.is_active,
+		       o.legal_name, COALESCE(o.rc_number, ''), COALESCE(o.industry, ''),
+		       COALESCE(o.address, t.address, ''), COALESCE(o.tin, ''), t.created_at, t.updated_at
+		FROM tenants t
+		JOIN organisations o ON t.organisation_id = o.id
+		WHERE t.is_active = true
+		ORDER BY t.workspace_name ASC
+	`
+
+	rows, err := db.Pool.Query(ctx, query)
+	if err != nil {
+		http.Error(w, "Failed to query tenants: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var tenants []models.Tenant
+	for rows.Next() {
+		var t models.Tenant
+		if err := rows.Scan(
+			&t.ID, &t.OrganisationID, &t.WorkspaceName, &t.Slug,
+			&t.PlanTier, &t.ComplianceScore, &t.IsActive,
+			&t.OrganisationName, &t.RCNumber, &t.Industry,
+			&t.Address, &t.TIN, &t.CreatedAt, &t.UpdatedAt,
+		); err == nil {
+			tenants = append(tenants, t)
+		}
+	}
+
+	if tenants == nil {
+		tenants = []models.Tenant{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tenants)
+}
+
+func UpdateCurrentTenant(w http.ResponseWriter, r *http.Request) {
+	tenantCtx := middleware.GetTenantContext(r)
+	if tenantCtx == nil {
+		http.Error(w, "Tenant not resolved", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		CompanyName string `json:"company_name"`
+		RCNumber    string `json:"rc_number"`
+		TIN         string `json:"tin"`
+		Address     string `json:"address"`
+		Industry    string `json:"industry"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Update tenant
+	if req.CompanyName != "" || req.Address != "" {
+		_, _ = db.Pool.Exec(ctx, `
+			UPDATE tenants
+			SET workspace_name = COALESCE(NULLIF($1, ''), workspace_name),
+			    address = COALESCE(NULLIF($2, ''), address),
+			    updated_at = NOW()
+			WHERE id = $3
+		`, req.CompanyName, req.Address, tenantCtx.TenantID)
+	}
+
+	// Update organisation
+	_, err := db.Pool.Exec(ctx, `
+		UPDATE organisations
+		SET legal_name = COALESCE(NULLIF($1, ''), legal_name),
+		    rc_number = COALESCE(NULLIF($2, ''), rc_number),
+		    tin = COALESCE(NULLIF($3, ''), tin),
+		    address = COALESCE(NULLIF($4, ''), address),
+		    industry = COALESCE(NULLIF($5, ''), industry),
+		    updated_at = NOW()
+		WHERE id = (SELECT organisation_id FROM tenants WHERE id = $6)
+	`, req.CompanyName, req.RCNumber, req.TIN, req.Address, req.Industry, tenantCtx.TenantID)
+
+	if err != nil {
+		http.Error(w, "Failed to update tenant: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Tenant profile successfully updated",
 	})
 }
 

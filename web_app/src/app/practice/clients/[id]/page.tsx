@@ -15,12 +15,64 @@ import {
   Calendar,
   Sparkles
 } from "lucide-react";
-import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
+import { api } from "@/lib/api";
 
 export default function DelegatedClientWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
-  const client = MOCK_CLIENT_WORKSPACES.find(c => c.id === unwrappedParams.id) || MOCK_CLIENT_WORKSPACES[0];
-  const [activeModuleTab, setActiveModuleTab] = useState(client.activeModules[0] || "HubAML");
+  const [client, setClient] = useState<any>({
+    id: unwrappedParams.id,
+    name: "PayWave Technologies Ltd",
+    rcNumber: "RC-1894231",
+    industry: "Fintech & Digital Payments",
+    state: "Lagos",
+    employees: 42,
+    readinessScore: 84,
+    riskLevel: "Medium",
+    activeModules: ["HubCalendar", "HubDocs", "HubAML", "HubPrivacy", "HubAudit", "HubReport"],
+    assignedExpert: "Tunde Bakare, CAMS",
+    retainerMonthly: 250000,
+    openTasksCount: 5,
+    pendingApprovalsCount: 2,
+    upcomingDeadlinesCount: 3,
+    logoText: "PW",
+    colorScheme: "#0089C1"
+  });
+
+  React.useEffect(() => {
+    async function loadClient() {
+      try {
+        const clients = await api.practice.getClients();
+        if (Array.isArray(clients)) {
+          const match = clients.find((c: any) => c.tenant_id === unwrappedParams.id || c.engagement_id === unwrappedParams.id);
+          if (match) {
+            setClient({
+              id: match.tenant_id,
+              name: match.company_name,
+              rcNumber: match.rc_number,
+              industry: match.industry,
+              state: "Lagos",
+              employees: 35,
+              readinessScore: match.compliance_score || 84,
+              riskLevel: match.compliance_score > 80 ? "Low" : "Medium",
+              activeModules: ["HubCalendar", "HubDocs", "HubAML", "HubReport"],
+              assignedExpert: "Tunde Bakare, CAMS",
+              retainerMonthly: match.monthly_fee_ngn || 250000,
+              openTasksCount: match.urgent_count || 3,
+              pendingApprovalsCount: 1,
+              upcomingDeadlinesCount: match.urgent_count || 2,
+              logoText: (match.company_name || "CL").substring(0, 2).toUpperCase(),
+              colorScheme: "#0089C1"
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load client details:", err);
+      }
+    }
+    loadClient();
+  }, [unwrappedParams.id]);
+
+  const [activeModuleTab, setActiveModuleTab] = useState("HubAML");
   const [signOffRequested, setSignOffRequested] = useState(false);
 
   return (
@@ -93,7 +145,7 @@ export default function DelegatedClientWorkspacePage({ params }: { params: Promi
         <span className="text-xs font-bold text-slate-400 mr-2 flex items-center gap-1.5">
           <ShieldCheck className="w-4 h-4 text-emerald-600" /> Authorized Modules:
         </span>
-        {client.activeModules.map((mod) => (
+        {client.activeModules.map((mod: string) => (
           <button
             key={mod}
             onClick={() => setActiveModuleTab(mod)}

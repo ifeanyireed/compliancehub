@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Users2, 
   Building2, 
@@ -8,59 +8,58 @@ import {
   UserPlus, 
   CheckCircle2, 
   ArrowRight, 
-  Award,
-  Layers,
-  Sparkles
+  Award, 
+  Layers, 
+  Sparkles,
+  Loader2
 } from "lucide-react";
+import { api } from "@/lib/api";
+
+interface AgencyMember {
+  id: string;
+  name: string;
+  avatar: string;
+  role: string;
+  assignedClientsCount: number;
+  speciality: string;
+  utilisation: string;
+}
 
 export default function PracticeAgencyPage() {
-  const [teamMembers] = useState([
-    {
-      id: "mem-01",
-      name: "Chiamaka Eze",
-      avatar: "/character2.jpg",
-      role: "Managing Partner & Agency Owner",
-      assignedClientsCount: 14,
-      speciality: "Executive Governance & Corporate Law",
-      utilisation: "92%"
-    },
-    {
-      id: "mem-02",
-      name: "Tunde Bakare, CAMS",
-      avatar: "/character1.jpg",
-      role: "Senior AML Practice Director",
-      assignedClientsCount: 8,
-      speciality: "SCUML & Sanctions Screening",
-      utilisation: "86%"
-    },
-    {
-      id: "mem-03",
-      name: "Barr. Folashade Adeleke, CDPO",
-      avatar: "/character2.jpg",
-      role: "Licensed DPCO Lead Auditor",
-      assignedClientsCount: 10,
-      speciality: "NDPA 2023 Statutory Audits",
-      utilisation: "78%"
-    },
-    {
-      id: "mem-04",
-      name: "Emeka Okonkwo, FCA",
-      avatar: "/character3.jpg",
-      role: "Lead Tax & Financial Auditor",
-      assignedClientsCount: 9,
-      speciality: "Nigeria Tax Act 2025/2026",
-      utilisation: "84%"
-    },
-    {
-      id: "mem-05",
-      name: "Amina Danjuma",
-      avatar: "/character4.jpg",
-      role: "Corporate Secretarial Associate",
-      assignedClientsCount: 6,
-      speciality: "CAC CAMA 2020 Annual Returns",
-      utilisation: "65%"
+  const [teamMembers, setTeamMembers] = useState<AgencyMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadTeam() {
+      setLoading(true);
+      try {
+        const team = await api.practice.getTeam();
+        if (Array.isArray(team)) {
+          setTeamMembers(
+            team.map((m: any) => ({
+              id: m.id,
+              name: m.name,
+              avatar: m.avatar || "/character1.jpg",
+              role: m.role || "Compliance Specialist",
+              assignedClientsCount: m.assigned_clients_count || 4,
+              speciality: m.speciality || "Regulatory Compliance",
+              utilisation: m.utilisation || "80%",
+            }))
+          );
+        } else {
+          setTeamMembers([]);
+        }
+      } catch (err) {
+        console.error("Failed to load agency team from database:", err);
+        setTeamMembers([]);
+      } finally {
+        setLoading(false);
+      }
     }
-  ]);
+    loadTeam();
+  }, []);
+
+  const totalClients = teamMembers.reduce((acc, m) => acc + m.assignedClientsCount, 0);
 
   return (
     <div className="space-y-6 select-none">
@@ -83,10 +82,10 @@ export default function PracticeAgencyPage() {
           onClick={() => {
             const name = prompt("Enter full name of the new compliance associate to invite:");
             if (name) {
-              alert(`Associate invitation sent to ${name}. They will be onboarded to Apex Advisory Agency.`);
+              alert(`Associate invitation dispatched to ${name}. They will be onboarded to Apex Advisory Agency.`);
             }
           }}
-          className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto"
+          className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />
           <span>Invite Agency Associate</span>
@@ -97,8 +96,8 @@ export default function PracticeAgencyPage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-1">
           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Agency Headcount</span>
-          <div className="text-2xl font-black text-slate-900 font-mono">5 Practitioners</div>
-          <span className="text-[10px] text-purple-700 font-bold">1 Partner, 3 Leads, 1 Associate</span>
+          <div className="text-2xl font-black text-slate-900 font-mono">{teamMembers.length} Practitioners</div>
+          <span className="text-[10px] text-purple-700 font-bold">1 Partner, {Math.max(0, teamMembers.length - 2)} Leads, 1 Associate</span>
         </div>
 
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-1">
@@ -109,7 +108,7 @@ export default function PracticeAgencyPage() {
 
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-1">
           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Managed Clients</span>
-          <div className="text-2xl font-black text-slate-900 font-mono">47 Entities</div>
+          <div className="text-2xl font-black text-slate-900 font-mono">{totalClients} Entities</div>
           <span className="text-[10px] text-slate-500 font-medium">Across Lagos, Abuja & Rivers</span>
         </div>
 
@@ -140,35 +139,43 @@ export default function PracticeAgencyPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {teamMembers.map((m) => (
-                <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-4 px-6 font-bold text-slate-900 flex items-center gap-3">
-                    <img src={m.avatar} alt={m.name} className="w-9 h-9 rounded-full object-cover border border-slate-200" />
-                    <span>{m.name}</span>
-                  </td>
-                  <td className="py-4 px-4 text-slate-600 font-medium">{m.role}</td>
-                  <td className="py-4 px-4 text-slate-700 font-semibold">{m.speciality}</td>
-                  <td className="py-4 px-4 font-mono font-bold text-slate-900">
-                    {m.assignedClientsCount} Businesses
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-slate-800">{m.utilisation}</span>
-                      <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div className="h-full bg-emerald-600 rounded-full" style={{ width: m.utilisation }} />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <button 
-                      onClick={() => alert(`Opening workload re-assignment panel for ${m.name}`)}
-                      className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700"
-                    >
-                      Reallocate
-                    </button>
+              {teamMembers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                    {loading ? "Loading agency team from database..." : "No agency practitioners found."}
                   </td>
                 </tr>
-              ))}
+              ) : (
+                teamMembers.map((m) => (
+                  <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-4 px-6 font-bold text-slate-900 flex items-center gap-3">
+                      <img src={m.avatar} alt={m.name} className="w-9 h-9 rounded-full object-cover border border-slate-200" />
+                      <span>{m.name}</span>
+                    </td>
+                    <td className="py-4 px-4 text-slate-600 font-medium">{m.role}</td>
+                    <td className="py-4 px-4 text-slate-700 font-semibold">{m.speciality}</td>
+                    <td className="py-4 px-4 font-mono font-bold text-slate-900">
+                      {m.assignedClientsCount} Businesses
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-slate-800">{m.utilisation}</span>
+                        <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: m.utilisation }} />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <button 
+                        onClick={() => alert(`Opening workload re-assignment panel for ${m.name}`)}
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700 cursor-pointer"
+                      >
+                        Reallocate
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

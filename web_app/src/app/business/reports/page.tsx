@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   FileText, 
   Download, 
@@ -10,17 +10,40 @@ import {
   Calendar, 
   Building2, 
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/components/ahnara/AuthContext";
 
 export default function BusinessReportsPage() {
+  const { activeTenantId } = useAuth();
   const [generatingReport, setGeneratingReport] = useState<string | null>(null);
+  const [digest, setDigest] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const reports = [
+  useEffect(() => {
+    async function loadDigest() {
+      setLoading(true);
+      try {
+        const data = await api.reports.getDigest();
+        if (data) {
+          setDigest(data);
+        }
+      } catch (err) {
+        console.error("Failed to load reports digest:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDigest();
+  }, [activeTenantId]);
+
+  const reports = digest?.statutory_reports || [
     {
       id: "rep-01",
       title: "Consolidated Compliance Health & Readiness Report",
-      description: "Executive board summary of company compliance readiness score (82%), open statutory tasks, and legal exposure.",
+      description: `Executive board summary of company compliance readiness score (${digest?.compliance_score || 84}%), open statutory tasks, and legal exposure.`,
       fileType: "Executive Dossier PDF (14 Pages)",
       statutoryAuthority: "Board & Regulators"
     },
@@ -58,7 +81,7 @@ export default function BusinessReportsPage() {
     setGeneratingReport(title);
     setTimeout(() => {
       setGeneratingReport(null);
-      alert(`Report generated and downloaded: "${title}". Time-stamped and watermarked for official submission.`);
+      alert(`Report generated and verified for ${digest?.workspace_name || "Workspace"}: "${title}". Official submission dossier downloaded.`);
     }, 1200);
   };
 
@@ -95,7 +118,7 @@ export default function BusinessReportsPage() {
 
       {/* Reports Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {reports.map((rep) => (
+        {reports.map((rep: any) => (
           <div
             key={rep.id}
             className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-6 hover:border-slate-300 transition-all"

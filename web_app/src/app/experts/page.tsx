@@ -18,8 +18,9 @@ import {
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
-import { MOCK_EXPERTS, ComplianceExpert } from "@/lib/compliance-data";
+import { ComplianceExpert } from "@/lib/compliance-data";
 import { api } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 export default function ExpertsMarketplacePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,13 +28,15 @@ export default function ExpertsMarketplacePage() {
   const [selectedLocation, setSelectedLocation] = useState<string>("All");
   const [consultModalExpert, setConsultModalExpert] = useState<ComplianceExpert | null>(null);
   const [consultSuccess, setConsultSuccess] = useState(false);
-  const [expertsList, setExpertsList] = useState<ComplianceExpert[]>(MOCK_EXPERTS);
+  const [expertsList, setExpertsList] = useState<ComplianceExpert[]>([]);
+  const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
     async function loadExperts() {
+      setLoading(true);
       try {
         const live = await api.practice.getExperts(selectedSpecialisation);
-        if (Array.isArray(live) && live.length > 0) {
+        if (Array.isArray(live)) {
           const mapped: ComplianceExpert[] = live.map((e: any) => ({
             id: e.id,
             name: e.full_name,
@@ -53,9 +56,14 @@ export default function ExpertsMarketplacePage() {
             activeClientsCount: e.active_clients_count || 4,
           }));
           setExpertsList(mapped);
+        } else {
+          setExpertsList([]);
         }
       } catch (err) {
-        console.warn("Using default expert profiles:", err);
+        console.error("Failed to load expert profiles from database:", err);
+        setExpertsList([]);
+      } finally {
+        setLoading(false);
       }
     }
     loadExperts();
@@ -153,102 +161,113 @@ export default function ExpertsMarketplacePage() {
         </div>
 
         {/* Experts Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredExperts.map((exp) => (
-            <div
-              key={exp.id}
-              className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between space-y-6"
-            >
-              <div className="space-y-4">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={exp.avatar}
-                      alt={exp.name}
-                      className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-xs"
-                    />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-extrabold text-base sm:text-lg text-slate-900 leading-tight">
-                          {exp.name}
-                        </h3>
-                        <span className="p-1 rounded-md bg-amber-50 text-amber-600" title="Identity & Credentials Verified">
-                          <ShieldCheck className="w-4 h-4" />
-                        </span>
+        {loading ? (
+          <div className="bg-white rounded-3xl p-16 text-center text-slate-400 border border-slate-200 flex flex-col items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-[#0089C1] mb-2" />
+            <p className="font-bold text-xs">Loading verified compliance experts from database...</p>
+          </div>
+        ) : filteredExperts.length === 0 ? (
+          <div className="bg-white rounded-3xl p-16 text-center text-slate-400 border border-slate-200">
+            <p className="font-bold text-sm">No accredited specialists match this filter.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredExperts.map((exp) => (
+              <div
+                key={exp.id}
+                className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between space-y-6"
+              >
+                <div className="space-y-4">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={exp.avatar}
+                        alt={exp.name}
+                        className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-xs"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-base sm:text-lg text-slate-900 leading-tight">
+                            {exp.name}
+                          </h3>
+                          <span className="p-1 rounded-md bg-amber-50 text-amber-600" title="Identity & Credentials Verified">
+                            <ShieldCheck className="w-4 h-4" />
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-slate-500 mt-0.5">{exp.title}</p>
+                        <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            <span>{exp.location}</span>
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 font-bold text-amber-600">
+                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                            <span>{exp.rating} ({exp.reviewsCount} reviews)</span>
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-xs font-semibold text-slate-500 mt-0.5">{exp.title}</p>
-                      <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          <span>{exp.location}</span>
+                    </div>
+
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Available</span>
+                    </span>
+                  </div>
+
+                  {/* Bio snippet */}
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {exp.bio}
+                  </p>
+
+                  {/* Certifications & Badges */}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {exp.certifications.map((c, i) => (
+                        <span key={i} className="text-[11px] font-bold bg-[#E8EFF4] text-slate-800 px-2.5 py-1 rounded-lg border border-slate-200/80">
+                          {c}
                         </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1 font-bold text-amber-600">
-                          <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                          <span>{exp.rating} ({exp.reviewsCount} reviews)</span>
-                        </span>
-                      </div>
+                      ))}
+                    </div>
+
+                    <div className="text-[11px] text-slate-400">
+                      <strong className="text-slate-600">Specialisms:</strong> {exp.specialisations.join(", ")}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Rate & Actions */}
+                <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs text-slate-400">Monthly Retainer</div>
+                    <div className="text-lg font-black text-slate-900 font-mono">
+                      ₦{exp.retainerRate.toLocaleString()}<span className="text-xs font-normal text-slate-500">/mo</span>
                     </div>
                   </div>
 
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Available</span>
-                  </span>
-                </div>
-
-                {/* Bio snippet */}
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {exp.bio}
-                </p>
-
-                {/* Certifications & Badges */}
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {exp.certifications.map((c, i) => (
-                      <span key={i} className="text-[11px] font-bold bg-[#E8EFF4] text-slate-800 px-2.5 py-1 rounded-lg border border-slate-200/80">
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="text-[11px] text-slate-400">
-                    <strong className="text-slate-600">Specialisms:</strong> {exp.specialisations.join(", ")}
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer Rate & Actions */}
-              <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs text-slate-400">Monthly Retainer</div>
-                  <div className="text-lg font-black text-slate-900 font-mono">
-                    ₦{exp.retainerRate.toLocaleString()}<span className="text-xs font-normal text-slate-500">/mo</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Link href={`/experts/${exp.id}`}>
-                    <button className="px-4 py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 hover:bg-slate-50 transition-all">
-                      View Dossier
+                  <div className="flex items-center gap-2">
+                    <Link href={`/experts/${exp.id}`}>
+                      <button className="px-4 py-2.5 rounded-xl border border-slate-300 font-bold text-xs text-slate-700 hover:bg-slate-50 transition-all cursor-pointer">
+                        View Dossier
+                      </button>
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setConsultModalExpert(exp);
+                        setConsultSuccess(false);
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Request Engagement</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setConsultModalExpert(exp);
-                      setConsultSuccess(false);
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
-                  >
-                    <span>Request Engagement</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Modal: Request Consultation / Engagement */}
         {consultModalExpert && (

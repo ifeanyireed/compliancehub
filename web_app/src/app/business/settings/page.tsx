@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   Building2, 
@@ -13,24 +13,57 @@ import {
   Download,
   AlertTriangle,
   Smartphone,
-  LogOut
+  LogOut,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
+import { api } from "@/lib/api";
 
 export default function BusinessSettingsPage() {
-  const { user } = useAuth();
+  const { user, activeTenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<"entity" | "members" | "billing" | "security">("entity");
   const [savedBanner, setSavedBanner] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [companyName, setCompanyName] = useState("PayWave Technologies Ltd");
-  const [rcNumber, setRcNumber] = useState("RC-1894231");
-  const [tin, setTin] = useState("24910842-0001");
-  const [address, setAddress] = useState("Plot 12, Adeola Odeku Street, Victoria Island, Lagos");
+  const [companyName, setCompanyName] = useState("");
+  const [rcNumber, setRcNumber] = useState("");
+  const [tin, setTin] = useState("");
+  const [address, setAddress] = useState("");
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function loadTenantProfile() {
+      try {
+        const resp = await api.tenants.getCurrent();
+        if (resp && resp.tenant) {
+          setCompanyName(resp.tenant.workspace_name || resp.tenant.organisation_name || "");
+          setRcNumber(resp.tenant.rc_number || "");
+          setTin(resp.tenant.tin || "");
+          setAddress(resp.tenant.address || "");
+        }
+      } catch (err) {
+        console.error("Failed to load tenant settings:", err);
+      }
+    }
+    loadTenantProfile();
+  }, [activeTenantId]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedBanner(true);
-    setTimeout(() => setSavedBanner(false), 3000);
+    setSaving(true);
+    try {
+      await api.tenants.updateCurrent({
+        company_name: companyName,
+        rc_number: rcNumber,
+        tin: tin,
+        address: address,
+      });
+      setSavedBanner(true);
+      setTimeout(() => setSavedBanner(false), 3000);
+    } catch (err) {
+      console.error("Failed to save tenant settings:", err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

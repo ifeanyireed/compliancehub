@@ -48,54 +48,15 @@ export default function BusinessDocumentsPage() {
   const [newDocExpiry, setNewDocExpiry] = useState("31 Dec 2026");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const [docList, setDocList] = useState<DocItem[]>([
-    {
-      id: "doc-01",
-      name: "CAC Certificate of Incorporation & Status Report (Form CAC 07)",
-      category: "Corporate",
-      uploadDate: "12 Jan 2024",
-      expiryDate: "Perpetual",
-      isExpiringSoon: false,
-      status: "Verified",
-      version: "v1.2",
-      size: "2.4 MB",
-      owner: "Adaeze Nwosu",
-      cloudinary_secure_url: "https://res.cloudinary.com/yugcjpau/image/upload/v1/compliancehub/samples/cac_certificate.pdf"
-    },
-    {
-      id: "doc-02",
-      name: "Nigeria Tax Act 2025/2026 TaxPro-MAX Transition Filing Record",
-      category: "Tax",
-      uploadDate: "05 Feb 2026",
-      expiryDate: "30 June 2026",
-      isExpiringSoon: true,
-      status: "Verified",
-      version: "v2.0",
-      size: "1.1 MB",
-      owner: "Adaeze Nwosu",
-      cloudinary_secure_url: "https://res.cloudinary.com/yugcjpau/image/upload/v1/compliancehub/samples/tax_filing.pdf"
-    },
-    {
-      id: "doc-03",
-      name: "SCUML Anti-Money Laundering Compliance Clearance Certificate",
-      category: "AML / KYC",
-      uploadDate: "18 Jan 2026",
-      expiryDate: "30 Sept 2026",
-      isExpiringSoon: false,
-      status: "Verified",
-      version: "v1.0",
-      size: "3.2 MB",
-      owner: "Adaeze Nwosu",
-      cloudinary_secure_url: "https://res.cloudinary.com/yugcjpau/image/upload/v1/compliancehub/samples/scuml_certificate.pdf"
-    }
-  ]);
+  const [docList, setDocList] = useState<DocItem[]>([]);
 
   // Load from live Go backend
   useEffect(() => {
     async function loadDocs() {
+      setLoading(true);
       try {
         const liveDocs = await api.documents.list(selectedCategory);
-        if (Array.isArray(liveDocs) && liveDocs.length > 0) {
+        if (Array.isArray(liveDocs)) {
           const mapped: DocItem[] = liveDocs.map((d: any) => ({
             id: d.id,
             name: d.name,
@@ -110,9 +71,14 @@ export default function BusinessDocumentsPage() {
             cloudinary_secure_url: d.cloudinary_secure_url
           }));
           setDocList(mapped);
+        } else {
+          setDocList([]);
         }
       } catch (err) {
-        console.warn("Using fallback local document records:", err);
+        console.error("Failed to load documents from database:", err);
+        setDocList([]);
+      } finally {
+        setLoading(false);
       }
     }
     loadDocs();

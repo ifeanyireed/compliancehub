@@ -14,9 +14,10 @@ import {
   X,
   FileCheck2,
   CalendarDays,
-  List
+  List,
+  Loader2
 } from "lucide-react";
-import { MOCK_OBLIGATIONS, ComplianceObligation } from "@/lib/compliance-data";
+import { ComplianceObligation } from "@/lib/compliance-data";
 import { api } from "@/lib/api";
 
 export default function BusinessCalendarPage() {
@@ -25,19 +26,21 @@ export default function BusinessCalendarPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [activeModalObligation, setActiveModalObligation] = useState<ComplianceObligation | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [obligations, setObligations] = useState<ComplianceObligation[]>(MOCK_OBLIGATIONS);
+  const [obligations, setObligations] = useState<ComplianceObligation[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const authorities = ["All", "CAC", "FIRS / NRS", "NDPC", "SCUML", "PENCOM"];
 
   useEffect(() => {
     async function fetchCalendar() {
+      setLoading(true);
       try {
         const liveObligations = await api.calendar.getObligations({
           authority: selectedAuthority,
           status: selectedStatus,
         });
 
-        if (Array.isArray(liveObligations) && liveObligations.length > 0) {
+        if (Array.isArray(liveObligations)) {
           const mapped: ComplianceObligation[] = liveObligations.map((o: any) => {
             const due = new Date(o.due_date);
             const now = new Date();
@@ -60,9 +63,14 @@ export default function BusinessCalendarPage() {
             };
           });
           setObligations(mapped);
+        } else {
+          setObligations([]);
         }
       } catch (err) {
-        console.warn("Fallback to default compliance calendar:", err);
+        console.error("Failed to load obligations from database:", err);
+        setObligations([]);
+      } finally {
+        setLoading(false);
       }
     }
     fetchCalendar();
@@ -177,7 +185,12 @@ export default function BusinessCalendarPage() {
       {/* List View of Deadlines */}
       {viewMode === "list" ? (
         <div className="space-y-3">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="bg-white rounded-3xl p-12 text-center text-slate-400 border border-slate-200 flex flex-col items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-[#0089C1] mb-2" />
+              <p className="font-bold text-xs">Loading live compliance obligations...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center text-slate-400 border border-slate-200">
               <CalendarIcon className="w-12 h-12 mx-auto text-slate-300 mb-2" />
               <p className="font-bold">No regulatory obligations match this filter.</p>

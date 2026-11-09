@@ -20,14 +20,13 @@ import {
   Building2,
   FolderArchive
 } from "lucide-react";
-import { MOCK_OBLIGATIONS, MOCK_EXPERTS } from "@/lib/compliance-data";
 import { api } from "@/lib/api";
 
 export default function BusinessDashboardOverview() {
   const [showScoreModal, setShowScoreModal] = useState(false);
   const [scoreFilter, setScoreFilter] = useState("all");
   const [tenantData, setTenantData] = useState<any>(null);
-  const [urgentDeadlines, setUrgentDeadlines] = useState(MOCK_OBLIGATIONS.filter(o => o.isUrgent));
+  const [urgentDeadlines, setUrgentDeadlines] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadCockpitData() {
@@ -41,7 +40,7 @@ export default function BusinessDashboardOverview() {
           setTenantData(tenantResp);
         }
 
-        if (Array.isArray(obligations) && obligations.length > 0) {
+        if (Array.isArray(obligations)) {
           const urgents = obligations.filter((o: any) => o.is_urgent).map((o: any) => ({
             id: o.id,
             title: o.title,
@@ -57,12 +56,10 @@ export default function BusinessDashboardOverview() {
             isUrgent: true,
             category: "Statutory Filing" as const
           }));
-          if (urgents.length > 0) {
-            setUrgentDeadlines(urgents as any);
-          }
+          setUrgentDeadlines(urgents);
         }
       } catch (err) {
-        console.warn("Cockpit using local fallback:", err);
+        console.error("Cockpit loading error:", err);
       }
     }
     loadCockpitData();

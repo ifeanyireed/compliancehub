@@ -121,12 +121,23 @@ func main() {
 	})))
 
 	mux.HandleFunc("/api/v1/tenants/current", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
 			handlers.GetCurrentTenant(w, r)
-		} else {
+		case http.MethodPatch, http.MethodPut:
+			handlers.UpdateCurrentTenant(w, r)
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})))
+
+	mux.HandleFunc("/api/v1/tenants", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.ListAllTenants(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 
 	// ==========================================
 	// Onboarding & Classification
@@ -213,6 +224,42 @@ func main() {
 	mux.HandleFunc("/api/v1/practice/tasks", withCORS(middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			handlers.ListPracticeTasks(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/v1/practice/tasks/", withCORS(middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPatch, http.MethodPut, http.MethodPost:
+			handlers.UpdatePracticeTask(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/v1/practice/team", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.ListAgencyTeam(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/v1/invoices", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.ListInvoices(w, r)
+		case http.MethodPost:
+			handlers.CreateInvoice(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/v1/reports/digest", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.GetReportsDigest(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}

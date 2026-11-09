@@ -3,16 +3,63 @@
 import React, { useState, useEffect } from "react";
 import { Building2, ChevronUp, ChevronDown, Check, X, Minimize2, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
-import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
+import { api } from "@/lib/api";
+
+interface WorkspaceItem {
+  id: string;
+  name: string;
+  rcNumber: string;
+  industry: string;
+  state: string;
+  readinessScore: number;
+  logoText: string;
+  colorScheme: string;
+}
 
 export function FloatingEntityBar() {
   const { switchTenant, activeTenantId } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
 
-  const selectedWorkspace =
-    MOCK_CLIENT_WORKSPACES.find((w) => w.id === activeTenantId) || MOCK_CLIENT_WORKSPACES[0];
+  useEffect(() => {
+    async function loadTenants() {
+      try {
+        const tenants = await api.tenants.list();
+        if (Array.isArray(tenants) && tenants.length > 0) {
+          const colors = ["#0089C1", "#FF904C", "#166534", "#C88A3A", "#245C44"];
+          const mapped: WorkspaceItem[] = tenants.map((t: any, idx: number) => ({
+            id: t.id,
+            name: t.workspace_name,
+            rcNumber: t.rc_number || "RC-Pending",
+            industry: t.industry || "Nigerian Enterprise",
+            state: "Lagos",
+            readinessScore: t.compliance_score || 80,
+            logoText: t.workspace_name.substring(0, 2).toUpperCase(),
+            colorScheme: colors[idx % colors.length],
+          }));
+          setWorkspaces(mapped);
+        }
+      } catch (e) {
+        console.error("Failed to load live tenants for entity switcher", e);
+      }
+    }
+    loadTenants();
+  }, []);
+
+  const selectedWorkspace: WorkspaceItem =
+    workspaces.find((w) => w.id === activeTenantId) ||
+    workspaces[0] || {
+      id: activeTenantId || "55555555-5555-5555-5555-555555555501",
+      name: "PayWave Technologies Ltd",
+      rcNumber: "RC-1894231",
+      industry: "Fintech & Digital Payments",
+      state: "Lagos",
+      readinessScore: 84,
+      logoText: "PW",
+      colorScheme: "#0089C1",
+    };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -32,7 +79,7 @@ export function FloatingEntityBar() {
     return (
       <button
         onClick={() => setIsDismissed(false)}
-        title="Open Entity Switcher (Demo)"
+        title="Open Entity Switcher"
         className="fixed bottom-4 right-4 z-50 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white border border-slate-700/80 shadow-xl transition-all flex items-center gap-2 text-xs backdrop-blur-md animate-in fade-in duration-200"
       >
         <Building2 className="w-3.5 h-3.5 text-[#00C2FF]" />
@@ -87,7 +134,7 @@ export function FloatingEntityBar() {
                 <Sparkles className="w-3 h-3 text-[#00C2FF]" />
                 Switch Business Entity
               </p>
-              <p className="text-[10px] text-slate-400">Simulate Nigerian compliance context</p>
+              <p className="text-[10px] text-slate-400">Live multi-tenant workspace context</p>
             </div>
             <button
               onClick={() => setIsOpen(false)}
@@ -98,7 +145,7 @@ export function FloatingEntityBar() {
           </div>
 
           <div className="mt-1.5 space-y-1 max-h-64 overflow-y-auto">
-            {MOCK_CLIENT_WORKSPACES.map((ws) => {
+            {workspaces.map((ws) => {
               const isCurrent = ws.id === selectedWorkspace.id;
               return (
                 <button
@@ -122,7 +169,7 @@ export function FloatingEntityBar() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-white truncate">{ws.name}</p>
                     <p className="text-[10px] text-slate-400 font-mono truncate">
-                      {ws.rcNumber} • {ws.industry} ({ws.state})
+                      {ws.rcNumber} • {ws.industry}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

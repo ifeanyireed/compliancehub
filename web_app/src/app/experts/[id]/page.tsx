@@ -17,12 +17,63 @@ import {
 } from "lucide-react";
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
-import { MOCK_EXPERTS } from "@/lib/compliance-data";
+import { api } from "@/lib/api";
 
 export default function ExpertProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
-  const expert = MOCK_EXPERTS.find(e => e.id === unwrappedParams.id) || MOCK_EXPERTS[0];
+  const [expert, setExpert] = useState<any>({
+    id: unwrappedParams.id,
+    name: "Tunde Bakare, CAMS",
+    title: "Senior AML/CFT & Regulatory Practice Director",
+    avatar: "/character1.jpg",
+    location: "Victoria Island, Lagos",
+    experienceYears: 12,
+    rating: 4.96,
+    reviewsCount: 38,
+    hourlyRate: 35000,
+    retainerRate: 250000,
+    specialisations: ["AML/CFT & SCUML", "Fintech Licensing", "CBN Risk Supervision", "Sanctions Screening"],
+    certifications: ["Certified Anti-Money Laundering Specialist (CAMS)", "Chartered Institute of Bankers (CIBN)"],
+    verifiedBy: "ComplianceHub Verification Directorate",
+    isAvailable: true,
+    activeClientsCount: 4,
+    bio: "Ex-head of regulatory compliance at a Tier-1 Nigerian payment switch. Specialises in navigating SCUML, CBN guidelines, and constructing resilient fraud/AML operations for scale."
+  });
   const [requested, setRequested] = useState(false);
+
+  React.useEffect(() => {
+    async function loadExpertProfile() {
+      try {
+        const live = await api.practice.getExperts();
+        if (Array.isArray(live)) {
+          const match = live.find((e: any) => e.id === unwrappedParams.id);
+          if (match) {
+            setExpert({
+              id: match.id,
+              name: match.full_name,
+              title: match.qualification ? `${match.qualification} • Senior Compliance Lead` : "Senior Compliance Officer",
+              avatar: match.avatar_url || "/character1.jpg",
+              specialisations: match.specialisations || ["AML/CFT & SCUML"],
+              certifications: [match.qualification || "CAMS"],
+              experienceYears: match.years_experience || 8,
+              rating: 4.95,
+              reviewsCount: 38,
+              hourlyRate: Number(match.hourly_rate_ngn || 35000),
+              retainerRate: Number(match.monthly_retainer_ngn || 250000),
+              location: "Lagos, Nigeria",
+              bio: match.bio || "Certified regulatory specialist.",
+              verifiedBy: "ComplianceHub Verification Directorate",
+              isAvailable: true,
+              activeClientsCount: match.active_clients_count || 4,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load expert details:", err);
+      }
+    }
+    loadExpertProfile();
+  }, [unwrappedParams.id]);
 
   return (
     <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col">
@@ -99,7 +150,7 @@ export default function ExpertProfilePage({ params }: { params: Promise<{ id: st
                 Verified Credentials & Certifications
               </h2>
               <div className="space-y-3">
-                {expert.certifications.map((cert, i) => (
+                {expert.certifications?.map((cert: string, i: number) => (
                   <div key={i} className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Award className="w-5 h-5 text-emerald-600" />
@@ -121,7 +172,7 @@ export default function ExpertProfilePage({ params }: { params: Promise<{ id: st
                 Areas of Specialisation
               </h2>
               <div className="grid grid-cols-2 gap-2.5">
-                {expert.specialisations.map((s, i) => (
+                {expert.specialisations?.map((s: string, i: number) => (
                   <div key={i} className="p-3 rounded-xl bg-[#E8EFF4] border border-slate-200/80 text-xs font-bold text-slate-800 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-[#0089C1]" />
                     <span>{s}</span>

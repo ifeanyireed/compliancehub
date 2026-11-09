@@ -32,73 +32,10 @@ interface PracticeTask {
   dualApproval: boolean;
 }
 
-const FALLBACK_TASKS: PracticeTask[] = [
-  {
-    id: "task-01",
-    title: "Draft 2026 Nigeria Tax Act CIT Return Computation Sheet",
-    clientName: "PayWave Technologies Ltd",
-    clientLogo: "PW",
-    clientColor: "#0089C1",
-    statutoryAuthority: "FIRS / NRS",
-    deadline: "30 June 2026",
-    status: "In Progress",
-    priority: "High",
-    dualApproval: true
-  },
-  {
-    id: "task-02",
-    title: "Verify NDPA 2023 RoPA Staff Records for Annual Audit",
-    clientName: "PayWave Technologies Ltd",
-    clientLogo: "PW",
-    clientColor: "#0089C1",
-    statutoryAuthority: "NDPC",
-    deadline: "15 March 2026",
-    status: "Pending Client Approval",
-    priority: "High",
-    dualApproval: true
-  },
-  {
-    id: "task-03",
-    title: "File Overdue Port Transit Operating Permits",
-    clientName: "Prime Haulage & Logistics Ltd",
-    clientLogo: "PH",
-    clientColor: "#FF904C",
-    statutoryAuthority: "State Transport Authority",
-    deadline: "20 Feb 2026",
-    status: "Assigned",
-    priority: "High",
-    dualApproval: false
-  },
-  {
-    id: "task-04",
-    title: "Submit SCUML Q1 AML Currency Transaction Log",
-    clientName: "Zenith Retail Chains Ltd",
-    clientLogo: "ZR",
-    clientColor: "#C88A3A",
-    statutoryAuthority: "SCUML",
-    deadline: "31 March 2026",
-    status: "In Progress",
-    priority: "Normal",
-    dualApproval: false
-  },
-  {
-    id: "task-05",
-    title: "CAC Annual Return Filing (CAMA 2020 s.377)",
-    clientName: "Swift Health HMO Ltd",
-    clientLogo: "SH",
-    clientColor: "#166534",
-    statutoryAuthority: "CAC",
-    deadline: "30 June 2026",
-    status: "Approved & Filed",
-    priority: "Normal",
-    dualApproval: true
-  }
-];
-
 export default function PracticeTasksPage() {
   const router = useRouter();
   const { switchTenant } = useAuth();
-  const [tasks, setTasks] = useState<PracticeTask[]>(FALLBACK_TASKS);
+  const [tasks, setTasks] = useState<PracticeTask[]>([]);
   const [filterStatus, setFilterStatus] = useState("All");
   const [loading, setLoading] = useState(true);
 
@@ -107,7 +44,7 @@ export default function PracticeTasksPage() {
       setLoading(true);
       try {
         const data = await api.practice.getTasks();
-        if (data && Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setTasks(
             data.map((t: any) => ({
               id: t.id,
@@ -127,9 +64,12 @@ export default function PracticeTasksPage() {
               dualApproval: true
             }))
           );
+        } else {
+          setTasks([]);
         }
       } catch (err) {
-        console.warn("Using fallback practice tasks:", err);
+        console.error("Failed to load practice tasks from database:", err);
+        setTasks([]);
       } finally {
         setLoading(false);
       }
@@ -142,9 +82,10 @@ export default function PracticeTasksPage() {
       if (tenantId) {
         switchTenant(tenantId);
       }
-      await api.calendar.completeObligation(id, { notes: "Filed by compliance officer" });
+      await api.practice.updateTask(id, "FILED");
       setTasks(prev => prev.map(t => t.id === id ? { ...t, status: "Approved & Filed" } : t));
     } catch (err) {
+      console.error("Failed to approve task:", err);
       setTasks(prev => prev.map(t => t.id === id ? { ...t, status: "Approved & Filed" } : t));
     }
   };

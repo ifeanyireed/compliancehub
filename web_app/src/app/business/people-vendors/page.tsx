@@ -45,97 +45,11 @@ interface VendorRecord {
   complianceScore: number;
 }
 
-const FALLBACK_EMPLOYEES: EmployeeRecord[] = [
-  {
-    id: "emp-01",
-    name: "Adaeze Nwosu",
-    email: "adaeze@paywave.ng",
-    role: "Managing Director",
-    department: "Executive",
-    ndpaTraining: "Completed (2026 Cert #9401)",
-    antiBribery: "Signed",
-    pencomStatus: "Active Remittance",
-    complianceStatus: "Compliant"
-  },
-  {
-    id: "emp-02",
-    name: "Chukwudi Obi",
-    email: "c.obi@paywave.ng",
-    role: "Lead Software Architect",
-    department: "Engineering",
-    ndpaTraining: "Completed (2026 Cert #9402)",
-    antiBribery: "Signed",
-    pencomStatus: "Active Remittance",
-    complianceStatus: "Compliant"
-  },
-  {
-    id: "emp-03",
-    name: "Fatima Ibrahim",
-    email: "fatima@paywave.ng",
-    role: "Customer Operations Officer",
-    department: "Operations",
-    ndpaTraining: "Overdue (Enrolled)",
-    antiBribery: "Signed",
-    pencomStatus: "Active Remittance",
-    complianceStatus: "Pending Training"
-  },
-  {
-    id: "emp-04",
-    name: "Kelechi Eze",
-    email: "kelechi@paywave.ng",
-    role: "Junior Risk Analyst",
-    department: "Risk & Compliance",
-    ndpaTraining: "Completed (2026 Cert #9403)",
-    antiBribery: "Pending Signature",
-    pencomStatus: "Active Remittance",
-    complianceStatus: "Action Required"
-  }
-];
-
-const FALLBACK_VENDORS: VendorRecord[] = [
-  {
-    id: "ven-01",
-    name: "MainOne Cloud Infrastructure Ltd",
-    rcNumber: "RC-9283741",
-    tin: "20192837-0001",
-    service: "Cloud Infrastructure & Data Hosting",
-    dpaStatus: "Signed (NDPA 2023 s.39 Compliant)",
-    tccStatus: "Verified 2025/2026",
-    riskScore: "Low Risk",
-    lastReviewed: "15 Jan 2026",
-    complianceScore: 98
-  },
-  {
-    id: "ven-02",
-    name: "Kobo Logistics Nigeria Ltd",
-    rcNumber: "RC-1429910",
-    tin: "19029102-0001",
-    service: "Logistics & Courier Delivery",
-    dpaStatus: "Signed",
-    tccStatus: "Verified 2025/2026",
-    riskScore: "Low Risk",
-    lastReviewed: "02 Feb 2026",
-    complianceScore: 95
-  },
-  {
-    id: "ven-03",
-    name: "Ikeja Facilities Management Partners",
-    rcNumber: "BN-492019",
-    tin: "11029384-0001",
-    service: "Office Security & Janitorial",
-    dpaStatus: "Pending Execution",
-    tccStatus: "Pending Renewal",
-    riskScore: "Medium Risk",
-    lastReviewed: "10 Dec 2025",
-    complianceScore: 60
-  }
-];
-
 export default function BusinessPeopleVendorsPage() {
   const { activeTenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<"people" | "vendors">("people");
-  const [employees, setEmployees] = useState<EmployeeRecord[]>(FALLBACK_EMPLOYEES);
-  const [vendors, setVendors] = useState<VendorRecord[]>(FALLBACK_VENDORS);
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
+  const [vendors, setVendors] = useState<VendorRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals state
@@ -174,7 +88,7 @@ export default function BusinessPeopleVendorsPage() {
         api.vendors.getVendors()
       ]);
 
-      if (empRes && Array.isArray(empRes) && empRes.length > 0) {
+      if (Array.isArray(empRes)) {
         setEmployees(
           empRes.map((e: any) => ({
             id: e.id,
@@ -190,9 +104,11 @@ export default function BusinessPeopleVendorsPage() {
               : "Pending Training"
           }))
         );
+      } else {
+        setEmployees([]);
       }
 
-      if (venRes && Array.isArray(venRes) && venRes.length > 0) {
+      if (Array.isArray(venRes)) {
         setVendors(
           venRes.map((v: any) => ({
             id: v.id,
@@ -207,9 +123,13 @@ export default function BusinessPeopleVendorsPage() {
             complianceScore: v.compliance_score || 80
           }))
         );
+      } else {
+        setVendors([]);
       }
     } catch (err) {
-      console.warn("Failed to fetch workforce data, using demo records:", err);
+      console.error("Failed to fetch workforce data from database:", err);
+      setEmployees([]);
+      setVendors([]);
     } finally {
       setLoading(false);
     }

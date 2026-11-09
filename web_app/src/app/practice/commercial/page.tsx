@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   CreditCard, 
   Download, 
@@ -9,50 +9,95 @@ import {
   Building2, 
   FileText, 
   Plus, 
-  Sparkles,
-  TrendingUp
+  Sparkles, 
+  TrendingUp,
+  Loader2
 } from "lucide-react";
-import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
+import { api } from "@/lib/api";
 
 export default function PracticeCommercialPage() {
-  const [clients] = useState(MOCK_CLIENT_WORKSPACES);
+  const [clients, setClients] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
 
-  const totalMonthlyRetainers = clients.reduce((acc, c) => acc + c.retainerMonthly, 0);
+  const loadCommercialData = async () => {
+    setLoading(true);
+    try {
+      const [clientsRes, invoicesRes] = await Promise.all([
+        api.practice.getClients(),
+        api.invoices.list(),
+      ]);
 
-  const pastInvoices = [
-    {
-      id: "INV-2026-101",
-      client: "PayWave Technologies Ltd",
-      amount: 250000,
-      date: "01 Feb 2026",
-      status: "Settled via Paystack",
-      payoutRef: "PSTK_TR_849102"
-    },
-    {
-      id: "INV-2026-102",
-      client: "Swift Health HMO Ltd",
-      amount: 300000,
-      date: "01 Feb 2026",
-      status: "Settled via Paystack",
-      payoutRef: "PSTK_TR_849103"
-    },
-    {
-      id: "INV-2026-103",
-      client: "Zenith Retail Chains Ltd",
-      amount: 220000,
-      date: "01 Feb 2026",
-      status: "Settled via Paystack",
-      payoutRef: "PSTK_TR_849104"
-    },
-    {
-      id: "INV-2026-104",
-      client: "Prime Haulage & Logistics Ltd",
-      amount: 180000,
-      date: "01 Feb 2026",
-      status: "Disbursed to Bank",
-      payoutRef: "PSTK_TR_849105"
+      if (Array.isArray(clientsRes)) {
+        setClients(
+          clientsRes.map((c: any) => ({
+            id: c.tenant_id,
+            name: c.company_name,
+            rcNumber: c.rc_number || "RC-Pending",
+            industry: c.industry || "General Industry",
+            retainerMonthly: Number(c.monthly_fee_ngn) || 250000,
+            activeModules: ["HubCalendar", "HubDocs", "HubAML", "HubReport"],
+            logoText: (c.company_name || "CL").slice(0, 2).toUpperCase(),
+            colorScheme: "#0089C1",
+          }))
+        );
+      } else {
+        setClients([]);
+      }
+
+      if (Array.isArray(invoicesRes)) {
+        setInvoices(
+          invoicesRes.map((inv: any) => ({
+            id: inv.invoice_number || inv.id,
+            client: inv.client_name,
+            amount: Number(inv.amount_ngn) || 0,
+            date: inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Recent",
+            status: inv.status === "SETTLED" ? "Settled via Paystack" : inv.status === "DISBURSED" ? "Disbursed to Bank" : "Pending Payment",
+            payoutRef: inv.payout_ref || "PSTK_TR_" + (inv.id ? inv.id.substring(0, 6) : "849100"),
+          }))
+        );
+      } else {
+        setInvoices([]);
+      }
+    } catch (err) {
+      console.error("Failed to load commercial billing data from database:", err);
+      setClients([]);
+      setInvoices([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    loadCommercialData();
+  }, []);
+
+  const totalMonthlyRetainers = clients.reduce((acc, c) => acc + (c.retainerMonthly || 0), 0);
+
+  const handleGenerateInvoices = async () => {
+    if (clients.length === 0) {
+      alert("No active client workspaces available for billing.");
+      return;
+    }
+    setGenerating(true);
+    try {
+      for (const c of clients) {
+        await api.invoices.create({
+          client_name: c.name,
+          amount_ngn: c.retainerMonthly,
+          invoice_type: "RETAINER",
+        });
+      }
+      alert(`Successfully generated monthly billing batch for ${clients.length} active client entities!`);
+      await loadCommercialData();
+    } catch (err) {
+      console.error("Failed to generate invoices:", err);
+      alert("Billing generation encountered an issue, please try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <div className="space-y-6 select-none">
@@ -72,11 +117,12 @@ export default function PracticeCommercialPage() {
         </div>
 
         <button 
-          onClick={() => alert("Generated new retainer billing batch for all active client entities.")}
-          className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto"
+          onClick={handleGenerateInvoices}
+          disabled={generating}
+          className="bg-[#245C44] hover:bg-[#1E4E39] disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
-          <span>Generate Monthly Invoices</span>
+          {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          <span>{generating ? "Generating..." : "Generate Monthly Invoices"}</span>
         </button>
       </div>
 
@@ -90,7 +136,7 @@ export default function PracticeCommercialPage() {
             ₦{totalMonthlyRetainers.toLocaleString()}
           </div>
           <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" /> Across 5 Retainer Clients
+            <TrendingUp className="w-3.5 h-3.5" /> Across {clients.length} Retainer Clients
           </span>
         </div>
 
@@ -109,7 +155,7 @@ export default function PracticeCommercialPage() {
             Average Client Yield (ARPA)
           </span>
           <div className="text-3xl font-black text-[#0089C1] font-mono">
-            ₦{Math.round(totalMonthlyRetainers / clients.length).toLocaleString()}
+            ₦{clients.length > 0 ? Math.round(totalMonthlyRetainers / clients.length).toLocaleString() : "0"}
           </div>
           <span className="text-xs text-slate-500 font-medium">Monthly recurring fee per client</span>
         </div>
@@ -119,7 +165,7 @@ export default function PracticeCommercialPage() {
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-extrabold text-base text-slate-900">Active Engagement Agreements</h3>
-          <span className="text-xs text-slate-400 font-mono">5 Active Contracts</span>
+          <span className="text-xs text-slate-400 font-mono">{clients.length} Active Contracts</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -135,39 +181,47 @@ export default function PracticeCommercialPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {clients.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-4 px-6 font-bold text-slate-900 flex items-center gap-3">
-                    <div 
-                      className="w-8 h-8 rounded-lg text-white font-bold text-xs flex items-center justify-center"
-                      style={{ backgroundColor: c.colorScheme }}
-                    >
-                      {c.logoText}
-                    </div>
-                    <div>
-                      <span>{c.name}</span>
-                      <span className="block text-[10px] text-slate-400 font-mono font-normal">{c.rcNumber}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-4 text-slate-600">
-                    <span className="font-medium">Fractional Compliance Director</span>
-                    <span className="block text-[10px] text-slate-400">{c.activeModules.slice(0, 3).join(", ")}</span>
-                  </td>
-                  <td className="py-4 px-4 font-mono font-bold text-slate-900">
-                    ₦{c.retainerMonthly.toLocaleString()}
-                  </td>
-                  <td className="py-4 px-4 text-slate-600">Monthly Auto-Debited</td>
-                  <td className="py-4 px-4 text-emerald-700 font-bold">Paystack Escrow</td>
-                  <td className="py-4 px-6 text-right">
-                    <button
-                      onClick={() => alert(`Downloading verified legal agreement for ${c.name}`)}
-                      className="text-[#245C44] hover:underline font-bold"
-                    >
-                      View SLA
-                    </button>
+              {clients.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                    No active clients found in database.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                clients.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-4 px-6 font-bold text-slate-900 flex items-center gap-3">
+                      <div 
+                        className="w-8 h-8 rounded-lg text-white font-bold text-xs flex items-center justify-center"
+                        style={{ backgroundColor: c.colorScheme }}
+                      >
+                        {c.logoText}
+                      </div>
+                      <div>
+                        <span>{c.name}</span>
+                        <span className="block text-[10px] text-slate-400 font-mono font-normal">{c.rcNumber}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-slate-600">
+                      <span className="font-medium">Fractional Compliance Director</span>
+                      <span className="block text-[10px] text-slate-400">{c.activeModules.slice(0, 3).join(", ")}</span>
+                    </td>
+                    <td className="py-4 px-4 font-mono font-bold text-slate-900">
+                      ₦{c.retainerMonthly.toLocaleString()}
+                    </td>
+                    <td className="py-4 px-4 text-slate-600">Monthly Auto-Debited</td>
+                    <td className="py-4 px-4 text-emerald-700 font-bold">Paystack Escrow</td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        onClick={() => alert(`Downloading verified legal agreement for ${c.name}`)}
+                        className="text-[#245C44] hover:underline font-bold cursor-pointer"
+                      >
+                        View SLA
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -177,20 +231,26 @@ export default function PracticeCommercialPage() {
       <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
         <h3 className="font-extrabold text-base text-slate-900">Recent Disbursements & Invoices</h3>
         <div className="space-y-2.5">
-          {pastInvoices.map((inv) => (
-            <div key={inv.id} className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
-              <div>
-                <span className="font-bold text-slate-900 block">{inv.id} • {inv.client}</span>
-                <span className="text-[10px] text-slate-500 font-mono">Date: {inv.date} • Ref: {inv.payoutRef}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-mono font-bold text-slate-900">₦{inv.amount.toLocaleString()}</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  {inv.status}
-                </span>
-              </div>
+          {invoices.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 border border-slate-100 rounded-2xl">
+              No billing invoices found. Click &quot;Generate Monthly Invoices&quot; to issue billing.
             </div>
-          ))}
+          ) : (
+            invoices.map((inv) => (
+              <div key={inv.id} className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-bold text-slate-900 block">{inv.id} • {inv.client}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">Date: {inv.date} • Ref: {inv.payoutRef}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono font-bold text-slate-900">₦{inv.amount.toLocaleString()}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    {inv.status}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

@@ -42,59 +42,13 @@ interface RoPAItem {
   dpcoAuditReady: boolean;
 }
 
-const FALLBACK_AML_CASES: AMLCaseItem[] = [
-  {
-    id: "aml-01",
-    entityName: "Bello Trading Enterprise (Merchant Account)",
-    caseType: "PEP_SCREENING",
-    riskSeverity: "MEDIUM",
-    status: "IN_REVIEW",
-    caseNotes: "High-velocity transaction alerts detected from sub-account. PEP screening match on beneficial owner requires Tier 3 source-of-wealth documentation.",
-    createdAt: "2026-02-01"
-  },
-  {
-    id: "aml-02",
-    entityName: "Oluwaseun Adeleke",
-    caseType: "SANCTION_MATCH",
-    riskSeverity: "LOW",
-    status: "CLEARED",
-    caseNotes: "Name match false positive against NFIU watchlist. National ID (NIN) verified clear.",
-    createdAt: "2026-01-20"
-  }
-];
-
-const FALLBACK_ROPA: RoPAItem[] = [
-  {
-    id: "ropa-01",
-    activityName: "Customer KYC & Biometric Verification",
-    purpose: "Fulfillment of CBN & NFIU statutory CDD guidelines prior to wallet activation",
-    dataCategories: ["Full Name", "BVN / NIN", "Facial Biometrics", "Government ID", "Address"],
-    dataSubjects: ["Retail Consumers", "Merchant Directors"],
-    lawfulBasis: "LEGAL_OBLIGATION",
-    retentionPeriod: "5 years post-account closure (CAMA 2020 & MLPPA 2022)",
-    crossBorderTransfer: false,
-    dpcoAuditReady: true
-  },
-  {
-    id: "ropa-02",
-    activityName: "Employee Payroll & Tax Administration",
-    purpose: "Payment of monthly salaries, PAYE tax deduction to State BIR, and pension remittance",
-    dataCategories: ["Name", "TIN", "Bank Account Details", "RSA PIN", "Salary"],
-    dataSubjects: ["Full-time Employees", "Contractors"],
-    lawfulBasis: "CONTRACT",
-    retentionPeriod: "6 years post-employment (Nigeria Tax Act 2026)",
-    crossBorderTransfer: false,
-    dpcoAuditReady: true
-  }
-];
-
 export default function BusinessSpecialistPage() {
   const { activeTenantId } = useAuth();
   const [activeTab, setActiveTab] = useState<"aml" | "privacy">("aml");
   
   // Data state
-  const [amlCases, setAmlCases] = useState<AMLCaseItem[]>(FALLBACK_AML_CASES);
-  const [ropaActivities, setRopaActivities] = useState<RoPAItem[]>(FALLBACK_ROPA);
+  const [amlCases, setAmlCases] = useState<AMLCaseItem[]>([]);
+  const [ropaActivities, setRopaActivities] = useState<RoPAItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // AML screening simulator state
@@ -136,7 +90,7 @@ export default function BusinessSpecialistPage() {
         api.specialist.getPrivacyActivities()
       ]);
 
-      if (casesRes && Array.isArray(casesRes) && casesRes.length > 0) {
+      if (Array.isArray(casesRes)) {
         setAmlCases(
           casesRes.map((c: any) => ({
             id: c.id,
@@ -148,9 +102,11 @@ export default function BusinessSpecialistPage() {
             createdAt: c.created_at ? c.created_at.slice(0, 10) : "Recent"
           }))
         );
+      } else {
+        setAmlCases([]);
       }
 
-      if (ropaRes && Array.isArray(ropaRes) && ropaRes.length > 0) {
+      if (Array.isArray(ropaRes)) {
         setRopaActivities(
           ropaRes.map((r: any) => ({
             id: r.id,
@@ -164,9 +120,13 @@ export default function BusinessSpecialistPage() {
             dpcoAuditReady: r.dpco_audit_ready || true
           }))
         );
+      } else {
+        setRopaActivities([]);
       }
     } catch (err) {
-      console.warn("Using fallback specialist data:", err);
+      console.error("Failed to load specialist data from database:", err);
+      setAmlCases([]);
+      setRopaActivities([]);
     } finally {
       setLoading(false);
     }

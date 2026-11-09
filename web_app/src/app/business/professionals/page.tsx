@@ -35,38 +35,9 @@ interface EngagedPro {
   status: "Active" | "Access Revoked" | "Pending Sign-off";
 }
 
-const FALLBACK_PROS: EngagedPro[] = [
-  {
-    id: "77777777-7777-7777-7777-777777777701",
-    name: "Tunde Bakare, CAMS",
-    avatar: "/character1.jpg",
-    specialisation: "AML/CFT & SCUML Practice Director",
-    firm: "Bakare Compliance Consultancy",
-    authorisedModules: ["HubAML", "HubAudit", "HubReport"],
-    dualApprovalRequired: true,
-    engagementType: "Fractional Retainer",
-    monthlyFee: 250000,
-    renewalDate: "15 Dec 2026",
-    status: "Active"
-  },
-  {
-    id: "pro-02",
-    name: "Barr. Folashade Adeleke, CDPO",
-    avatar: "/character2.jpg",
-    specialisation: "Licensed DPCO Lead Auditor",
-    firm: "Adeleke & Partners Legal Practitioners",
-    authorisedModules: ["HubPrivacy", "HubDocs"],
-    dualApprovalRequired: false,
-    engagementType: "Statutory Audit Engagement",
-    monthlyFee: 300000,
-    renewalDate: "30 Mar 2026",
-    status: "Active"
-  }
-];
-
 export default function BusinessProfessionalsPage() {
   const { activeTenantId } = useAuth();
-  const [professionals, setProfessionals] = useState<EngagedPro[]>(FALLBACK_PROS);
+  const [professionals, setProfessionals] = useState<EngagedPro[]>([]);
   const [loading, setLoading] = useState(true);
   const [revokedBanner, setRevokedBanner] = useState<string | null>(null);
 
@@ -74,7 +45,7 @@ export default function BusinessProfessionalsPage() {
     setLoading(true);
     try {
       const data = await api.practice.getEngagements();
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setProfessionals(
           data.map((item: any) => ({
             id: item.id,
@@ -92,9 +63,12 @@ export default function BusinessProfessionalsPage() {
             status: item.status === "ACTIVE" ? "Active" : "Access Revoked"
           }))
         );
+      } else {
+        setProfessionals([]);
       }
     } catch (err) {
-      console.warn("Using fallback engagements:", err);
+      console.error("Failed to load engagements from database:", err);
+      setProfessionals([]);
     } finally {
       setLoading(false);
     }

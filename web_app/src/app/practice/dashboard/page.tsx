@@ -17,25 +17,26 @@ import {
   TrendingUp,
   FileCheck2
 } from "lucide-react";
-import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/ahnara/AuthContext";
 
 export default function PracticeDashboardPage() {
   const router = useRouter();
   const { switchTenant } = useAuth();
-  const [clients, setClients] = useState(MOCK_CLIENT_WORKSPACES);
+  const [clients, setClients] = useState<any[]>([]);
   const [liveTasks, setLiveTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
+      setLoading(true);
       try {
         const [liveClients, tasks] = await Promise.all([
           api.practice.getClients(),
           api.practice.getTasks(),
         ]);
 
-        if (Array.isArray(liveClients) && liveClients.length > 0) {
+        if (Array.isArray(liveClients)) {
           const mapped = liveClients.map((c: any) => ({
             id: c.tenant_id,
             name: c.company_name,
@@ -53,14 +54,22 @@ export default function PracticeDashboardPage() {
             colorScheme: "#0089C1",
             tenant_id: c.tenant_id,
           }));
-          setClients(mapped as any);
+          setClients(mapped);
+        } else {
+          setClients([]);
         }
 
         if (Array.isArray(tasks)) {
           setLiveTasks(tasks);
+        } else {
+          setLiveTasks([]);
         }
       } catch (e) {
-        console.warn("Using fallback local practice workspace data:", e);
+        console.error("Failed to load live practice data:", e);
+        setClients([]);
+        setLiveTasks([]);
+      } finally {
+        setLoading(false);
       }
     }
     loadData();

@@ -86,7 +86,7 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
 
     return response.json();
   } catch (err) {
-    console.warn(`[ComplianceHub API] Mock fallback activated for ${endpoint}:`, err);
+    console.error(`[ComplianceHub API] Request failed for ${endpoint}:`, err);
     return null;
   }
 }
@@ -110,6 +110,8 @@ export const api = {
 
   tenants: {
     getCurrent: () => apiFetch("/v1/tenants/current", { method: "GET" }),
+    updateCurrent: (body: any) => apiFetch("/v1/tenants/current", { method: "PATCH", body: JSON.stringify(body) }),
+    list: () => apiFetch("/v1/tenants", { method: "GET" }),
   },
 
   // HubCalendar: Statutory Deadlines
@@ -202,6 +204,9 @@ export const api = {
   practice: {
     getClients: () => apiFetch("/v1/practice/clients", { method: "GET" }),
     getTasks: () => apiFetch("/v1/practice/tasks", { method: "GET" }),
+    updateTask: (taskId: string, status: string) =>
+      apiFetch(`/v1/practice/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    getTeam: () => apiFetch("/v1/practice/team", { method: "GET" }),
     getExperts: (specialisation?: string) => {
       const query = specialisation && specialisation !== "All" ? `?specialisation=${encodeURIComponent(specialisation)}` : "";
       return apiFetch(`/v1/professionals${query}`, { method: "GET" });
@@ -209,6 +214,18 @@ export const api = {
     getEngagements: () => apiFetch("/v1/engagements", { method: "GET" }),
     revokeEngagement: (engagementId: string) =>
       apiFetch(`/v1/engagements/${engagementId}/revoke`, { method: "POST", body: JSON.stringify({}) }),
+  },
+
+  // Commercial & Invoices
+  invoices: {
+    list: () => apiFetch("/v1/invoices", { method: "GET" }),
+    create: (body: { client_name: string; amount_ngn: number; invoice_type?: string; due_date?: string }) =>
+      apiFetch("/v1/invoices", { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  // Reports
+  reports: {
+    getDigest: () => apiFetch("/v1/reports/digest", { method: "GET" }),
   },
 
   // Workforce

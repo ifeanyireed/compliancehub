@@ -50,6 +50,8 @@ type Tenant struct {
 	OrganisationName string    `json:"organisation_name,omitempty"`
 	RCNumber         string    `json:"rc_number,omitempty"`
 	Industry         string    `json:"industry,omitempty"`
+	Address          string    `json:"address,omitempty"`
+	TIN              string    `json:"tin,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
