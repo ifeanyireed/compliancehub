@@ -20,22 +20,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { RoleGuard } from "@/components/ahnara/RoleGuard";
-import { MOCK_CLIENT_WORKSPACES } from "@/lib/compliance-data";
+import { FloatingEntityBar } from "@/components/layout/FloatingEntityBar";
 
 export default function BusinessDashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, switchRole, logout, switchTenant, activeTenantId } = useAuth();
-  const [selectedWorkspace, setSelectedWorkspace] = useState(() => {
-    return MOCK_CLIENT_WORKSPACES.find(w => w.id === activeTenantId) || MOCK_CLIENT_WORKSPACES[0];
-  });
-  const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
-
-  React.useEffect(() => {
-    const matched = MOCK_CLIENT_WORKSPACES.find(w => w.id === activeTenantId);
-    if (matched) {
-      setSelectedWorkspace(matched);
-    }
-  }, [activeTenantId]);
+  const { user, logout } = useAuth();
 
   const navItems = [
     { name: "Overview", href: "/business/dashboard", icon: LayoutDashboard },
@@ -54,7 +43,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
         {/* Top Header matching AntifakeNG styling */}
         <header className="px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 bg-transparent border-b border-slate-300/30">
           
-          {/* Left: Brand & Workspace Switcher */}
+          {/* Left: Brand */}
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 p-1.5 shadow-xs flex items-center justify-center">
@@ -69,58 +58,6 @@ export default function BusinessDashboardLayout({ children }: { children: React.
                 </span>
               </div>
             </Link>
-
-            {/* Business Workspace Selector Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 transition-all text-xs text-left"
-              >
-                <div className="w-5 h-5 rounded-md bg-[#0089C1] text-white flex items-center justify-center font-bold text-[10px]">
-                  {selectedWorkspace.logoText}
-                </div>
-                <div className="hidden sm:block">
-                  <p className="font-bold text-slate-900 leading-none">{selectedWorkspace.name}</p>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">{selectedWorkspace.rcNumber}</p>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
-              </button>
-
-              {showWorkspaceDropdown && (
-                <div className="absolute left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50">
-                  <p className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Select Business Entity
-                  </p>
-                  {MOCK_CLIENT_WORKSPACES.map((ws) => (
-                    <button
-                      key={ws.id}
-                      onClick={() => {
-                        setSelectedWorkspace(ws);
-                        switchTenant(ws.id);
-                        setShowWorkspaceDropdown(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all ${
-                        selectedWorkspace.id === ws.id ? "bg-slate-100 font-bold" : "hover:bg-slate-50"
-                      }`}
-                    >
-                      <div 
-                        className="w-7 h-7 rounded-lg text-white font-black text-xs flex items-center justify-center"
-                        style={{ backgroundColor: ws.colorScheme }}
-                      >
-                        {ws.logoText}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-900 truncate">{ws.name}</p>
-                        <p className="text-[10px] text-slate-500 font-mono">{ws.rcNumber} • {ws.state}</p>
-                      </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                        {ws.readinessScore}%
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Center: Top Capsule Pill Tab Menu */}
@@ -192,6 +129,9 @@ export default function BusinessDashboardLayout({ children }: { children: React.
         <main className="flex-1 px-4 sm:px-8 pt-6 pb-12 max-w-7xl mx-auto w-full">
           {children}
         </main>
+
+        {/* Temporary Floating Entity Switcher Bar */}
+        <FloatingEntityBar />
       </div>
     </RoleGuard>
   );

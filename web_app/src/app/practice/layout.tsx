@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { RoleGuard } from "@/components/ahnara/RoleGuard";
+import { FloatingEntityBar } from "@/components/layout/FloatingEntityBar";
 
 export default function PracticeLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -141,6 +142,9 @@ export default function PracticeLayout({ children }: { children: React.ReactNode
         <main className="flex-1 px-4 sm:px-8 pt-6 pb-12 max-w-7xl mx-auto w-full">
           {children}
         </main>
+
+        {/* Temporary Floating Entity Switcher Bar */}
+        <FloatingEntityBar />
       </div>
     </RoleGuard>
   );
