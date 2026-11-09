@@ -63,8 +63,8 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Health endpoint
-	mux.HandleFunc("/api/health", withCORS(func(w http.ResponseWriter, r *http.Request) {
+	// Health endpoints
+	healthHandler := withCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":   "ok",
@@ -73,7 +73,9 @@ func main() {
 			"storage":  "Cloudinary Evidence Vault (configured)",
 			"region":   "aws-us-east-2",
 		})
-	}))
+	})
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/api/health", healthHandler)
 
 	// ==========================================
 	// Auth & Multi-Tenant Routes
