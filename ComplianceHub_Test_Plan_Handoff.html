@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ComplianceHub.ng - Comprehensive Application Testing & Handoff Specification</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 12mm 15mm 12mm;
+      @bottom-right {
+        content: counter(page);
+        font-size: 8pt;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #64748B;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 9pt;
+      line-height: 1.45;
+      color: #0F172A;
+      background-color: #FFFFFF;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Page Breaks */
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+
+    .no-break {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    /* Header Banner */
+    .cover-header {
+      background: linear-gradient(135deg, #0B132B 0%, #1C2541 60%, #0089C1 100%);
+      color: #FFFFFF;
+      padding: 32px 28px;
+      border-radius: 14px;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .cover-header h1 {
+      font-size: 22pt;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin: 0 0 6px 0;
+      line-height: 1.15;
+    }
+
+    .cover-header .subtitle {
+      font-size: 11pt;
+      color: #93C5FD;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      padding-top: 14px;
+      font-size: 8pt;
+    }
+
+    .meta-item .label {
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #94A3B8;
+      font-size: 7pt;
+      letter-spacing: 0.5px;
+    }
+
+    .meta-item .value {
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-top: 2px;
+    }
+
+    /* Section Headings */
+    h2 {
+      font-size: 13pt;
+      font-weight: 800;
+      color: #0F172A;
+      border-bottom: 2px solid #0089C1;
+      padding-bottom: 4px;
+      margin-top: 22px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      break-after: avoid;
+    }
+
+    h2 .section-num {
+      background-color: #0089C1;
+      color: #FFFFFF;
+      font-size: 9pt;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 900;
+    }
+
+    h3 {
+      font-size: 10.5pt;
+      font-weight: 700;
+      color: #1E293B;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      break-after: avoid;
+    }
+
+    p {
+      margin: 0 0 8px 0;
+    }
+
+    /* Info Cards */
+    .callout {
+      background-color: #F8FAFC;
+      border-left: 3.5px solid #0089C1;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+      font-size: 8.5pt;
+    }
+
+    .callout.warning {
+      background-color: #FFFBEB;
+      border-left-color: #F59E0B;
+    }
+
+    .callout.success {
+      background-color: #F0FDF4;
+      border-left-color: #10B981;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+      margin-bottom: 14px;
+      page-break-inside: avoid;
+    }
+
+    th {
+      background-color: #0F172A;
+      color: #FFFFFF;
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #E2E8F0;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #F8FAFC;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      font-size: 7pt;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-primary { background-color: #E0F2FE; color: #0284C7; }
+    .badge-success { background-color: #DCFCE7; color: #15803D; }
+    .badge-warning { background-color: #FEF3C7; color: #B45309; }
+    .badge-danger  { background-color: #FEE2E2; color: #B91C1C; }
+    .badge-purple  { background-color: #F3E8FF; color: #7E22CE; }
+    .badge-neutral { background-color: #F1F5F9; color: #475569; }
+
+    /* Checkboxes */
+    .checkbox-box {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid #64748B;
+      border-radius: 2px;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    /* Grid layout */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background-color: #FFFFFF;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-weight: 800;
+      font-size: 9pt;
+      color: #0F172A;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .code-pill {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      background-color: #F1F5F9;
+      color: #0F172A;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 7.5pt;
+    }
+
+    .step-list {
+      margin: 0;
+      padding-left: 16px;
+    }
+
+    .step-list li {
+      margin-bottom: 3px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== COVER / HEADER ==================== -->
+  <div class="cover-header">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <span style="background: #0089C1; color: white; font-weight: 900; font-size: 8pt; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">Enterprise Release Handoff</span>
+          <span style="color: #BAE6FD; font-size: 8pt; font-weight: 600;">v1.0.0-PROD</span>
+        </div>
+        <h1>ComplianceHub.ng</h1>
+        <div class="subtitle">Complete Application Quality Assurance & End-to-End Test Plan</div>
+      </div>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-item">
+        <div class="label">Target Environments</div>
+        <div class="value">Vercel (Web) + Render (API)</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Database Cluster</div>
+        <div class="value">Neon Lakebase PostgreSQL</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Storage Vault</div>
+        <div class="value">Cloudinary Secure Vault</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Regulatory Mandate</div>
+        <div class="value">CAMA 2020 & 2026 Tax Act</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 1: ARCHITECTURE & TEST TOPOLOGY ==================== -->
+  <div class="no-break">
+    <h2><span class="section-num">01</span> Architecture, Topologies & Pre-Configured Test Personas</h2>
+    <p>ComplianceHub.ng employs a decoupled architecture consisting of a Next.js 16 frontend workspace and a high-throughput Go API backend communicating with a multi-tenant Neon Lakebase PostgreSQL instance and Cloudinary Evidence Vault.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Frontend Topology (Next.js 16 Turbopack)</div>
+        <p style="font-size: 8pt; color: #475569;">
+          • <strong>Local Dev URL:</strong> <span class="code-pill">http://localhost:3000</span> (or :3003)<br>
+          • <strong>Routing Style:</strong> Next.js App Router with <span class="code-pill">trailingSlash: true</span><br>
+          • <strong>RBAC Guard:</strong> RoleGuard context with dynamic role emulation<br>
+          • <strong>Entity Switcher:</strong> Floating Temporary Entity Switcher Bar
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-title">Backend Topology (Go 1.23+ Core API)</div>
+        <p style="font-size: 8pt; color: #475569;">
+          • <strong>API Port:</strong> <span class="code-pill">:8080</span> (dynamic Render <span class="code-pill">$PORT</span>)<br>
+          • <strong>Health Check:</strong> <span class="code-pill">/api/health</span> and <span class="code-pill">/health</span> (Status 200)<br>
+          • <strong>Neon Postgres:</strong> Auto-scaling serverless pool (AWS us-east-2)<br>
+          • <strong>Cloudinary Vault:</strong> S3-compatible evidence storage (<span class="code-pill">yugcjpau</span>)
+        </p>
+      </div>
+    </div>
+
+    <h3>Pre-configured Test Personas (Multi-Role Emulation)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Role</th>
+          <th>Persona Name</th>
+          <th>Organization / Entity</th>
+          <th>Plan Tier</th>
+          <th>Primary Cockpit</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-primary">BUSINESS</span></td>
+          <td>Adaeze Nwosu</td>
+          <td>PayWave Technologies Ltd (RC-1894231)</td>
+          <td>Professional</td>
+          <td><span class="code-pill">/business/dashboard</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-success">EXPERT</span></td>
+          <td>Tunde Bakare, CAMS</td>
+          <td>Bakare Compliance Consultancy</td>
+          <td>Practice Plus</td>
+          <td><span class="code-pill">/practice/dashboard</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">AGENCY</span></td>
+          <td>Chiamaka Eze</td>
+          <td>Apex Compliance Advisory Partners Ltd</td>
+          <td>Agency Growth</td>
+          <td><span class="code-pill">/practice/dashboard</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-warning">STAFF</span></td>
+          <td>Babajide Sanwo</td>
+          <td>ComplianceHub Support Operations</td>
+          <td>Staff Console</td>
+          <td><span class="code-pill">/staff</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-danger">ADMIN</span></td>
+          <td>Dr. Olumide Adeleke</td>
+          <td>ComplianceHub Technologies Nigeria Ltd</td>
+          <td>Super Admin</td>
+          <td><span class="code-pill">/admin/dashboard</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Pre-loaded Sandbox Nigerian Entities</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Entity Name</th>
+          <th>RC Number</th>
+          <th>Industry & Sector</th>
+          <th>Jurisdiction</th>
+          <th>Initial Readiness</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>PayWave Technologies Ltd</strong></td>
+          <td><span class="code-pill">RC-1894231</span></td>
+          <td>FinTech & Digital Payments</td>
+          <td>Lagos State</td>
+          <td><span class="badge badge-success">84% Readiness</span></td>
+        </tr>
+        <tr>
+          <td><strong>Prime Haulage & Logistics Ltd</strong></td>
+          <td><span class="code-pill">RC-1423891</span></td>
+          <td>Supply Chain & Interstate Haulage</td>
+          <td>Rivers (Port Harcourt)</td>
+          <td><span class="badge badge-warning">68% Readiness</span></td>
+        </tr>
+        <tr>
+          <td><strong>Swift Health HMO Ltd</strong></td>
+          <td><span class="code-pill">RC-1928340</span></td>
+          <td>Healthcare & Managed Care HMO</td>
+          <td>FCT Abuja</td>
+          <td><span class="badge badge-success">92% Readiness</span></td>
+        </tr>
+        <tr>
+          <td><strong>Zenith Retail Chains Ltd</strong></td>
+          <td><span class="code-pill">RC-1102938</span></td>
+          <td>Consumer Retail & DNFBP Supermarkets</td>
+          <td>Lagos State</td>
+          <td><span class="badge badge-warning">74% Readiness</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 2: TEST FLOWS 1 & 2 ==================== -->
+  <h2><span class="section-num">02</span> Module Flow 1: Public Portal, Marketing & Regulatory Intel</h2>
+  <p>Tests public routes, responsive navigation, SEO dynamic blog rendering with atomic view count tracking, and statutory assessment calculators.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 80px;">Test ID</th>
+        <th style="width: 140px;">Test Target</th>
+        <th>Execution Steps</th>
+        <th>Expected Verification Result</th>
+        <th style="width: 60px;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>TC-PUB-01</strong></td>
+        <td>Landing Page & Hero Navigation</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/</span>.</li>
+            <li>Inspect hero section, statistics ticker (₦18.4M Penalties Prevented), and CTA buttons.</li>
+            <li>Click "Start Free Compliance Assessment".</li>
+          </ol>
+        </td>
+        <td>Page loads smoothly; CTA redirects cleanly to <span class="code-pill">/onboarding</span>. Top nav sticks on scroll with blur.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-PUB-02</strong></td>
+        <td>12 Statutory Modules Directory</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/modules</span>.</li>
+            <li>Verify all 12 modules appear (CAC CAMA 2020, FIRS Tax Act 2026, NDPC Privacy, AML/CFT, etc.).</li>
+            <li>Check filter pills and card feature tags.</li>
+          </ol>
+        </td>
+        <td>12 modules rendered with correct statutory acts referenced. Active header link "12 Modules" is highlighted.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-PUB-03</strong></td>
+        <td>Find an Expert Directory</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/experts</span>.</li>
+            <li>Search by filter (e.g., "AML Specialist" or "Tax Attorney").</li>
+            <li>Inspect verified CAC accreditation badges.</li>
+          </ol>
+        </td>
+        <td>Filtered expert list updates in real-time with verified credentials and retainer hourly/monthly rates in NGN.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-PUB-04</strong></td>
+        <td>Public Blog & View Tracking</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/blog</span>. Observe view counts on cards.</li>
+            <li>Click on a featured post (e.g. <span class="code-pill">/blog/cama-2020-cac-annual-returns-deadline/</span>).</li>
+            <li>Inspect Markdown parsing and Cloudinary hero image.</li>
+            <li>Refresh page or re-check <span class="code-pill">/blog</span>.</li>
+          </ol>
+        </td>
+        <td>Single post renders formatted Markdown headings, code blocks, lists; atomic view counter increments in Neon DB without hardcoded values.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-PUB-05</strong></td>
+        <td>Pricing Matrix & Tiers</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/pricing</span>.</li>
+            <li>Toggle between Monthly and Annual billing cycles.</li>
+            <li>Click "Start 14-Day Free Trial" on Professional tier.</li>
+          </ol>
+        </td>
+        <td>Prices update with annual discount calculation; clicking leads into registration with tier query param preserved.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-PUB-06</strong></td>
+        <td>Onboarding Assessment Flow</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/onboarding</span>.</li>
+            <li>Enter company name, select industry ("FinTech"), state ("Lagos"), employee count.</li>
+            <li>Proceed through 4 statutory questions and submit.</li>
+          </ol>
+        </td>
+        <td>Generates dynamic compliance readiness score (0–100%) and personalized statutory filing calendar preview.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2><span class="section-num">03</span> Module Flow 2: Authentication, Tenant Resolution & Entity Switcher</h2>
+  <p>Tests user login, session caching, RBAC role guard redirection, and the new temporary floating entity switcher bar.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 80px;">Test ID</th>
+        <th style="width: 140px;">Test Target</th>
+        <th>Execution Steps</th>
+        <th>Expected Verification Result</th>
+        <th style="width: 60px;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>TC-AUTH-01</strong></td>
+        <td>Direct Login & Preset Emulation</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/login</span>.</li>
+            <li>Click demo preset "Business Admin (Adaeze)".</li>
+            <li>Submit login form.</li>
+          </ol>
+        </td>
+        <td>Token cached in <span class="code-pill">localStorage</span>; user redirected instantly to <span class="code-pill">/business/dashboard/</span>.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-AUTH-02</strong></td>
+        <td>RoleGuard Protected Route Enforcement</td>
+        <td>
+          <ol class="step-list">
+            <li>While logged in as <span class="badge badge-primary">BUSINESS</span>, attempt to visit <span class="code-pill">/admin/dashboard</span>.</li>
+            <li>Observe redirect response.</li>
+          </ol>
+        </td>
+        <td>User is blocked from admin suite and redirected safely back to <span class="code-pill">/business/dashboard</span> with toast warning.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-AUTH-03</strong></td>
+        <td>Floating Entity Switcher - Drawer Toggle</td>
+        <td>
+          <ol class="step-list">
+            <li>On <span class="code-pill">/business/dashboard/</span>, verify top nav header is clean with NO dropdown next to logo.</li>
+            <li>Locate floating bar at bottom center. Click chevron icon.</li>
+          </ol>
+        </td>
+        <td>Upward drawer smoothly animates open showing 4 Nigerian entities with readiness scores and RC numbers.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-AUTH-04</strong></td>
+        <td>Floating Entity Switcher - Context Mutation</td>
+        <td>
+          <ol class="step-list">
+            <li>Select "Swift Health HMO Ltd (RC-1928340)".</li>
+            <li>Observe dashboard banner and cockpit header.</li>
+          </ol>
+        </td>
+        <td>Tenant context mutates dynamically; cockpit banner updates to Swift Health HMO Ltd, score updates to 92%.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-AUTH-05</strong></td>
+        <td>Floating Entity Switcher - Minimize & Dismiss</td>
+        <td>
+          <ol class="step-list">
+            <li>Click the "Minimize" icon on the floating bar.</li>
+            <li>Click the "✕" Dismiss button on the minimized bar.</li>
+            <li>Click the corner restore pill to bring it back.</li>
+          </ol>
+        </td>
+        <td>Bar collapses into compact pill; dismissing hides it completely; corner restore pill brings it back immediately.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 3: TEST FLOWS 3 & 4 ==================== -->
+  <h2><span class="section-num">04</span> Module Flow 3: HubBusiness Workspace (Client Operations Cockpit)</h2>
+  <p>Tests all business sub-routes, navigation active state highlighting, deadline tracking, evidence upload, and board report generation.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 80px;">Test ID</th>
+        <th style="width: 140px;">Test Target</th>
+        <th>Execution Steps</th>
+        <th>Expected Verification Result</th>
+        <th style="width: 60px;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>TC-BIZ-01</strong></td>
+        <td>Top Header Nav Active Highlight</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/business/dashboard/</span>.</li>
+            <li>Observe the "Overview" tab in the capsule pill header.</li>
+            <li>Click through each tab: <span class="code-pill">HubCalendar</span>, <span class="code-pill">HubDocs</span>, <span class="code-pill">People & Vendors</span>, etc.</li>
+          </ol>
+        </td>
+        <td>Current page is clearly highlighted in dark navy (<span class="code-pill">bg-[#1E293B] text-white font-bold</span>) with cyan/brand blue icon; trailing slashes handled cleanly.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-BIZ-02</strong></td>
+        <td>HubCalendar Statutory Deadlines</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/business/calendar</span>.</li>
+            <li>Filter by "CAC (CAMA 2020)" and "FIRS (2026 Tax Act)".</li>
+            <li>Click on an urgent deadline (e.g. CAMA Annual Return).</li>
+          </ol>
+        </td>
+        <td>Displays statutory penalties in NGN (e.g. ₦250,000 fine), statutory due date countdown, and required evidence checklist.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-BIZ-03</strong></td>
+        <td>HubDocs & Cloudinary Evidence Vault</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/business/documents</span>.</li>
+            <li>Click "Upload Evidence" button.</li>
+            <li>Select a PDF/PNG file (e.g. Tax Clearance Certificate).</li>
+            <li>Assign authority: FIRS, category: Tax Clearance.</li>
+            <li>Click "Upload & Encrypt".</li>
+          </ol>
+        </td>
+        <td>File uploads to Cloudinary evidence vault with SHA-256 hash stamp; entry appears in document table with "Verified" badge.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-BIZ-04</strong></td>
+        <td>People & Vendor Sanctions Screening</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/business/people-vendors</span>.</li>
+            <li>Inspect Director KYC & AML screening list.</li>
+            <li>Click "Run NFIU / PEP Sanctions Scan" on a vendor.</li>
+          </ol>
+        </td>
+        <td>Returns AML risk rating ("Low", "Medium", "High"), verification timestamp, and compliance certificate generation.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-BIZ-05</strong></td>
+        <td>AML & Privacy Specialist Cockpit</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/business/specialist</span>.</li>
+            <li>Inspect NDPC Data Protection Audit Filing status.</li>
+            <li>Review CTR (Currency Transaction Report) thresholds under NFIU rules.</li>
+          </ol>
+        </td>
+        <td>Shows NDPA 2023 compliance status, designated Data Protection Officer (DPO) credentials, and audit filing readiness.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-BIZ-06</strong></td>
+        <td>Board Compliance Report Generation</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/business/reports</span>.</li>
+            <li>Select Quarter: "Q4 2026 Executive Audit".</li>
+            <li>Click "Generate Board Compliance Digest".</li>
+          </ol>
+        </td>
+        <td>Renders comprehensive executive summary breakdown covering CAC, FIRS, NDPC, and PENCOM statutory standing.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2><span class="section-num">05</span> Module Flow 4: HubAgents Practice Suite (Expert & Agency Workspace)</h2>
+  <p>Tests multi-client portfolio management, task execution pipelines, commercial retainer billing, and agency team delegation.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 80px;">Test ID</th>
+        <th style="width: 140px;">Test Target</th>
+        <th>Execution Steps</th>
+        <th>Expected Verification Result</th>
+        <th style="width: 60px;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>TC-PRAC-01</strong></td>
+        <td>Practice Overview & Client Portfolio Health</td>
+        <td>
+          <ol class="step-list">
+            <li>Switch role to <span class="badge badge-success">EXPERT</span> or <span class="badge badge-purple">AGENCY</span>.</li>
+            <li>Visit <span class="code-pill">/practice/dashboard</span>.</li>
+            <li>Review active client retainers count and billable hours.</li>
+          </ol>
+        </td>
+        <td>Cockpit displays accredited practice director badge, 14 active clients, monthly recurring retainers (₦3.2M), and pending tasks.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-PRAC-02</strong></td>
+        <td>Client Detailed Dossier & Filing History</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/practice/clients</span>.</li>
+            <li>Click on "PayWave Technologies Ltd".</li>
+            <li>Inspect CAC Form 2A, annual return filing history.</li>
+          </ol>
+        </td>
+        <td>Opens <span class="code-pill">/practice/clients/client-paywave/</span> with complete client corporate records, assigned filings, and audit notes.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-PRAC-03</strong></td>
+        <td>Work & Tasks Filing Pipeline</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/practice/tasks</span>.</li>
+            <li>Move task "CAC 2026 Annual Return" from "In Review" to "Filed with CAC".</li>
+            <li>Attach statutory electronic receipt.</li>
+          </ol>
+        </td>
+        <td>Task state updates immediately; client notification triggered; milestone reflected on practice dashboard.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-PRAC-04</strong></td>
+        <td>Commercial & Retainer Fee Invoicing</td>
+        <td>
+          <ol class="step-list">
+            <li>Navigate to <span class="code-pill">/practice/commercial</span>.</li>
+            <li>Inspect invoice list and payment status (Paid, Pending, Overdue).</li>
+            <li>Click "Generate Retainer Invoice" for PayWave.</li>
+          </ol>
+        </td>
+        <td>Generates NGN retainer invoice with Nigerian bank account details (Access Bank / Zenith Bank) and VAT line item.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- ==================== SECTION 4: TEST FLOWS 5, 6 & 7 ==================== -->
+  <h2><span class="section-num">06</span> Module Flow 5 & 6: Support Console & Super Admin Cockpit</h2>
+  <p>Tests internal staff ticket resolution, canned statutory snippets, platform metrics, and the Admin Blog CMS.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 80px;">Test ID</th>
+        <th style="width: 140px;">Test Target</th>
+        <th>Execution Steps</th>
+        <th>Expected Verification Result</th>
+        <th style="width: 60px;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>TC-STAFF-01</strong></td>
+        <td>Support Console & Statutory Canned Snippets</td>
+        <td>
+          <ol class="step-list">
+            <li>Switch role to <span class="badge badge-warning">STAFF</span> and visit <span class="code-pill">/staff</span>.</li>
+            <li>Review inbound client tickets. Select ticket on CAMA penalty.</li>
+            <li>Insert standard CAMA 2020 s.377 penalty response snippet.</li>
+          </ol>
+        </td>
+        <td>Support sidebar accurately highlights active route; canned response populates editor with accurate legal citations.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-ADMIN-01</strong></td>
+        <td>Super Administrator Platform Dashboard</td>
+        <td>
+          <ol class="step-list">
+            <li>Switch role to <span class="badge badge-danger">ADMIN</span> and visit <span class="code-pill">/admin/dashboard</span>.</li>
+            <li>Verify platform metrics: Total Tenants, ARR in NGN, Database status.</li>
+          </ol>
+        </td>
+        <td>Super admin cockpit displays live Neon Lakebase status (aws-us-east-2), active audit mode badge, and enterprise metrics.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-ADMIN-02</strong></td>
+        <td>Blog CMS - Authoring & Publishing</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/admin/blog</span>. Click "New Article".</li>
+            <li>Enter title, slug, excerpt, author: "Ifeanyi Felix", category: "CAC & Corporate Governance".</li>
+            <li>Paste Markdown content with headings, bullet points, and citations.</li>
+            <li>Click "Publish Live".</li>
+          </ol>
+        </td>
+        <td>Article persists to Neon DB <span class="code-pill">blog_posts</span> table; immediately appears live on <span class="code-pill">/blog</span> and <span class="code-pill">/blog/[slug]</span> with 0 views initialized.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-ADMIN-03</strong></td>
+        <td>Companies & Multi-Tenant Directory</td>
+        <td>
+          <ol class="step-list">
+            <li>Visit <span class="code-pill">/admin/users</span>.</li>
+            <li>Search by RC number or company name.</li>
+            <li>Toggle tenant plan or inspect audit log.</li>
+          </ol>
+        </td>
+        <td>Displays multi-tenant registry with assigned tenant IDs and subscription tier limits.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2><span class="section-num">07</span> Module Flow 7: Backend API, Database & CI/CD Deployment</h2>
+  <p>Verifies Go API server, Neon connection pooling, Cloudinary image security, Vercel ignore-build automation, and Render configurations.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 80px;">Test ID</th>
+        <th style="width: 140px;">Test Target</th>
+        <th>Execution Steps</th>
+        <th>Expected Verification Result</th>
+        <th style="width: 60px;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>TC-API-01</strong></td>
+        <td>Go Backend Dual Health Check</td>
+        <td>
+          <ol class="step-list">
+            <li>Execute <span class="code-pill">curl -i http://localhost:8080/api/health</span>.</li>
+            <li>Execute <span class="code-pill">curl -i http://localhost:8080/health</span>.</li>
+          </ol>
+        </td>
+        <td>Both endpoints return HTTP 200 OK with JSON <span class="code-pill">{"status":"ok","database":"Neon Lakebase Postgres (connected)"}</span>.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-API-02</strong></td>
+        <td>Go Blog API Atomic View Increment</td>
+        <td>
+          <ol class="step-list">
+            <li>Execute <span class="code-pill">curl -X POST http://localhost:8080/api/blog/{slug}/view</span>.</li>
+            <li>Query database views column.</li>
+          </ol>
+        </td>
+        <td>Increments view count atomically by 1; handles trailing slashes without 404 or redirect loops.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-DB-01</strong></td>
+        <td>Neon Lakebase Connection & SSL</td>
+        <td>
+          <ol class="step-list">
+            <li>Verify <span class="code-pill">DATABASE_URL</span> uses <span class="code-pill">sslmode=require</span>.</li>
+            <li>Run database query through connection pool.</li>
+          </ol>
+        </td>
+        <td>Connects securely using pooled endpoint without connection starvation under concurrent requests.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-MEDIA-01</strong></td>
+        <td>Cloudinary Vault & Referrer Security</td>
+        <td>
+          <ol class="step-list">
+            <li>Inspect rendered blog cover and author image tags.</li>
+            <li>Verify domain origin is <span class="code-pill">res.cloudinary.com/yugcjpau</span>.</li>
+            <li>Verify presence of <span class="code-pill">referrerpolicy="no-referrer"</span> attribute.</li>
+          </ol>
+        </td>
+        <td>Images load with zero 403 CDN blocks; no generic Unsplash images anywhere in codebase.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-CI-01</strong></td>
+        <td>Vercel Ignore-Build Automation</td>
+        <td>
+          <ol class="step-list">
+            <li>Execute <span class="code-pill">VERCEL_GIT_COMMIT_REF=dev bash scripts/vercel-ignore-build.sh</span>.</li>
+            <li>Execute <span class="code-pill">VERCEL_GIT_COMMIT_REF=main bash scripts/vercel-ignore-build.sh</span>.</li>
+          </ol>
+        </td>
+        <td>Branch <span class="code-pill">dev</span> exits with code 0 (Build Canceled); Branch <span class="code-pill">main</span> exits with code 1 (Build Proceeded).</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+      <tr>
+        <td><strong>TC-CI-02</strong></td>
+        <td>Render Backend Build & Run Command</td>
+        <td>
+          <ol class="step-list">
+            <li>Execute <span class="code-pill">cd backend && go build -o server cmd/api/main.go</span>.</li>
+            <li>Verify binary execution with <span class="code-pill">PORT=8080 ./server</span>.</li>
+          </ol>
+        </td>
+        <td>Compiles with 0 errors; binds cleanly to assigned port; blueprint <span class="code-pill">render.yaml</span> verified.</td>
+        <td><span class="checkbox-box"></span> Pass</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ==================== SECTION 5: SIGN-OFF & HANDOFF APPROVAL ==================== -->
+  <div class="no-break" style="margin-top: 18px;">
+    <h2><span class="section-num">08</span> Production Quality Sign-Off & Handoff Verification</h2>
+    <p>This verification sign-off certifies that all flows above have been reviewed against compliance with Nigerian statutory laws (CAMA 2020, Nigeria Tax Act 2026, NDPA 2023) and production stability requirements.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px;">
+      <div style="border: 1px solid #CBD5E1; border-radius: 8px; padding: 12px; background-color: #F8FAFC;">
+        <div style="font-weight: 800; font-size: 8.5pt; color: #0F172A; margin-bottom: 24px;">QA Automation Lead</div>
+        <div style="border-top: 1px dashed #94A3B8; padding-top: 6px; font-size: 7.5pt; color: #64748B;">Signature & Date</div>
+      </div>
+      <div style="border: 1px solid #CBD5E1; border-radius: 8px; padding: 12px; background-color: #F8FAFC;">
+        <div style="font-weight: 800; font-size: 8.5pt; color: #0F172A; margin-bottom: 24px;">Lead Fullstack Engineer</div>
+        <div style="border-top: 1px dashed #94A3B8; padding-top: 6px; font-size: 7.5pt; color: #64748B;">Signature & Date</div>
+      </div>
+      <div style="border: 1px solid #CBD5E1; border-radius: 8px; padding: 12px; background-color: #F8FAFC;">
+        <div style="font-weight: 800; font-size: 8.5pt; color: #0F172A; margin-bottom: 24px;">Director of Product & Compliance</div>
+        <div style="border-top: 1px dashed #94A3B8; padding-top: 6px; font-size: 7.5pt; color: #64748B;">Signature & Date</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
