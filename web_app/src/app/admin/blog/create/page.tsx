@@ -431,7 +431,7 @@ function BlogCreateContent() {
                 />
               </div>
             ) : (
-              <div className="p-8 sm:p-12 prose prose-slate max-w-none text-slate-800 leading-relaxed text-sm">
+              <div className="p-8 sm:p-12 article-prose max-w-none text-slate-800 leading-relaxed text-sm">
                 {previewHtml ? (
                   <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                 ) : (

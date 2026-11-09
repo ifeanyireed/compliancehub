@@ -121,7 +121,7 @@ export default function SingleBlogPostPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [views, setViews] = useState<number>(0);
-  const [renderedHtml, setRenderedHtml] = useState<string>("");
+  const [renderedHtml, setRenderedHtml] = useState<string>(() => renderMarkdownAndMath(FALLBACK_POST.content));
   const [copied, setCopied] = useState(false);
 
   // New Comment Form
@@ -333,18 +333,7 @@ export default function SingleBlogPostPage() {
           {/* Article Body Content (Rich Markdown + Math Rendering) */}
           <div className="bg-white rounded-3xl border border-slate-200/80 p-8 sm:p-12 shadow-sm">
             <div 
-              className="prose prose-slate max-w-none text-slate-800 leading-relaxed text-sm sm:text-base font-normal
-                prose-headings:font-black prose-headings:text-slate-900 prose-headings:tracking-tight
-                prose-h2:text-2xl prose-h2:mt-8 prose-h2:mb-4
-                prose-h3:text-xl prose-h3:mt-6 prose-h3:mb-3
-                prose-p:leading-relaxed prose-p:my-4
-                prose-table:w-full prose-table:border-collapse prose-table:my-6
-                prose-th:bg-slate-50 prose-th:p-3 prose-th:text-xs prose-th:font-extrabold prose-th:text-slate-800 prose-th:border prose-th:border-slate-200
-                prose-td:p-3 prose-td:text-xs prose-td:text-slate-700 prose-td:border prose-td:border-slate-200
-                prose-ul:list-disc prose-ul:pl-6 prose-ul:my-4
-                prose-ol:list-decimal prose-ol:pl-6 prose-ol:my-4
-                prose-blockquote:border-l-4 prose-blockquote:border-[#0089C1] prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-700
-              "
+              className="article-prose max-w-none text-slate-800 leading-relaxed text-sm sm:text-base font-normal"
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
 

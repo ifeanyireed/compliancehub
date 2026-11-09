@@ -4,16 +4,15 @@
  * Automatically injects referrerpolicy="no-referrer" on all embedded images for Nigerian media CDN reliability.
  */
 
-// @ts-ignore - pure ESM module
-import { marked } from "./marked.js";
+import { marked } from "marked";
 import { renderLatexInHtml } from "./math-renderer";
 
 // Configure marked with custom image renderer for CDN safety
 const customRenderer = new marked.Renderer();
-customRenderer.image = function ({ href, title, text }: { href: string; title?: string; text?: string }) {
-  const cleanHref = href || "";
-  const cleanAlt = text || "Regulatory Intelligence Illustration";
-  const cleanTitle = title ? ` title="${title}"` : "";
+customRenderer.image = function (token: any) {
+  const cleanHref = token?.href || "";
+  const cleanAlt = token?.text || "Regulatory Intelligence Illustration";
+  const cleanTitle = token?.title ? ` title="${token.title}"` : "";
   return `<img src="${cleanHref}" alt="${cleanAlt}"${cleanTitle} referrerpolicy="no-referrer" loading="lazy" class="w-full rounded-2xl border border-slate-200/80 my-6 shadow-xs object-cover max-h-[480px]" />`;
 };
 
@@ -62,20 +61,26 @@ export function isHtmlContent(text: string): boolean {
 export function renderMarkdownAndMath(rawContent: string): string {
   if (!rawContent) return "";
 
-  let html = rawContent;
+  // 1. Normalize literal escaped newlines that can come from database string escaping or JSON payloads
+  let cleanContent = rawContent;
+  if (cleanContent.includes("\\n")) {
+    cleanContent = cleanContent.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+  }
 
-  const isHtml = isHtmlContent(rawContent);
-  const hasMarkdown = hasMarkdownIndicators(rawContent);
+  let html = cleanContent;
+
+  const isHtml = isHtmlContent(cleanContent);
+  const hasMarkdown = hasMarkdownIndicators(cleanContent);
 
   if (!isHtml || hasMarkdown) {
     try {
-      const parsed = marked.parse(rawContent);
+      const parsed = marked.parse(cleanContent);
       if (typeof parsed === "string" && parsed.trim().length > 0) {
         html = parsed;
       }
     } catch (err) {
-      console.warn("[Markdown] Parsing note:", err);
-      html = rawContent;
+      console.warn("[Markdown] Parsing error:", err);
+      html = cleanContent;
     }
   }
 
