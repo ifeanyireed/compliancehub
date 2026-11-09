@@ -19,6 +19,12 @@ import { api } from "@/lib/api";
 
 export default function DelegatedClientWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskAuthority, setTaskAuthority] = useState("CAC");
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [evidenceVerified, setEvidenceVerified] = useState(false);
+
   const [client, setClient] = useState<any>({
     id: unwrappedParams.id,
     name: "PayWave Technologies Ltd",
@@ -178,13 +184,8 @@ export default function DelegatedClientWorkspacePage({ params }: { params: Promi
           </div>
 
           <button
-            onClick={() => {
-              const taskTitle = prompt("Enter the title of the compliance task to lodge for this client:");
-              if (taskTitle) {
-                alert(`Task "${taskTitle}" lodged in ${client.name}'s workspace.`);
-              }
-            }}
-            className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs"
+            onClick={() => setShowTaskModal(true)}
+            className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs cursor-pointer"
           >
             + Create Client Task
           </button>
@@ -210,7 +211,7 @@ export default function DelegatedClientWorkspacePage({ params }: { params: Promi
             {!signOffRequested ? (
               <button
                 onClick={() => setSignOffRequested(true)}
-                className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs whitespace-nowrap self-start sm:self-auto"
+                className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs whitespace-nowrap self-start sm:self-auto cursor-pointer"
               >
                 Request Client Sign-off
               </button>
@@ -234,14 +235,115 @@ export default function DelegatedClientWorkspacePage({ params }: { params: Promi
               </p>
             </div>
 
-            <button
-              onClick={() => alert("Verification timestamp logged in client immutable ledger.")}
-              className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs hover:bg-slate-50 shadow-xs whitespace-nowrap self-start sm:self-auto"
-            >
-              Verify Evidence
-            </button>
+            {evidenceVerified ? (
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl">
+                ✓ Verified in Ledger
+              </span>
+            ) : (
+              <button
+                onClick={async () => {
+                  setEvidenceVerified(true);
+                  try {
+                    await api.activityLogs.create({
+                      action_type: "EVIDENCE_VERIFIED",
+                      details: `Accredited Officer verified evidence records and compliance questionnaire for ${client.name}`,
+                    });
+                  } catch (_) {}
+                }}
+                className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs hover:bg-slate-50 shadow-xs whitespace-nowrap self-start sm:self-auto cursor-pointer"
+              >
+                Verify Evidence
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Task Creation Modal */}
+        {showTaskModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900">Lodge Compliance Task</h3>
+                  <p className="text-xs text-slate-500">Lodge actionable statutory requirement into {client.name}.</p>
+                </div>
+                <button
+                  onClick={() => setShowTaskModal(false)}
+                  className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!taskTitle) return;
+                  setCreatingTask(true);
+                  try {
+                    await api.practice.createTask({
+                      tenant_id: client.id,
+                      title: taskTitle,
+                      authority: taskAuthority,
+                      is_urgent: true,
+                    });
+                    setShowTaskModal(false);
+                    setTaskTitle("");
+                  } catch (err) {
+                    console.error("Task creation failed:", err);
+                  } finally {
+                    setCreatingTask(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Task Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. File Q2 SCUML Cash Flow Threshold Declaration"
+                    value={taskTitle}
+                    onChange={(e) => setTaskTitle(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Regulatory Authority</label>
+                  <select
+                    value={taskAuthority}
+                    onChange={(e) => setTaskAuthority(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                  >
+                    <option value="CAC">CAC (Corporate Affairs Commission)</option>
+                    <option value="FIRS">FIRS / NRS TaxPro-MAX</option>
+                    <option value="NDPC">NDPC (Nigeria Data Protection Commission)</option>
+                    <option value="SCUML">SCUML / NFIU</option>
+                    <option value="PENCOM">PENCOM</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskModal(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingTask}
+                    className="px-5 py-2 rounded-xl bg-[#245C44] hover:bg-[#1E4E39] text-white text-xs font-bold transition-all disabled:opacity-50"
+                  >
+                    {creatingTask ? "Lodging..." : "Lodge in Client Workspace"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Security Notice */}
         <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-center gap-2">

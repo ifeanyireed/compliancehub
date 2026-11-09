@@ -28,36 +28,66 @@ interface AgencyMember {
 export default function PracticeAgencyPage() {
   const [teamMembers, setTeamMembers] = useState<AgencyMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Compliance Associate");
+  const [speciality, setSpeciality] = useState("CAMA 2020 & NDPA 2023");
+  const [submitting, setSubmitting] = useState(false);
+  const [reallocatingMember, setReallocatingMember] = useState<AgencyMember | null>(null);
+
+  const loadTeam = async () => {
+    setLoading(true);
+    try {
+      const team = await api.practice.getTeam();
+      if (Array.isArray(team)) {
+        setTeamMembers(
+          team.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            avatar: m.avatar || "/character1.jpg",
+            role: m.role || "Compliance Specialist",
+            assignedClientsCount: m.assigned_clients_count || 4,
+            speciality: m.speciality || "Regulatory Compliance",
+            utilisation: m.utilisation || "80%",
+          }))
+        );
+      } else {
+        setTeamMembers([]);
+      }
+    } catch (err) {
+      console.error("Failed to load agency team from database:", err);
+      setTeamMembers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadTeam() {
-      setLoading(true);
-      try {
-        const team = await api.practice.getTeam();
-        if (Array.isArray(team)) {
-          setTeamMembers(
-            team.map((m: any) => ({
-              id: m.id,
-              name: m.name,
-              avatar: m.avatar || "/character1.jpg",
-              role: m.role || "Compliance Specialist",
-              assignedClientsCount: m.assigned_clients_count || 4,
-              speciality: m.speciality || "Regulatory Compliance",
-              utilisation: m.utilisation || "80%",
-            }))
-          );
-        } else {
-          setTeamMembers([]);
-        }
-      } catch (err) {
-        console.error("Failed to load agency team from database:", err);
-        setTeamMembers([]);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadTeam();
   }, []);
+
+  const handleAddAssociate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email) return;
+    setSubmitting(true);
+    try {
+      await api.practice.addTeamMember({
+        full_name: name,
+        email: email,
+        role: role,
+        specialisation: speciality,
+      });
+      await loadTeam();
+      setShowInviteModal(false);
+      setName("");
+      setEmail("");
+    } catch (err) {
+      console.error("Error onboarding associate:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const totalClients = teamMembers.reduce((acc, m) => acc + m.assignedClientsCount, 0);
 
@@ -79,12 +109,7 @@ export default function PracticeAgencyPage() {
         </div>
 
         <button 
-          onClick={() => {
-            const name = prompt("Enter full name of the new compliance associate to invite:");
-            if (name) {
-              alert(`Associate invitation dispatched to ${name}. They will be onboarded to Apex Advisory Agency.`);
-            }
-          }}
+          onClick={() => setShowInviteModal(true)}
           className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />
@@ -167,7 +192,7 @@ export default function PracticeAgencyPage() {
                     </td>
                     <td className="py-4 px-6 text-right">
                       <button 
-                        onClick={() => alert(`Opening workload re-assignment panel for ${m.name}`)}
+                        onClick={() => setReallocatingMember(m)}
                         className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700 cursor-pointer"
                       >
                         Reallocate
@@ -180,6 +205,114 @@ export default function PracticeAgencyPage() {
           </table>
         </div>
       </div>
+
+      {/* Invite Associate Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">Onboard Agency Associate</h3>
+                <p className="text-xs text-slate-500">Add an accredited compliance specialist to Apex Advisory.</p>
+              </div>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddAssociate} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Full Legal Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Barr. Nneka Umeh, CDPO"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Official Email</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. nneka@apexadvisory.ng"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Agency Practice Role</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                >
+                  <option value="Senior Associate">Senior Associate</option>
+                  <option value="Lead AML/CFT Auditor">Lead AML/CFT Auditor</option>
+                  <option value="DPCO Privacy Lead">DPCO Privacy Lead</option>
+                  <option value="Tax Compliance Specialist">Tax Compliance Specialist</option>
+                  <option value="Corporate Secretarial Lead">Corporate Secretarial Lead</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Specialisation Domain</label>
+                <input
+                  type="text"
+                  required
+                  value={speciality}
+                  onChange={(e) => setSpeciality(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  {submitting ? "Onboarding..." : "Onboard Associate"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Workload Reallocation Modal */}
+      {reallocatingMember && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="font-extrabold text-base text-slate-900">Workload Allocation: {reallocatingMember.name}</h3>
+            <p className="text-xs text-slate-500">Currently managing {reallocatingMember.assignedClientsCount} corporate client entities at {reallocatingMember.utilisation} utilisation.</p>
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+              Capacity allocation is synchronized across tenant workspace boundaries.
+            </div>
+            <button
+              onClick={() => setReallocatingMember(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
+            >
+              Close Workload View
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -231,6 +231,17 @@ func SeedInitialData(ctx context.Context, pool *pgxpool.Pool) error {
 		'/character4.jpg',
 		'USER',
 		true
+	),
+	(
+		'33333333-3333-3333-3333-333333333309',
+		'chukwudi@paywave.ng',
+		$1,
+		'Chukwudi Obi',
+		'+234 802 444 1122',
+		'Compliance Operations Lead',
+		'/character1.jpg',
+		'USER',
+		true
 	)
 	ON CONFLICT (email) DO NOTHING;`
 	if _, err := pool.Exec(ctx, usersSQL, pwStr); err != nil {
@@ -414,6 +425,7 @@ func SeedInitialData(ctx context.Context, pool *pgxpool.Pool) error {
 	INSERT INTO tenant_members (tenant_id, user_id, role, is_primary)
 	VALUES
 	('55555555-5555-5555-5555-555555555501', '33333333-3333-3333-3333-333333333301', 'OWNER', true),
+	('55555555-5555-5555-5555-555555555501', '33333333-3333-3333-3333-333333333309', 'MEMBER', false),
 	('55555555-5555-5555-5555-555555555502', '33333333-3333-3333-3333-333333333303', 'OWNER', true),
 	('55555555-5555-5555-5555-555555555503', '33333333-3333-3333-3333-333333333302', 'OWNER', true),
 	('55555555-5555-5555-5555-555555555504', '33333333-3333-3333-3333-333333333301', 'OWNER', false),
@@ -511,6 +523,16 @@ func SeedInitialData(ctx context.Context, pool *pgxpool.Pool) error {
 		'Fractional Chief Compliance Officer managing AML/CFT oversight, SCUML quarterly filings, and statutory monthly tax reconciliations on TaxPro-MAX.',
 		250000,
 		'2025-01-01',
+		'ACTIVE'
+	),
+	(
+		'77777777-7777-7777-7777-777777777706',
+		'55555555-5555-5555-5555-555555555501',
+		'66666666-6666-6666-6666-666666666603',
+		'DPCO_LEAD_AUDITOR',
+		'Licensed DPCO lead auditor managing NDPA 2023 RoPA registers, Data Protection Impact Assessments (DPIAs), and annual audit filings to NDPC.',
+		350000,
+		'2025-01-15',
 		'ACTIVE'
 	),
 	(
@@ -820,6 +842,80 @@ func SeedInitialData(ctx context.Context, pool *pgxpool.Pool) error {
 	ON CONFLICT (invoice_number) DO NOTHING;`
 	if _, err := pool.Exec(ctx, invoicesSQL); err != nil {
 		log.Printf("⚠️ Invoices seed warning: %v", err)
+	}
+
+	// 17. Activity Logs
+	activityLogsSQL := `
+	INSERT INTO activity_logs (id, tenant_id, actor_name, actor_role, action_type, details, created_at)
+	VALUES
+	(
+		'99999999-9999-9999-9999-999999999901',
+		'55555555-5555-5555-5555-555555555501',
+		'Tunde Bakare, CAMS',
+		'Fractional Compliance Officer',
+		'EVIDENCE_UPLOAD',
+		'Uploaded Q1 SCUML KYC Register Evidence and verified SHA-256 integrity hash #a89f2',
+		NOW() - INTERVAL '2 hours'
+	),
+	(
+		'99999999-9999-9999-9999-999999999902',
+		'55555555-5555-5555-5555-555555555501',
+		'Barr. Folashade Adeleke',
+		'DPCO Lead Auditor',
+		'ROPA_UPDATE',
+		'Updated NDPA RoPA Processing Record with cross-border transfer DPIA schedule #9b201',
+		NOW() - INTERVAL '1 day'
+	),
+	(
+		'99999999-9999-9999-9999-999999999903',
+		'55555555-5555-5555-5555-555555555501',
+		'Adaeze Nwosu',
+		'Managing Director',
+		'TAX_CONFIRMATION',
+		'Confirmed 2026 Nigeria Tax Act withholding tax reconciliation transition checklist #7c419',
+		NOW() - INTERVAL '3 days'
+	),
+	(
+		'99999999-9999-9999-9999-999999999904',
+		'55555555-5555-5555-5555-555555555501',
+		'Chukwudi Obi',
+		'Staff Member',
+		'AML_SCREENING',
+		'Executed real-time statutory NFIU PEP & Sanctions screening for high-risk vendor #f4211',
+		NOW() - INTERVAL '5 days'
+	)
+	ON CONFLICT (id) DO NOTHING;`
+	if _, err := pool.Exec(ctx, activityLogsSQL); err != nil {
+		log.Printf("⚠️ Activity logs seed warning: %v", err)
+	}
+
+	// 18. DSAR Requests
+	dsarSQL := `
+	INSERT INTO dsar_requests (id, tenant_id, subject_name, subject_email, request_type, details, status, deadline)
+	VALUES
+	(
+		'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+		'55555555-5555-5555-5555-555555555501',
+		'Kelechi Amadi',
+		'kelechi.amadi@gmail.com',
+		'DATA_ERASURE',
+		'Subject requested complete erasure of customer KYC record and banking profile under NDPA 2023 s.34.',
+		'PENDING',
+		NOW() + INTERVAL '18 days'
+	),
+	(
+		'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2',
+		'55555555-5555-5555-5555-555555555501',
+		'Fatima Dangote',
+		'fatima.d@yahoo.com',
+		'ACCESS_REQUEST',
+		'Request for full copy of personal transaction logs and credit evaluation reports held by the data controller.',
+		'IN_PROGRESS',
+		NOW() + INTERVAL '12 days'
+	)
+	ON CONFLICT (id) DO NOTHING;`
+	if _, err := pool.Exec(ctx, dsarSQL); err != nil {
+		log.Printf("⚠️ DSAR requests seed warning: %v", err)
 	}
 
 	log.Println("✅ Complete Nigerian regulatory intelligence, multi-tenant workspaces, and demo records seeded successfully!")

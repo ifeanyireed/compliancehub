@@ -20,7 +20,8 @@ import {
   MessageSquare,
   Send,
   Check,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from "lucide-react";
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
@@ -58,70 +59,16 @@ interface BlogPost {
   published_at: string;
 }
 
-const FALLBACK_POST: BlogPost = {
-  id: 1,
-  title: "Navigating the 2026 Nigeria Tax Act: A Corporate Guide to Withholding, CIT, and TaxPro-MAX",
-  slug: "navigating-2026-nigeria-tax-act-corporate-guide",
-  excerpt: "Comprehensive operational breakdown of the sweeping 2026 Nigerian tax reforms and what managing directors must change in their monthly payroll and CIT calculations.",
-  content: `## 1. Overview of the 2026 Tax Legislative Framework
-
-The Federal Government of Nigeria implemented the comprehensive Nigeria Tax Act with an effective enforcement date of January 1, 2026. This legislation consolidates corporate income tax (CIT), value-added tax (VAT), and digital service remittances into a unified administrative portal.
-
-Corporate compliance officers and directors of Nigerian companies must adjust internal fiscal workflows to remain fully compliant with the FIRS and State Internal Revenue Services (SIRS).
-
----
-
-## 2. Key Statutory Reforms & Operational Shifts
-
-### A. Zero-Rated Threshold Adjustments
-Small businesses with gross turnover below **₦50,000,000** are exempt from 30% CIT rates. However, statutory return filings remain mandatory on TaxPro-MAX. Failure to submit nil returns attracts automatic administrative late-filing fines of **₦50,000 in the first month** and **₦25,000 per subsequent month**.
-
-### B. Automated Digital Withholding Tax Credit Notes
-Historically, companies suffered delays of 6 to 18 months obtaining physical Withholding Tax (WHT) credit notes. Under the 2026 Tax Act digital regime, withholding deductions made via TaxPro-MAX generate dynamic, tamper-evident digital credit vouchers tied directly to recipient Taxpayer Identification Numbers (TINs).
-
-### C. Unified Monthly VAT Remittance Timeline
-VAT returns remain due strictly on the **21st day** of every subsequent month. The new portal automatically cross-references submitted invoices against e-invoicing data recorded by registered vendors.
-
----
-
-## 3. Statutory Deadlines Summary Table
-
-| Filing Type | Statutory Due Date | Governing Provision | Non-Compliance Risk |
-|:---|:---|:---|:---|
-| **Monthly VAT** | 21st of following month | Nigeria Tax Act 2026 s.14 | ₦50,000 first month + interest |
-| **Corporate Income Tax (CIT)** | 6 months post-financial year | CITA s.55 / Tax Act 2026 | Daily accrual fines + freeze order |
-| **PAYE Annual Return (Form H1)** | January 31 annually | PITA s.81 | Up to ₦500,000 administrative penalty |
-| **Withholding Tax Remittance** | 21st of following month | FIRS Regulations 2026 | 10% penalty + commercial interest |
-
----
-
-## 4. Operational Checklist for Nigerian Companies
-
-1. **Conduct a Vendor TIN Audit**: Ensure all external service providers have verified corporate TINs linked to their CAC RC numbers.
-2. **Review Employment Contracts**: Confirm gross pay structuring conforms to current consolidated relief allowance schedules.
-3. **Engage an Accredited Tax Practitioner**: Complex corporate transactions require certified CITN or ICAN chartered review to avoid retrospective liabilities.`,
-  author_name: "Tunde Bakare, CAMS",
-  author_role: "Senior AML & Regulatory Officer",
-  author_avatar: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187304/compliancehub/authors/tunde_bakare.jpg",
-  author_bio: "Fellow of the Institute of Chartered Accountants of Nigeria (ICAN) and Certified Anti-Money Laundering Specialist with over 14 years advising commercial banks and multinational entities across Lagos and Abuja.",
-  category: "Taxation & FIRS",
-  tags: ["Tax Act 2026", "FIRS", "TaxPro-MAX", "CIT", "Corporate Tax"],
-  read_time: "5 min read",
-  status: "PUBLISHED",
-  cover_image: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187614/compliancehub/blog/firs_tax_act_2026_guide.jpg",
-  view_count: 0,
-  published_at: "2026-02-01"
-};
-
 export default function SingleBlogPostPage() {
   const params = useParams();
   const slug = params?.slug as string;
 
-  const [post, setPost] = useState<BlogPost>(FALLBACK_POST);
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<Comment[]>([]);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [views, setViews] = useState<number>(0);
-  const [renderedHtml, setRenderedHtml] = useState<string>(() => renderMarkdownAndMath(FALLBACK_POST.content));
+  const [renderedHtml, setRenderedHtml] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
   // New Comment Form
@@ -134,6 +81,7 @@ export default function SingleBlogPostPage() {
   useEffect(() => {
     async function loadPostData() {
       if (!slug) return;
+      setLoading(true);
 
       try {
         const data = await api.blog.getPost(slug);
@@ -148,7 +96,9 @@ export default function SingleBlogPostPage() {
           }
         }
       } catch (err) {
-        console.warn("Using fallback post data:", err);
+        console.warn("Failed fetching post:", err);
+      } finally {
+        setLoading(false);
       }
     }
     loadPostData();
@@ -156,16 +106,16 @@ export default function SingleBlogPostPage() {
 
   // Render markdown & KaTeX formulas
   useEffect(() => {
-    if (post.content) {
+    if (post?.content) {
       setRenderedHtml(renderMarkdownAndMath(post.content));
 
       loadKaTeX().then((katex) => {
-        if (katex) {
+        if (katex && post?.content) {
           setRenderedHtml(renderMarkdownAndMath(post.content));
         }
       });
     }
-  }, [post.content]);
+  }, [post?.content]);
 
   // Increment view counter once per browser session
   useEffect(() => {
@@ -186,7 +136,7 @@ export default function SingleBlogPostPage() {
   }, [slug]);
 
   const handleCopyLink = async () => {
-    const res = await copyBlogUrlToClipboard(slug || post.slug);
+    const res = await copyBlogUrlToClipboard(slug || post?.slug || "");
     if (res.success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
@@ -195,7 +145,7 @@ export default function SingleBlogPostPage() {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentContent.trim() || !authorName.trim() || !post.id) return;
+    if (!commentContent.trim() || !authorName.trim() || !post?.id) return;
 
     setCommentSubmitting(true);
     try {
@@ -218,6 +168,36 @@ export default function SingleBlogPostPage() {
       setCommentSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] flex flex-col font-sans">
+        <CompliancePublicNav />
+        <div className="flex-1 flex items-center justify-center p-16">
+          <Loader2 className="w-8 h-8 animate-spin text-[#0089C1]" />
+        </div>
+        <CompliancePublicFooter />
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] flex flex-col font-sans">
+        <CompliancePublicNav />
+        <div className="flex-1 flex flex-col items-center justify-center p-16 text-center space-y-4">
+          <h2 className="text-2xl font-bold text-slate-800">Dispatch Not Found</h2>
+          <p className="text-xs text-slate-500 max-w-sm">The requested regulatory intelligence briefing does not exist or has been archived.</p>
+          <Link href="/blog">
+            <button className="px-5 py-2.5 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white text-xs font-bold transition-all">
+              Return to Compliance Journal
+            </button>
+          </Link>
+        </div>
+        <CompliancePublicFooter />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] flex flex-col font-sans">

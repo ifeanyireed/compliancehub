@@ -203,10 +203,16 @@ export const api = {
   // Practice & Marketplace
   practice: {
     getClients: () => apiFetch("/v1/practice/clients", { method: "GET" }),
+    createClient: (body: { legal_name: string; rc_number?: string; industry?: string; contact_email?: string; monthly_fee?: number }) =>
+      apiFetch("/v1/practice/clients", { method: "POST", body: JSON.stringify(body) }),
     getTasks: () => apiFetch("/v1/practice/tasks", { method: "GET" }),
+    createTask: (body: { tenant_id: string; title: string; authority?: string; due_date?: string; is_urgent?: boolean }) =>
+      apiFetch("/v1/practice/tasks", { method: "POST", body: JSON.stringify(body) }),
     updateTask: (taskId: string, status: string) =>
       apiFetch(`/v1/practice/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
     getTeam: () => apiFetch("/v1/practice/team", { method: "GET" }),
+    addTeamMember: (body: { full_name: string; email: string; role?: string; specialisation?: string; hourly_rate?: number }) =>
+      apiFetch("/v1/practice/team", { method: "POST", body: JSON.stringify(body) }),
     getExperts: (specialisation?: string) => {
       const query = specialisation && specialisation !== "All" ? `?specialisation=${encodeURIComponent(specialisation)}` : "";
       return apiFetch(`/v1/professionals${query}`, { method: "GET" });
@@ -214,6 +220,20 @@ export const api = {
     getEngagements: () => apiFetch("/v1/engagements", { method: "GET" }),
     revokeEngagement: (engagementId: string) =>
       apiFetch(`/v1/engagements/${engagementId}/revoke`, { method: "POST", body: JSON.stringify({}) }),
+  },
+
+  // Workspace Activity Trail
+  activityLogs: {
+    list: () => apiFetch("/v1/activity-logs", { method: "GET" }),
+    create: (body: { action_type: string; details: string; actor_name?: string; actor_role?: string }) =>
+      apiFetch("/v1/activity-logs", { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  // Tenant Workspace Members
+  tenantMembers: {
+    list: () => apiFetch("/v1/tenant-members", { method: "GET" }),
+    invite: (body: { full_name: string; email: string; role?: string; title?: string }) =>
+      apiFetch("/v1/tenant-members", { method: "POST", body: JSON.stringify(body) }),
   },
 
   // Commercial & Invoices
@@ -244,6 +264,8 @@ export const api = {
     createAMLCase: (body: any) => apiFetch("/v1/aml/cases", { method: "POST", body: JSON.stringify(body) }),
     getPrivacyActivities: () => apiFetch("/v1/privacy/ropa", { method: "GET" }),
     createPrivacyActivity: (body: any) => apiFetch("/v1/privacy/ropa", { method: "POST", body: JSON.stringify(body) }),
+    getDSARs: () => apiFetch("/v1/specialist/dsar", { method: "GET" }),
+    createDSAR: (body: any) => apiFetch("/v1/specialist/dsar", { method: "POST", body: JSON.stringify(body) }),
   },
 
   // Onboarding
@@ -268,6 +290,7 @@ export const api = {
     getMetrics: () => apiFetch("/admin/metrics", { method: "GET" }),
     getUsers: () => apiFetch("/admin/users", { method: "GET" }),
     getInvoices: () => apiFetch("/admin/invoices", { method: "GET" }),
+    getFilings: () => apiFetch("/admin/filings", { method: "GET" }),
   },
 
   // Support Operations & Tickets

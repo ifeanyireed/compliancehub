@@ -22,68 +22,36 @@ import {
 
 export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState({
-    total_companies: 1420,
-    active_practitioners: 385,
-    filings_completed: 8912,
-    pending_filings: 142,
-    monthly_revenue_ngn: 24850000,
-    open_support_tickets: 3,
-    active_chat_sessions: 2,
-    compliance_health_rate: 98.4
+    total_companies: 0,
+    active_practitioners: 0,
+    filings_completed: 0,
+    pending_filings: 0,
+    monthly_revenue_ngn: 0,
+    open_support_tickets: 0,
+    active_chat_sessions: 0,
+    compliance_health_rate: 0
   });
+  const [recentFilings, setRecentFilings] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchMetrics() {
       try {
-        const data = await api.admin.getMetrics();
+        const [data, filings] = await Promise.all([
+          api.admin.getMetrics(),
+          api.admin.getFilings(),
+        ]);
         if (data) {
           setMetrics(data);
         }
+        if (Array.isArray(filings)) {
+          setRecentFilings(filings);
+        }
       } catch (err) {
-        console.warn("Using fallback admin metrics", err);
+        console.warn("Failed fetching admin metrics or filings", err);
       }
     }
     fetchMetrics();
   }, []);
-
-  const recentFilings = [
-    {
-      company: "PayWave Technologies Ltd",
-      rc: "RC-1894231",
-      filing: "CAMA 2020 Annual Returns",
-      authority: "CAC",
-      status: "COMPLETED",
-      officer: "Tunde Bakare, CAMS",
-      time: "25 mins ago"
-    },
-    {
-      company: "Kobo Logistics Nigeria Ltd",
-      rc: "RC-1429910",
-      filing: "Monthly VAT Remittance",
-      authority: "FIRS TaxPro-MAX",
-      status: "COMPLETED",
-      officer: "Chiamaka Eze",
-      time: "1 hour ago"
-    },
-    {
-      company: "Zenith Micro-Fintech Ltd",
-      rc: "RC-1992011",
-      filing: "NDPA 2023 Statutory Audit",
-      authority: "NDPC",
-      status: "IN_REVIEW",
-      officer: "Apex Advisory Partners",
-      time: "3 hours ago"
-    },
-    {
-      company: "Horizon Cloud Solutions Ltd",
-      rc: "RC-1678120",
-      filing: "SCUML DNFBP Annual AML Report",
-      authority: "SCUML / NFIU",
-      status: "COMPLETED",
-      officer: "Tunde Bakare, CAMS",
-      time: "5 hours ago"
-    }
-  ];
 
   return (
     <div className="space-y-6">
@@ -199,8 +167,11 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="divide-y divide-slate-100">
-            {recentFilings.map((f, i) => (
-              <div key={i} className="py-3.5 flex items-center justify-between gap-4">
+            {recentFilings.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-400">No regulatory filings logged in database yet.</div>
+            ) : (
+              recentFilings.map((f, i) => (
+                <div key={i} className="py-3.5 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
                     {f.company.slice(0, 2).toUpperCase()}
@@ -229,7 +200,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </div>
 

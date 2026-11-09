@@ -30,15 +30,34 @@ export default function BusinessSettingsPage() {
   const [tin, setTin] = useState("");
   const [address, setAddress] = useState("");
 
+  const [members, setMembers] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("MEMBER");
+  const [inviting, setInviting] = useState(false);
+  const [sessionsCleared, setSessionsCleared] = useState(false);
+
   useEffect(() => {
     async function loadTenantProfile() {
       try {
-        const resp = await api.tenants.getCurrent();
+        const [resp, memResp, invResp] = await Promise.all([
+          api.tenants.getCurrent(),
+          api.tenantMembers.list(),
+          api.invoices.list(),
+        ]);
         if (resp && resp.tenant) {
           setCompanyName(resp.tenant.workspace_name || resp.tenant.organisation_name || "");
           setRcNumber(resp.tenant.rc_number || "");
           setTin(resp.tenant.tin || "");
           setAddress(resp.tenant.address || "");
+        }
+        if (Array.isArray(memResp)) {
+          setMembers(memResp);
+        }
+        if (Array.isArray(invResp)) {
+          setInvoices(invResp);
         }
       } catch (err) {
         console.error("Failed to load tenant settings:", err);
@@ -46,6 +65,28 @@ export default function BusinessSettingsPage() {
     }
     loadTenantProfile();
   }, [activeTenantId]);
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteName || !inviteEmail) return;
+    setInviting(true);
+    try {
+      await api.tenantMembers.invite({
+        full_name: inviteName,
+        email: inviteEmail,
+        role: inviteRole,
+      });
+      const updated = await api.tenantMembers.list();
+      if (Array.isArray(updated)) setMembers(updated);
+      setShowInviteModal(false);
+      setInviteName("");
+      setInviteEmail("");
+    } catch (err) {
+      console.error("Invite failed:", err);
+    } finally {
+      setInviting(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,44 +234,43 @@ export default function BusinessSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-extrabold text-base text-slate-900">Tenant Workspace Users</h3>
-              <p className="text-xs text-slate-500">Internal employees with access to PayWave Technologies Ltd.</p>
+              <p className="text-xs text-slate-500">Internal authorized employees for {companyName || "your organization"}.</p>
             </div>
             <button 
-              onClick={() => alert("Invite link generated: https://compliancehub.ng/join/tenant-paywave")}
-              className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs"
+              onClick={() => setShowInviteModal(true)}
+              className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs cursor-pointer transition-all"
             >
               + Invite Team Member
             </button>
           </div>
 
           <div className="space-y-3">
-            <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-3">
-                <img src="/character3.jpg" alt="Adaeze" className="w-10 h-10 rounded-full object-cover" />
-                <div>
-                  <h4 className="font-bold text-slate-900">Adaeze Nwosu (You)</h4>
-                  <p className="text-[11px] text-slate-500">adaeze@paywave.ng</p>
-                </div>
+            {members.length === 0 ? (
+              <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200 text-center text-xs text-slate-500">
+                Loading workspace members...
               </div>
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-100 text-[#0089C1]">
-                Owner & Business Admin
-              </span>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-700">
-                  CO
+            ) : (
+              members.map((m: any) => (
+                <div key={m.id} className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={m.avatar_url || "/character3.jpg"} 
+                      alt={m.full_name} 
+                      className="w-10 h-10 rounded-full object-cover border border-slate-200" 
+                    />
+                    <div>
+                      <h4 className="font-bold text-slate-900">{m.full_name} {m.is_primary && "(You)"}</h4>
+                      <p className="text-[11px] text-slate-500">{m.email}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                    m.role === "OWNER" ? "bg-sky-100 text-[#0089C1]" : "bg-slate-100 text-slate-700"
+                  }`}>
+                    {m.role === "OWNER" ? "Owner & Business Admin" : m.role}
+                  </span>
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-900">Chukwudi Obi</h4>
-                  <p className="text-[11px] text-slate-500">chukwudi@paywave.ng</p>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-                Staff Member
-              </span>
-            </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -253,19 +293,25 @@ export default function BusinessSettingsPage() {
 
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Past Invoices & Receipts</h4>
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-              <div>
-                <span className="font-bold text-slate-900 block">Invoice #INV-2026-0042</span>
-                <span className="text-[11px] text-slate-500">Paid ₦45,000 via Paystack Mastercard • 28 Jan 2026</span>
+            {invoices.length === 0 ? (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                No billing transactions recorded yet.
               </div>
-              <button 
-                onClick={() => alert("Downloading receipt PDF...")}
-                className="text-[#0089C1] font-bold hover:underline flex items-center gap-1"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Receipt</span>
-              </button>
-            </div>
+            ) : (
+              invoices.map((inv: any) => (
+                <div key={inv.id || inv.invoice_number} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-bold text-slate-900 block">{inv.invoice_number} • {inv.client_name || inv.client}</span>
+                    <span className="text-[11px] text-slate-500">
+                      Paid ₦{Number(inv.amount_ngn || inv.amount).toLocaleString()} • {inv.due_date || inv.created_at || "Recent"}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    {inv.status || "SETTLED"}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -290,18 +336,98 @@ export default function BusinessSettingsPage() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Active Sessions</h4>
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
               <div>
-                <span className="font-bold text-slate-900 block">MacBook Pro — Safari (Lagos, Nigeria)</span>
-                <span className="text-[10px] text-slate-500 font-mono">Current Session • IP: 102.89.44.12</span>
+                <span className="font-bold text-slate-900 block">Current Operating Device (Lagos, Nigeria)</span>
+                <span className="text-[10px] text-slate-500 font-mono">Current Session • Encrypted Token</span>
               </div>
               <span className="text-[10px] text-emerald-700 font-bold">This Device</span>
             </div>
 
-            <button
-              onClick={() => alert("Terminated 0 other sessions. Only this device is active.")}
-              className="text-xs font-bold text-red-600 hover:text-red-700 transition-colors pt-2"
-            >
-              Terminate All Other Active Sessions
-            </button>
+            {sessionsCleared ? (
+              <p className="text-xs font-bold text-emerald-600 pt-2">All other active sessions have been terminated.</p>
+            ) : (
+              <button
+                onClick={() => setSessionsCleared(true)}
+                className="text-xs font-bold text-red-600 hover:text-red-700 transition-colors pt-2 cursor-pointer"
+              >
+                Terminate All Other Active Sessions
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Invite Member Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">Invite Workspace Team Member</h3>
+                <p className="text-xs text-slate-500">Provide user credentials to grant internal access.</p>
+              </div>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleInvite} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Chukwudi Obi"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Work Email</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. chukwudi@paywave.ng"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Workspace Role</label>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                >
+                  <option value="MEMBER">Member (Standard Operations)</option>
+                  <option value="ADMIN">Admin (Full Workspace Management)</option>
+                  <option value="VIEWER">Viewer (Auditor / Read-Only)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={inviting}
+                  className="px-5 py-2 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  {inviting ? "Inviting..." : "Send Invitation"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

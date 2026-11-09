@@ -214,17 +214,23 @@ func main() {
 	}))
 
 	mux.HandleFunc("/api/v1/practice/clients", withCORS(middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
 			handlers.ListClientWorkspaces(w, r)
-		} else {
+		case http.MethodPost:
+			handlers.CreateClientWorkspace(w, r)
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})))
 
 	mux.HandleFunc("/api/v1/practice/tasks", withCORS(middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
 			handlers.ListPracticeTasks(w, r)
-		} else {
+		case http.MethodPost:
+			handlers.CreatePracticeTask(w, r)
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})))
@@ -239,12 +245,37 @@ func main() {
 	})))
 
 	mux.HandleFunc("/api/v1/practice/team", withCORS(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
 			handlers.ListAgencyTeam(w, r)
-		} else {
+		case http.MethodPost:
+			handlers.AddAgencyTeamMember(w, r)
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+
+	mux.HandleFunc("/api/v1/activity-logs", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.ListActivityLogs(w, r)
+		case http.MethodPost:
+			handlers.CreateActivityLog(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/v1/tenant-members", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.ListTenantMembers(w, r)
+		case http.MethodPost:
+			handlers.InviteTenantMember(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
 
 	mux.HandleFunc("/api/v1/invoices", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -326,6 +357,17 @@ func main() {
 			handlers.ListPrivacyActivities(w, r)
 		case http.MethodPost:
 			handlers.CreatePrivacyActivity(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/v1/specialist/dsar", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.ListDSARRequests(w, r)
+		case http.MethodPost:
+			handlers.CreateDSARRequest(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -521,6 +563,14 @@ func main() {
 	mux.HandleFunc("/api/admin/invoices", withCORS(middleware.RequireSystemRole("ADMIN")(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			handlers.ListAdminInvoices(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/admin/filings", withCORS(middleware.RequireSystemRole("ADMIN")(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.ListAdminFilings(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}

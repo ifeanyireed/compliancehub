@@ -27,44 +27,74 @@ export default function PracticeClientsPage() {
   const [selectedRisk, setSelectedRisk] = useState("All");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadWorkspaces() {
-      setLoading(true);
-      try {
-        const data = await api.practice.getClients();
-        if (Array.isArray(data)) {
-          setClients(
-            data.map((c: any) => ({
-              id: c.tenant_id,
-              name: c.company_name,
-              rcNumber: c.rc_number || "RC-Pending",
-              industry: c.industry || "General Industry",
-              state: "Lagos",
-              employees: 24,
-              readinessScore: c.compliance_score || 80,
-              riskLevel: c.compliance_score < 70 ? ("High" as const) : c.compliance_score < 85 ? ("Medium" as const) : ("Low" as const),
-              activeModules: ["HubCalendar", "HubDocs", "HubAML", "HubReport"],
-              assignedExpert: "Tunde Bakare, CAMS",
-              retainerMonthly: c.monthly_fee_ngn || 250000,
-              openTasksCount: c.urgent_count || 1,
-              pendingApprovalsCount: 1,
-              upcomingDeadlinesCount: c.urgent_count || 2,
-              colorScheme: "#0089C1",
-              logoText: (c.company_name || "CL").slice(0, 2).toUpperCase()
-            }))
-          );
-        } else {
-          setClients([]);
-        }
-      } catch (err) {
-        console.error("Failed to load client workspaces from database:", err);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newRcNumber, setNewRcNumber] = useState("");
+  const [newIndustry, setNewIndustry] = useState("FinTech");
+  const [newMonthlyFee, setNewMonthlyFee] = useState("250000");
+  const [creatingClient, setCreatingClient] = useState(false);
+
+  const loadWorkspaces = async () => {
+    setLoading(true);
+    try {
+      const data = await api.practice.getClients();
+      if (Array.isArray(data)) {
+        setClients(
+          data.map((c: any) => ({
+            id: c.tenant_id,
+            name: c.company_name,
+            rcNumber: c.rc_number || "RC-Pending",
+            industry: c.industry || "General Industry",
+            state: "Lagos",
+            employees: 24,
+            readinessScore: c.compliance_score || 80,
+            riskLevel: c.compliance_score < 70 ? ("High" as const) : c.compliance_score < 85 ? ("Medium" as const) : ("Low" as const),
+            activeModules: ["HubCalendar", "HubDocs", "HubAML", "HubReport"],
+            assignedExpert: "Tunde Bakare, CAMS",
+            retainerMonthly: c.monthly_fee_ngn || 250000,
+            openTasksCount: c.urgent_count || 1,
+            pendingApprovalsCount: 1,
+            upcomingDeadlinesCount: c.urgent_count || 2,
+            colorScheme: "#0089C1",
+            logoText: (c.company_name || "CL").slice(0, 2).toUpperCase()
+          }))
+        );
+      } else {
         setClients([]);
-      } finally {
-        setLoading(false);
       }
+    } catch (err) {
+      console.error("Failed to load client workspaces from database:", err);
+      setClients([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadWorkspaces();
   }, []);
+
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName) return;
+    setCreatingClient(true);
+    try {
+      await api.practice.createClient({
+        legal_name: newClientName,
+        rc_number: newRcNumber,
+        industry: newIndustry,
+        monthly_fee: parseFloat(newMonthlyFee) || 250000,
+      });
+      await loadWorkspaces();
+      setShowInviteModal(false);
+      setNewClientName("");
+      setNewRcNumber("");
+    } catch (err) {
+      console.error("Failed creating client:", err);
+    } finally {
+      setCreatingClient(false);
+    }
+  };
 
   const handleEnterWorkspace = (tenantId: string) => {
     switchTenant(tenantId);
@@ -97,12 +127,7 @@ export default function PracticeClientsPage() {
         </div>
 
         <button
-          onClick={() => {
-            const clientName = prompt("Enter the name of the new client entity to invite:");
-            if (clientName) {
-              alert(`Delegation invitation dispatched to ${clientName}. They will configure their workspace and grant your authorized modules.`);
-            }
-          }}
+          onClick={() => setShowInviteModal(true)}
           className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
@@ -227,6 +252,95 @@ export default function PracticeClientsPage() {
           </div>
         ))}
       </div>
+
+      {/* Invite Client Business Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">Onboard Corporate Client</h3>
+                <p className="text-xs text-slate-500">Configure new client workspace and establish practice retainer.</p>
+              </div>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateClient} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Company Legal Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Apex Logistics Nigeria Ltd"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">CAC Registration (RC Number)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. RC-1849201"
+                  value={newRcNumber}
+                  onChange={(e) => setNewRcNumber(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Industry Sector</label>
+                <select
+                  value={newIndustry}
+                  onChange={(e) => setNewIndustry(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                >
+                  <option value="FinTech">FinTech & Payments</option>
+                  <option value="Logistics">Logistics & Supply Chain</option>
+                  <option value="Healthcare">Healthcare & HealthTech</option>
+                  <option value="Retail">Retail & E-Commerce</option>
+                  <option value="Agribusiness">Agribusiness & Export</option>
+                  <option value="Manufacturing">Manufacturing</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Agreed Monthly Retainer (₦ NGN)</label>
+                <input
+                  type="number"
+                  required
+                  value={newMonthlyFee}
+                  onChange={(e) => setNewMonthlyFee(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingClient}
+                  className="px-5 py-2 rounded-xl bg-[#245C44] hover:bg-[#1E4E39] text-white text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  {creatingClient ? "Creating..." : "Establish Client Workspace"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

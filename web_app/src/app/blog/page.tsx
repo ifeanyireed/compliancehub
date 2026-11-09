@@ -51,79 +51,8 @@ interface BlogCategory {
   post_count?: number;
 }
 
-const FALLBACK_POSTS: BlogPost[] = [
-  {
-    id: 1,
-    title: "Navigating the 2026 Nigeria Tax Act: A Corporate Guide to Withholding, CIT, and TaxPro-MAX",
-    slug: "navigating-2026-nigeria-tax-act-corporate-guide",
-    excerpt: "Comprehensive operational breakdown of the sweeping 2026 Nigerian tax reforms and what managing directors must change in their monthly payroll and CIT calculations.",
-    content: "Under the 2026 Nigeria Tax Act...",
-    author_name: "Tunde Bakare, CAMS",
-    author_role: "Senior AML & Regulatory Officer",
-    author_avatar: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187304/compliancehub/authors/tunde_bakare.jpg",
-    category: "Taxation & FIRS",
-    tags: ["Tax Act 2026", "FIRS", "TaxPro-MAX", "CIT"],
-    read_time: "5 min read",
-    status: "PUBLISHED",
-    cover_image: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187614/compliancehub/blog/firs_tax_act_2026_guide.jpg",
-    view_count: 0,
-    published_at: "2026-02-01"
-  },
-  {
-    id: 2,
-    title: "The March 15 Statutory NDPC Filing Cutoff: Audit Preparation Checklist",
-    slug: "march-15-statutory-ndpc-filing-cutoff-audit-preparation",
-    excerpt: "Everything data controllers and compliance officers need to verify before submitting their annual compliance returns to the Nigeria Data Protection Commission.",
-    content: "Under Section 48 of the NDPA 2023...",
-    author_name: "Chiamaka Eze",
-    author_role: "Principal Partner, Apex Advisory",
-    author_avatar: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187610/compliancehub/authors/chiamaka_eze.jpg",
-    category: "Data Privacy & NDPA",
-    tags: ["NDPA 2023", "NDPC", "DPCO", "RoPA"],
-    read_time: "7 min read",
-    status: "PUBLISHED",
-    cover_image: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187619/compliancehub/blog/ndpa_ndpc_audit_checklist.png",
-    view_count: 0,
-    published_at: "2026-01-28"
-  },
-  {
-    id: 3,
-    title: "CAMA 2020 Annual Returns Checklist: Avoiding the CAC Inactive Entity Tag",
-    slug: "cama-2020-cac-annual-returns-avoid-inactive-status",
-    excerpt: "CAC has intensified delisting procedures for delinquent corporations. Learn the exact requirements, filing windows, and board resolution formats.",
-    content: "Under Section 377 of CAMA 2020...",
-    author_name: "Barr. Emeka Okonjo",
-    author_role: "Corporate Secretarial Lead",
-    author_avatar: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187612/compliancehub/authors/emeka_okonjo.jpg",
-    category: "Corporate & CAC",
-    tags: ["CAC", "CAMA 2020", "Annual Returns", "PSC"],
-    read_time: "4 min read",
-    status: "PUBLISHED",
-    cover_image: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187624/compliancehub/blog/cama_cac_annual_returns.jpg",
-    view_count: 0,
-    published_at: "2026-01-20"
-  },
-  {
-    id: 4,
-    title: "SCUML Anti-Money Laundering Framework: Step-by-Step for DNFBPs in 2026",
-    slug: "scuml-anti-money-laundering-framework-dnfbps-2026",
-    excerpt: "Designated Non-Financial Businesses & Professions face heightened inspection scrutiny under EFCC guidelines. Essential AML/CFT rules for DNFBPs.",
-    content: "Under the Money Laundering Act 2022...",
-    author_name: "Tunde Bakare, CAMS",
-    author_role: "Senior AML & Regulatory Officer",
-    author_avatar: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187304/compliancehub/authors/tunde_bakare.jpg",
-    category: "AML & SCUML",
-    tags: ["SCUML", "AML/CFT", "NFIU", "PEP Screening"],
-    read_time: "6 min read",
-    status: "PUBLISHED",
-    cover_image: "https://res.cloudinary.com/yugcjpau/image/upload/v1794187625/compliancehub/blog/scuml_aml_cft_framework.jpg",
-    view_count: 0,
-    published_at: "2026-01-14"
-  }
-];
-
 export default function BlogListingPage() {
-  const [posts, setPosts] = useState<BlogPost[]>(FALLBACK_POSTS);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
   const [categories, setCategories] = useState<string[]>([
     "All",
     "Taxation & FIRS",

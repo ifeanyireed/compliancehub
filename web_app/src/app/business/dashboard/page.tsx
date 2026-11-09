@@ -27,17 +27,29 @@ export default function BusinessDashboardOverview() {
   const [scoreFilter, setScoreFilter] = useState("all");
   const [tenantData, setTenantData] = useState<any>(null);
   const [urgentDeadlines, setUrgentDeadlines] = useState<any[]>([]);
+  const [engagements, setEngagements] = useState<any[]>([]);
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadCockpitData() {
       try {
-        const [tenantResp, obligations] = await Promise.all([
+        const [tenantResp, obligations, engResp, logResp] = await Promise.all([
           api.tenants.getCurrent(),
-          api.calendar.getObligations({ status: "Pending" })
+          api.calendar.getObligations({ status: "Pending" }),
+          api.practice.getEngagements(),
+          api.activityLogs.list(),
         ]);
 
         if (tenantResp && tenantResp.tenant) {
           setTenantData(tenantResp);
+        }
+
+        if (Array.isArray(engResp)) {
+          setEngagements(engResp);
+        }
+
+        if (Array.isArray(logResp)) {
+          setActivityLogs(logResp);
         }
 
         if (Array.isArray(obligations)) {
@@ -315,47 +327,33 @@ export default function BusinessDashboardOverview() {
             </div>
 
             <div className="space-y-3">
-              {/* Expert 1 */}
-              <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img
-                    src="/character1.jpg"
-                    alt="Tunde"
-                    className="w-10 h-10 rounded-xl object-cover border border-slate-200"
-                  />
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-900">Tunde Bakare, CAMS</h4>
-                    <p className="text-[10px] text-slate-500">AML/CFT & SCUML Practice Director</p>
-                    <span className="text-[9px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
-                      HubAML • HubAudit
+              {engagements.length === 0 ? (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center">
+                  <p className="text-xs text-slate-500">No external compliance officer engaged yet.</p>
+                </div>
+              ) : (
+                engagements.map((eng: any) => (
+                  <div key={eng.id} className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={eng.avatar_url || "/character1.jpg"}
+                        alt={eng.professional_name}
+                        className="w-10 h-10 rounded-xl object-cover border border-slate-200"
+                      />
+                      <div>
+                        <h4 className="font-bold text-xs text-slate-900">{eng.professional_name}</h4>
+                        <p className="text-[10px] text-slate-500">{eng.firm_name || eng.qualification || "Accredited Officer"}</p>
+                        <span className="text-[9px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
+                          {(eng.specialisations || []).slice(0, 2).join(" • ") || "Statutory Retainer"}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      {eng.status || "Active"}
                     </span>
                   </div>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              </div>
-
-              {/* Expert 2 */}
-              <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img
-                    src="/character2.jpg"
-                    alt="Folashade"
-                    className="w-10 h-10 rounded-xl object-cover border border-slate-200"
-                  />
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-900">Barr. Folashade Adeleke</h4>
-                    <p className="text-[10px] text-slate-500">Licensed DPCO Lead Auditor</p>
-                    <span className="text-[9px] font-mono text-sky-800 bg-sky-50 px-1.5 py-0.5 rounded font-bold mt-1 inline-block">
-                      HubPrivacy • HubDocs
-                    </span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                  Active
-                </span>
-              </div>
+                ))
+              )}
             </div>
 
             <Link href="/experts">
@@ -372,39 +370,33 @@ export default function BusinessDashboardOverview() {
               <h3 className="font-extrabold text-sm text-slate-900">
                 Immutable Activity Trail
               </h3>
-              <span className="text-[10px] text-slate-400 font-mono">Tenant: paywave-ng</span>
+              <span className="text-[10px] text-slate-400 font-mono">
+                Tenant: {tenantData?.tenant?.slug || "paywave-ng"}
+              </span>
             </div>
 
             <div className="space-y-2.5 text-xs">
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-slate-800 font-semibold leading-tight">
-                    Tunde Bakare uploaded Q1 SCUML KYC Register Evidence
-                  </p>
-                  <span className="text-[10px] text-slate-400">2 hours ago • Verified hash: #a89f2</span>
+              {activityLogs.length === 0 ? (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center text-slate-400 text-xs">
+                  No activity events logged yet.
                 </div>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-slate-800 font-semibold leading-tight">
-                    Barr. Folashade updated NDPA RoPA Processing Record
-                  </p>
-                  <span className="text-[10px] text-slate-400">Yesterday • Verified hash: #9b201</span>
-                </div>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-slate-800 font-semibold leading-tight">
-                    Adaeze Nwosu confirmed 2026 Tax Act transition checklist
-                  </p>
-                  <span className="text-[10px] text-slate-400">3 days ago • Verified hash: #7c419</span>
-                </div>
-              </div>
+              ) : (
+                activityLogs.slice(0, 4).map((log: any) => (
+                  <div key={log.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-slate-800 font-semibold leading-tight">
+                        <span className="font-bold text-slate-900">{log.actor_name}: </span>
+                        {log.details}
+                      </p>
+                      <span className="text-[10px] text-slate-400">
+                        {log.created_at ? new Date(log.created_at).toLocaleDateString("en-NG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Recent"}
+                        {" • "}Action: <span className="font-mono text-slate-600">{log.action_type}</span>
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

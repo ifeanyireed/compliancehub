@@ -276,6 +276,20 @@ func MigrateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			created_at TIMESTAMPTZ DEFAULT NOW()
 		);`,
 
+		// 19. DSAR Requests (NDPA 2023 Data Subject Access Requests)
+		`CREATE TABLE IF NOT EXISTS dsar_requests (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+			subject_name VARCHAR(255) NOT NULL,
+			subject_email VARCHAR(255) NOT NULL,
+			request_type VARCHAR(100) NOT NULL,
+			details TEXT NOT NULL,
+			status VARCHAR(50) DEFAULT 'PENDING',
+			deadline TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		);`,
+
 		// Pre-existing tables
 		`CREATE TABLE IF NOT EXISTS blog_posts (
 			id SERIAL PRIMARY KEY,
@@ -556,6 +570,23 @@ func MigrateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			ALTER TABLE tenant_members FORCE ROW LEVEL SECURITY;
 			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_members' AND policyname = 'tenant_isolation_tenant_members') THEN
 				CREATE POLICY tenant_isolation_tenant_members ON tenant_members FOR ALL
+				USING (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				)
+				WITH CHECK (
+					current_setting('app.bypass_rls', true) = 'on' OR
+					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR
+					tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+				);
+			END IF;
+
+			-- dsar_requests
+			ALTER TABLE dsar_requests ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE dsar_requests FORCE ROW LEVEL SECURITY;
+			IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'dsar_requests' AND policyname = 'tenant_isolation_dsar_requests') THEN
+				CREATE POLICY tenant_isolation_dsar_requests ON dsar_requests FOR ALL
 				USING (
 					current_setting('app.bypass_rls', true) = 'on' OR
 					NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL OR

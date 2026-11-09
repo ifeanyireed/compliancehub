@@ -30,11 +30,21 @@ import {
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
-import { COMPLIANCE_MODULES, MOCK_EXPERTS } from "@/lib/compliance-data";
+import { COMPLIANCE_MODULES } from "@/lib/compliance-data";
+import { api } from "@/lib/api";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"All" | "Core" | "Specialist" | "Records" | "Automation">("All");
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [experts, setExperts] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    api.practice.getExperts().then((res: any) => {
+      if (Array.isArray(res)) {
+        setExperts(res.slice(0, 4));
+      }
+    }).catch(() => {});
+  }, []);
 
   const filteredModules = activeTab === "All" 
     ? COMPLIANCE_MODULES 
@@ -349,7 +359,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {MOCK_EXPERTS.map((exp) => (
+            {experts.map((exp) => (
               <div 
                 key={exp.id}
                 className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between"
@@ -357,22 +367,22 @@ export default function HomePage() {
                 <div>
                   <div className="flex items-center gap-3 mb-4">
                     <img 
-                      src={exp.avatar} 
-                      alt={exp.name} 
+                      src={exp.avatar_url || exp.avatar || "/character1.jpg"} 
+                      alt={exp.full_name || exp.name} 
                       className="w-12 h-12 rounded-full object-cover border border-slate-200 shadow-xs"
                     />
                     <div>
-                      <h4 className="font-bold text-sm text-slate-900 leading-tight">{exp.name}</h4>
-                      <p className="text-[11px] text-slate-500">{exp.location}</p>
+                      <h4 className="font-bold text-sm text-slate-900 leading-tight">{exp.full_name || exp.name}</h4>
+                      <p className="text-[11px] text-slate-500">{exp.firm_name || exp.location || "Lagos, Nigeria"}</p>
                     </div>
                   </div>
 
                   <p className="text-xs font-semibold text-slate-700 line-clamp-2 mb-3">
-                    {exp.title}
+                    {exp.qualification || exp.title}
                   </p>
 
                   <div className="flex flex-wrap gap-1 mb-4">
-                    {exp.specialisations.slice(0, 2).map((s, i) => (
+                    {(exp.specialisations || []).slice(0, 2).map((s: string, i: number) => (
                       <span key={i} className="text-[10px] font-medium bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
                         {s}
                       </span>
@@ -384,7 +394,7 @@ export default function HomePage() {
                   <div>
                     <span className="text-[10px] text-slate-400 block">From</span>
                     <span className="text-xs font-black text-slate-900 font-mono">
-                      ₦{exp.retainerRate.toLocaleString()}<span className="text-[10px] font-normal text-slate-500">/mo</span>
+                      ₦{((exp.monthly_retainer_ngn || exp.monthlyRetainerNGN || exp.retainerRate || 250000)).toLocaleString()}<span className="text-[10px] font-normal text-slate-500">/mo</span>
                     </span>
                   </div>
                   <Link href={`/experts/${exp.id}`}>

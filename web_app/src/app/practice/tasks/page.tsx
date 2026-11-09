@@ -39,41 +39,60 @@ export default function PracticeTasksPage() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadTasks() {
-      setLoading(true);
-      try {
-        const data = await api.practice.getTasks();
-        if (Array.isArray(data)) {
-          setTasks(
-            data.map((t: any) => ({
-              id: t.id,
-              tenantId: t.tenant_id,
-              title: t.title,
-              clientName: t.client_name || "PayWave Technologies Ltd",
-              clientLogo: (t.client_name || "PW").slice(0, 2).toUpperCase(),
-              clientColor: "#0089C1",
-              statutoryAuthority: t.authority,
-              deadline: t.due_date,
-              status: t.status === "FILED"
-                ? ("Approved & Filed" as const)
-                : t.is_urgent
-                ? ("In Progress" as const)
-                : ("Assigned" as const),
-              priority: t.is_urgent ? ("High" as const) : ("Normal" as const),
-              dualApproval: true
-            }))
-          );
-        } else {
-          setTasks([]);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [selectedTenantId, setSelectedTenantId] = useState("");
+  const [taskAuthority, setTaskAuthority] = useState("CAC");
+  const [clientsList, setClientsList] = useState<any[]>([]);
+  const [creatingTask, setCreatingTask] = useState(false);
+
+  const loadTasks = async () => {
+    setLoading(true);
+    try {
+      const [data, clients] = await Promise.all([
+        api.practice.getTasks(),
+        api.practice.getClients(),
+      ]);
+
+      if (Array.isArray(clients)) {
+        setClientsList(clients);
+        if (clients.length > 0 && !selectedTenantId) {
+          setSelectedTenantId(clients[0].tenant_id);
         }
-      } catch (err) {
-        console.error("Failed to load practice tasks from database:", err);
-        setTasks([]);
-      } finally {
-        setLoading(false);
       }
+
+      if (Array.isArray(data)) {
+        setTasks(
+          data.map((t: any) => ({
+            id: t.id,
+            tenantId: t.tenant_id,
+            title: t.title,
+            clientName: t.client_name || "PayWave Technologies Ltd",
+            clientLogo: (t.client_name || "PW").slice(0, 2).toUpperCase(),
+            clientColor: "#0089C1",
+            statutoryAuthority: t.authority,
+            deadline: t.due_date,
+            status: t.status === "FILED"
+              ? ("Approved & Filed" as const)
+              : t.is_urgent
+              ? ("In Progress" as const)
+              : ("Assigned" as const),
+            priority: t.is_urgent ? ("High" as const) : ("Normal" as const),
+            dualApproval: true
+          }))
+        );
+      } else {
+        setTasks([]);
+      }
+    } catch (err) {
+      console.error("Failed to load practice tasks from database:", err);
+      setTasks([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadTasks();
   }, []);
 
@@ -117,24 +136,7 @@ export default function PracticeTasksPage() {
         </div>
 
         <button
-          onClick={() => {
-            const task = prompt("Enter title of task to assign across client entities:");
-            if (task) {
-              const newTask: PracticeTask = {
-                id: `task-${Date.now()}`,
-                title: task,
-                clientName: "PayWave Technologies Ltd",
-                clientLogo: "PW",
-                clientColor: "#0089C1",
-                statutoryAuthority: "CAC",
-                deadline: "30 June 2026",
-                status: "Assigned",
-                priority: "Normal",
-                dualApproval: false
-              };
-              setTasks([newTask, ...tasks]);
-            }
-          }}
+          onClick={() => setShowTaskModal(true)}
           className="bg-[#245C44] hover:bg-[#1E4E39] text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
@@ -231,6 +233,109 @@ export default function PracticeTasksPage() {
           </div>
         ))}
       </div>
+
+      {/* New Practice Task Modal */}
+      {showTaskModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">Assign Practice Task</h3>
+                <p className="text-xs text-slate-500">Lodge an actionable obligation for a client entity.</p>
+              </div>
+              <button
+                onClick={() => setShowTaskModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!taskTitle || !selectedTenantId) return;
+                setCreatingTask(true);
+                try {
+                  await api.practice.createTask({
+                    tenant_id: selectedTenantId,
+                    title: taskTitle,
+                    authority: taskAuthority,
+                    is_urgent: true,
+                  });
+                  await loadTasks();
+                  setShowTaskModal(false);
+                  setTaskTitle("");
+                } catch (err) {
+                  console.error("Task creation failed:", err);
+                } finally {
+                  setCreatingTask(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Target Client Business</label>
+                <select
+                  value={selectedTenantId}
+                  onChange={(e) => setSelectedTenantId(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                >
+                  {clientsList.map((c) => (
+                    <option key={c.tenant_id} value={c.tenant_id}>
+                      {c.company_name} ({c.rc_number || "RC-Pending"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Task Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Prepare SCUML Quarterly Compliance Audit Pack"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Statutory Authority</label>
+                <select
+                  value={taskAuthority}
+                  onChange={(e) => setTaskAuthority(e.target.value)}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                >
+                  <option value="CAC">CAC (Corporate Affairs Commission)</option>
+                  <option value="FIRS">FIRS / NRS TaxPro-MAX</option>
+                  <option value="NDPC">NDPC (Nigeria Data Protection Commission)</option>
+                  <option value="SCUML">SCUML / NFIU</option>
+                  <option value="PENCOM">PENCOM</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTaskModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingTask}
+                  className="px-5 py-2 rounded-xl bg-[#245C44] hover:bg-[#1E4E39] text-white text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  {creatingTask ? "Lodging..." : "Lodge Practice Task"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

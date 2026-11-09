@@ -20,6 +20,7 @@ export default function PracticeCommercialPage() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [selectedSlaClient, setSelectedSlaClient] = useState<any | null>(null);
 
   const loadCommercialData = async () => {
     setLoading(true);
@@ -213,7 +214,7 @@ export default function PracticeCommercialPage() {
                     <td className="py-4 px-4 text-emerald-700 font-bold">Paystack Escrow</td>
                     <td className="py-4 px-6 text-right">
                       <button
-                        onClick={() => alert(`Downloading verified legal agreement for ${c.name}`)}
+                        onClick={() => setSelectedSlaClient(c)}
                         className="text-[#245C44] hover:underline font-bold cursor-pointer"
                       >
                         View SLA
@@ -253,6 +254,40 @@ export default function PracticeCommercialPage() {
           )}
         </div>
       </div>
+
+      {/* SLA Modal */}
+      {selectedSlaClient && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">Master Service Agreement & SLA</h3>
+                <p className="text-xs text-slate-500">{selectedSlaClient.name} ({selectedSlaClient.rcNumber})</p>
+              </div>
+              <button
+                onClick={() => setSelectedSlaClient(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2.5 text-xs text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <p><strong>Retainer Fee:</strong> ₦{selectedSlaClient.retainerMonthly.toLocaleString()}/month</p>
+              <p><strong>Billing Cadence:</strong> Monthly automated recurring debit via Paystack Escrow</p>
+              <p><strong>Scope of Authority:</strong> CAMA 2020 annual filings, FIRS TaxPro-MAX remittances, NDPA 2023 RoPA audit</p>
+              <p><strong>Dispute Resolution:</strong> High Court of Lagos State Commercial Division Arbitration</p>
+            </div>
+
+            <button
+              onClick={() => setSelectedSlaClient(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
+            >
+              Close Agreement
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

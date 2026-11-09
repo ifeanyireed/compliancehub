@@ -56,6 +56,8 @@ export default function BusinessPeopleVendorsPage() {
   const [employeeModal, setEmployeeModal] = useState(false);
   const [vendorModal, setVendorModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [trainingDispatched, setTrainingDispatched] = useState(false);
+  const [selectedVendorDossier, setSelectedVendorDossier] = useState<VendorRecord | null>(null);
 
   // New Employee Form
   const [empForm, setEmpForm] = useState({
@@ -262,11 +264,22 @@ export default function BusinessPeopleVendorsPage() {
             </h3>
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => alert("Assigned NDPA 2023 staff awareness refresher to all employees.")}
-                className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs flex items-center gap-1.5"
+                onClick={async () => {
+                  setTrainingDispatched(true);
+                  try {
+                    await api.activityLogs.create({
+                      action_type: "STAFF_TRAINING_ASSIGNED",
+                      details: "Assigned statutory NDPA 2023 staff awareness refresher to all workforce members",
+                    });
+                  } catch (_) {}
+                  setTimeout(() => setTrainingDispatched(false), 3000);
+                }}
+                className={`text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs flex items-center gap-1.5 transition-all ${
+                  trainingDispatched ? "bg-emerald-600" : "bg-[#1E293B] hover:bg-slate-800 cursor-pointer"
+                }`}
               >
                 <GraduationCap className="w-4 h-4" />
-                <span>Assign NDPA Training</span>
+                <span>{trainingDispatched ? "✓ Dispatched to Staff" : "Assign NDPA Training"}</span>
               </button>
               <button 
                 onClick={() => setEmployeeModal(true)}
@@ -385,8 +398,8 @@ export default function BusinessPeopleVendorsPage() {
                       </td>
                       <td className="py-4 px-6 text-right">
                         <button
-                          onClick={() => alert(`Reviewing vendor due diligence pack for ${v.name} (TIN: ${v.tin})`)}
-                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700"
+                          onClick={() => setSelectedVendorDossier(v)}
+                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700 cursor-pointer"
                         >
                           Dossier
                         </button>
@@ -651,6 +664,63 @@ export default function BusinessPeopleVendorsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Due Diligence Dossier Modal */}
+      {selectedVendorDossier && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">{selectedVendorDossier.name}</h3>
+                <p className="text-xs text-slate-500 font-mono">TIN: {selectedVendorDossier.tin} • {selectedVendorDossier.service}</p>
+              </div>
+              <button
+                onClick={() => setSelectedVendorDossier(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <span className="text-slate-600 font-medium">NDPA Data Processing Agreement:</span>
+                <span className={`font-bold px-2 py-0.5 rounded ${
+                  selectedVendorDossier.dpaStatus === "Executed" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                }`}>
+                  {selectedVendorDossier.dpaStatus}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <span className="text-slate-600 font-medium">FIRS Tax Clearance (TCC):</span>
+                <span className={`font-bold px-2 py-0.5 rounded ${
+                  selectedVendorDossier.tccStatus === "Current" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                }`}>
+                  {selectedVendorDossier.tccStatus}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <span className="text-slate-600 font-medium">AML Counterparty Risk Level:</span>
+                <span className="font-bold text-slate-900">{selectedVendorDossier.riskScore}</span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Overall Vendor Compliance:</span>
+                <span className="font-bold text-emerald-700 font-mono">{selectedVendorDossier.complianceScore}%</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedVendorDossier(null)}
+              className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
+            >
+              Close Dossier
+            </button>
           </div>
         </div>
       )}

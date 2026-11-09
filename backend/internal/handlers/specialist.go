@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
@@ -194,5 +195,104 @@ func CreatePrivacyActivity(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":      newID,
 		"message": "NDPA 2023 RoPA record added",
+	})
+}
+
+type DSARRequestItem struct {
+	ID           string    `json:"id"`
+	TenantID     string    `json:"tenant_id"`
+	SubjectName  string    `json:"subject_name"`
+	SubjectEmail string    `json:"subject_email"`
+	RequestType  string    `json:"request_type"`
+	Details      string    `json:"details"`
+	Status       string    `json:"status"`
+	Deadline     time.Time `json:"deadline"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+func ListDSARRequests(w http.ResponseWriter, r *http.Request) {
+	tenantCtx := middleware.GetTenantContext(r)
+	if tenantCtx == nil {
+		http.Error(w, "Tenant not resolved", http.StatusBadRequest)
+		return
+	}
+
+	query := `
+		SELECT id, tenant_id, subject_name, subject_email, request_type, details, status, deadline, created_at
+		FROM dsar_requests
+		WHERE tenant_id = $1
+		ORDER BY deadline ASC, created_at DESC
+	`
+
+	rows, err := db.Pool.Query(r.Context(), query, tenantCtx.TenantID)
+	if err != nil {
+		http.Error(w, "Failed to query DSAR requests: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var dsars []DSARRequestItem
+	for rows.Next() {
+		var d DSARRequestItem
+		if err := rows.Scan(
+			&d.ID, &d.TenantID, &d.SubjectName, &d.SubjectEmail, &d.RequestType, &d.Details, &d.Status, &d.Deadline, &d.CreatedAt,
+		); err == nil {
+			dsars = append(dsars, d)
+		}
+	}
+
+	if dsars == nil {
+		dsars = []DSARRequestItem{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(dsars)
+}
+
+func CreateDSARRequest(w http.ResponseWriter, r *http.Request) {
+	tenantCtx := middleware.GetTenantContext(r)
+	if tenantCtx == nil {
+		http.Error(w, "Tenant not resolved", http.StatusBadRequest)
+		return
+	}
+
+	var req DSARRequestItem
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.SubjectName == "" || req.SubjectEmail == "" || req.RequestType == "" {
+		http.Error(w, "Subject name, email, and request type are required", http.StatusBadRequest)
+		return
+	}
+
+	if req.Status == "" {
+		req.Status = "PENDING"
+	}
+
+	var newID string
+	err := db.Pool.QueryRow(r.Context(), `
+		INSERT INTO dsar_requests (tenant_id, subject_name, subject_email, request_type, details, status, deadline)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL '30 days')
+		RETURNING id
+	`, tenantCtx.TenantID, req.SubjectName, req.SubjectEmail, req.RequestType, req.Details, req.Status).Scan(&newID)
+
+	if err != nil {
+		http.Error(w, "Failed to create DSAR request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Log activity
+	_, _ = db.Pool.Exec(r.Context(), `
+		INSERT INTO activity_logs (tenant_id, actor_name, actor_role, action_type, details)
+		VALUES ($1, 'Privacy Officer', 'DPCO Auditor', 'DSAR_LODGED', $2)
+	`, tenantCtx.TenantID, "Lodged statutory NDPA DSAR for "+req.SubjectName+" ("+req.RequestType+")")
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":      newID,
+		"message": "Statutory NDPA 2023 DSAR logged successfully",
 	})
 }

@@ -49,6 +49,7 @@ export default function BusinessSpecialistPage() {
   // Data state
   const [amlCases, setAmlCases] = useState<AMLCaseItem[]>([]);
   const [ropaActivities, setRopaActivities] = useState<RoPAItem[]>([]);
+  const [dsarList, setDsarList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // AML screening simulator state
@@ -60,7 +61,16 @@ export default function BusinessSpecialistPage() {
   // Modals state
   const [amlModal, setAmlModal] = useState(false);
   const [ropaModal, setRopaModal] = useState(false);
+  const [dsarModal, setDsarModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // New DSAR Form
+  const [dsarForm, setDsarForm] = useState({
+    subjectName: "",
+    subjectEmail: "",
+    requestType: "DATA_ACCESS",
+    details: ""
+  });
 
   // New AML Case Form
   const [amlForm, setAmlForm] = useState({
@@ -85,9 +95,10 @@ export default function BusinessSpecialistPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [casesRes, ropaRes] = await Promise.all([
+      const [casesRes, ropaRes, dsarRes] = await Promise.all([
         api.specialist.getAMLCases(),
-        api.specialist.getPrivacyActivities()
+        api.specialist.getPrivacyActivities(),
+        api.specialist.getDSARs()
       ]);
 
       if (Array.isArray(casesRes)) {
@@ -123,10 +134,17 @@ export default function BusinessSpecialistPage() {
       } else {
         setRopaActivities([]);
       }
+
+      if (Array.isArray(dsarRes)) {
+        setDsarList(dsarRes);
+      } else {
+        setDsarList([]);
+      }
     } catch (err) {
       console.error("Failed to load specialist data from database:", err);
       setAmlCases([]);
       setRopaActivities([]);
+      setDsarList([]);
     } finally {
       setLoading(false);
     }
@@ -240,26 +258,31 @@ export default function BusinessSpecialistPage() {
     }
   };
 
-  const dsarRequests = [
-    {
-      id: "dsar-01",
-      dataSubject: "Babatunde Alabi",
-      requestType: "Right of Access & Portability",
-      receivedDate: "24 Jan 2026",
-      statutoryDeadline: "23 Feb 2026 (NDPA 30-day limit)",
-      status: "In Progress",
-      assignedTo: "Barr. Folashade Adeleke"
-    },
-    {
-      id: "dsar-02",
-      dataSubject: "Grace Nwachukwu",
-      requestType: "Rectification of Personal Data",
-      receivedDate: "02 Feb 2026",
-      statutoryDeadline: "02 Mar 2026",
-      status: "Complied",
-      assignedTo: "Barr. Folashade Adeleke"
+  const handleSaveDSAR = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dsarForm.subjectName || !dsarForm.subjectEmail) return;
+    setSubmitting(true);
+    try {
+      await api.specialist.createDSAR({
+        subject_name: dsarForm.subjectName,
+        subject_email: dsarForm.subjectEmail,
+        request_type: dsarForm.requestType,
+        details: dsarForm.details || "Data Subject Access Request lodged in portal",
+      });
+      await loadData();
+      setDsarModal(false);
+      setDsarForm({
+        subjectName: "",
+        subjectEmail: "",
+        requestType: "DATA_ACCESS",
+        details: ""
+      });
+    } catch (err) {
+      alert("Failed to log DSAR request.");
+    } finally {
+      setSubmitting(false);
     }
-  ];
+  };
 
   return (
     <div className="space-y-6 select-none">
@@ -561,8 +584,8 @@ export default function BusinessSpecialistPage() {
                 </p>
               </div>
               <button 
-                onClick={() => alert("New Data Subject Request logged in queue.")}
-                className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-xs"
+                onClick={() => setDsarModal(true)}
+                className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-xs cursor-pointer"
               >
                 + Log Request
               </button>
@@ -581,22 +604,36 @@ export default function BusinessSpecialistPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {dsarRequests.map((d) => (
-                    <tr key={d.id} className="hover:bg-slate-50/70">
-                      <td className="py-3 px-4 font-bold text-slate-900">{d.dataSubject}</td>
-                      <td className="py-3 px-4 text-slate-600 font-medium">{d.requestType}</td>
-                      <td className="py-3 px-4 text-slate-500 font-mono">{d.receivedDate}</td>
-                      <td className="py-3 px-4 text-slate-700 font-mono font-bold">{d.statutoryDeadline}</td>
-                      <td className="py-3 px-4 text-slate-600">{d.assignedTo}</td>
-                      <td className="py-3 px-4 text-right">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          d.status === "Complied" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                        }`}>
-                          {d.status}
-                        </span>
+                  {dsarList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-6 text-center text-slate-400 text-xs">
+                        No Data Subject Access Requests in queue.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    dsarList.map((d) => (
+                      <tr key={d.id} className="hover:bg-slate-50/70">
+                        <td className="py-3 px-4 font-bold text-slate-900">{d.subject_name || d.dataSubject}</td>
+                        <td className="py-3 px-4 text-slate-600 font-medium">{d.request_type || d.requestType}</td>
+                        <td className="py-3 px-4 text-slate-500 font-mono">
+                          {d.created_at ? new Date(d.created_at).toLocaleDateString("en-NG", { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
+                        </td>
+                        <td className="py-3 px-4 text-slate-700 font-mono font-bold">
+                          {d.deadline ? new Date(d.deadline).toLocaleDateString("en-NG", { month: "short", day: "numeric", year: "numeric" }) : "30 days"}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600">Barr. Folashade Adeleke</td>
+                        <td className="py-3 px-4 text-right">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            d.status === "Complied" || d.status === "RESOLVED"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}>
+                            {d.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -812,6 +849,95 @@ export default function BusinessSpecialistPage() {
                 >
                   {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Save RoPA Record</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* NEW DSAR MODAL */}
+      {dsarModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-slate-200 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">Log Data Subject Request</h3>
+                <p className="text-xs text-slate-500">Statutory NDPA 2023 s.34 Subject Access Request.</p>
+              </div>
+              <button 
+                onClick={() => setDsarModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDSAR} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Data Subject Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Babatunde Alabi"
+                  value={dsarForm.subjectName}
+                  onChange={(e) => setDsarForm({ ...dsarForm, subjectName: e.target.value })}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Subject Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. babatunde@example.com"
+                  value={dsarForm.subjectEmail}
+                  onChange={(e) => setDsarForm({ ...dsarForm, subjectEmail: e.target.value })}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Statutory Right Invoked</label>
+                <select
+                  value={dsarForm.requestType}
+                  onChange={(e) => setDsarForm({ ...dsarForm, requestType: e.target.value })}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                >
+                  <option value="Right of Access & Portability">Right of Access & Portability (NDPA s.34)</option>
+                  <option value="Erasure / Right to be Forgotten">Erasure / Right to be Forgotten (NDPA s.34(1)(d))</option>
+                  <option value="Rectification of Personal Data">Rectification of Personal Data (NDPA s.34(1)(b))</option>
+                  <option value="Objection to Processing / Marketing">Objection to Processing / Direct Marketing (NDPA s.36)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Request Summary & Scope</label>
+                <textarea
+                  rows={3}
+                  placeholder="Specify details or identifiers requested by the data subject..."
+                  value={dsarForm.details}
+                  onChange={(e) => setDsarForm({ ...dsarForm, details: e.target.value })}
+                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDsarModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-5 py-2 rounded-xl text-xs shadow-xs flex items-center gap-2"
+                >
+                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Log Statutory DSAR</span>
                 </button>
               </div>
             </form>
