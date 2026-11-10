@@ -44,8 +44,8 @@ func InitEmail() *EmailService {
 	}
 
 	fromEmail := os.Getenv("SMTP_FROM_EMAIL")
-	if fromEmail == "" {
-		fromEmail = "c23985001@smtp-brevo.com"
+	if fromEmail == "" || strings.Contains(fromEmail, "@smtp-brevo.com") {
+		fromEmail = "hello@compliancehub.ng"
 	}
 
 	fromName := os.Getenv("SMTP_FROM_NAME")
