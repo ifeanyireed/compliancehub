@@ -4,12 +4,14 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"compliancehub-backend/internal/db"
+	"compliancehub-backend/internal/services"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -67,6 +69,16 @@ func ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("🔐 Password reset token generated for %s: %s (expires: %s)", email, resetToken, expiresAt.Format(time.RFC3339))
+
+	// Dispatch password reset email via Brevo SMTP relay
+	if services.MailService != nil {
+		recipientName := fullName
+		if strings.TrimSpace(recipientName) == "" {
+			recipientName = "Valued Partner"
+		}
+		resetURL := fmt.Sprintf("https://compliancehub.ng/reset-password?token=%s", resetToken)
+		_ = services.MailService.SendPasswordResetEmail(email, recipientName, resetURL)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

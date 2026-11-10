@@ -12,6 +12,7 @@ import (
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
 	"compliancehub-backend/internal/models"
+	"compliancehub-backend/internal/services"
 )
 
 func ListPractitioners(w http.ResponseWriter, r *http.Request) {
@@ -538,6 +539,12 @@ func AddAgencyTeamMember(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed adding to practice team: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Dispatch team invitation email via Brevo SMTP relay
+	if services.MailService != nil {
+		inviteURL := "https://compliancehub.ng/login"
+		_ = services.MailService.SendTeamInviteEmail(req.Email, req.FullName, "Apex Advisory Partners", "Practice Associate", inviteURL)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

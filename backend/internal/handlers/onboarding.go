@@ -9,6 +9,7 @@ import (
 
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
+	"compliancehub-backend/internal/services"
 )
 
 type OnboardingClassificationRequest struct {
@@ -23,6 +24,8 @@ type OnboardingClassificationRequest struct {
 	EngagesVendors       bool   `json:"engages_vendors"`
 	OperatesBranches     bool   `json:"operates_branches"`
 	ServicePreference    string `json:"service_preference"` // self, expert, agency
+	ContactEmail         string `json:"contact_email,omitempty"`
+	ContactName          string `json:"contact_name,omitempty"`
 }
 
 func ClassifyBusiness(w http.ResponseWriter, r *http.Request) {
@@ -164,6 +167,34 @@ func ClassifyBusiness(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(ctx); err != nil {
 		http.Error(w, "Failed to commit classification: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Resolve recipient contact for Brevo onboarding dispatch
+	recipientEmail := req.ContactEmail
+	recipientName := req.ContactName
+	if recipientEmail == "" {
+		if user != nil && user.Email != "" {
+			recipientEmail = user.Email
+			recipientName = user.FullName
+		} else {
+			_ = db.Pool.QueryRow(ctx, "SELECT email, full_name FROM users WHERE id = $1", userID).Scan(&recipientEmail, &recipientName)
+		}
+	}
+	if recipientName == "" {
+		recipientName = "Corporate Managing Director"
+	}
+
+	// Dispatch onboarding welcome email via Brevo SMTP relay
+	if recipientEmail != "" && services.MailService != nil {
+		dashboardURL := "https://compliancehub.ng/business/dashboard"
+		_ = services.MailService.SendWelcomeOnboardingEmail(
+			recipientEmail,
+			recipientName,
+			req.BusinessName,
+			dashboardURL,
+			len(obligationsToSeed),
+			initialScore,
+		)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

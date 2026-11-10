@@ -8,6 +8,7 @@ import (
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
 	"compliancehub-backend/internal/models"
+	"compliancehub-backend/internal/services"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -117,6 +118,19 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(ctx); err != nil {
 		http.Error(w, "Failed to commit registration transaction", http.StatusInternalServerError)
 		return
+	}
+
+	// Dispatch onboarding welcome email via Brevo SMTP relay
+	if services.MailService != nil {
+		dashboardURL := "https://compliancehub.ng/business/dashboard"
+		_ = services.MailService.SendWelcomeOnboardingEmail(
+			req.Email,
+			req.FullName,
+			req.CompanyName,
+			dashboardURL,
+			3,
+			65,
+		)
 	}
 
 	user := models.User{

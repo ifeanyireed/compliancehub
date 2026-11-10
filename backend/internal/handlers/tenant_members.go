@@ -7,6 +7,7 @@ import (
 
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
+	"compliancehub-backend/internal/services"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -141,6 +142,17 @@ func InviteTenantMember(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO activity_logs (tenant_id, actor_name, actor_role, action_type, details)
 		VALUES ($1, 'Workspace Admin', 'Owner', 'MEMBER_INVITE', $2)
 	`, tenantCtx.TenantID, "Invited team member "+req.FullName+" ("+req.Email+") with role "+role)
+
+	// Dispatch team invitation email via Brevo SMTP relay
+	if services.MailService != nil {
+		var workspaceName string
+		_ = db.Pool.QueryRow(ctx, "SELECT workspace_name FROM tenants WHERE id = $1", tenantCtx.TenantID).Scan(&workspaceName)
+		if workspaceName == "" {
+			workspaceName = "Corporate Compliance Workspace"
+		}
+		inviteURL := "https://compliancehub.ng/login"
+		_ = services.MailService.SendTeamInviteEmail(req.Email, req.FullName, workspaceName, role, inviteURL)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

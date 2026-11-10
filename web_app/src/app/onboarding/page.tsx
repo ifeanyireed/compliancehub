@@ -21,7 +21,7 @@ import { api } from "@/lib/api";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { switchRole, switchTenant } = useAuth();
+  const { user, switchRole, switchTenant } = useAuth();
   const [step, setStep] = useState(1);
 
   // Step 1: Business profile
@@ -58,6 +58,8 @@ export default function OnboardingPage() {
         engages_vendors: engagesVendors,
         operates_branches: operatesBranches,
         service_preference: servicePreference,
+        contact_email: user?.email,
+        contact_name: user?.name,
       });
 
       if (result && result.tenant_id) {

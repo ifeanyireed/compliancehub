@@ -282,6 +282,8 @@ export const api = {
       engages_vendors: boolean;
       operates_branches: boolean;
       service_preference?: string;
+      contact_email?: string;
+      contact_name?: string;
     }) => apiFetch("/v1/onboarding/classify", { method: "POST", body: JSON.stringify(data) }),
   },
 

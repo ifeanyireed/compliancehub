@@ -61,6 +61,9 @@ func main() {
 		log.Printf("✅ Cloudinary evidence vault initialized with cloud 'yugcjpau'")
 	}
 
+	log.Printf("📧 Initializing Brevo SMTP Email Relay...")
+	services.InitEmail()
+
 	mux := http.NewServeMux()
 
 	// Health endpoints
@@ -71,6 +74,7 @@ func main() {
 			"database": "Neon Lakebase Postgres (connected)",
 			"service":  "ComplianceHub.ng Core API",
 			"storage":  "Cloudinary Evidence Vault (configured)",
+			"email":    "Brevo SMTP Relay (active)",
 			"region":   "aws-us-east-2",
 		})
 	})
