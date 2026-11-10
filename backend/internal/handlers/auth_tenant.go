@@ -120,10 +120,10 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Dispatch onboarding welcome email via Brevo SMTP relay
+	// Dispatch registration welcome email via Brevo SMTP relay (using noreply@compliancehub.ng)
 	if services.MailService != nil {
 		dashboardURL := "https://compliancehub.ng/business/dashboard"
-		_ = services.MailService.SendWelcomeOnboardingEmail(
+		_ = services.MailService.SendRegistrationAuthEmail(
 			req.Email,
 			req.FullName,
 			req.CompanyName,

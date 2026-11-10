@@ -12,12 +12,14 @@ import (
 )
 
 type EmailService struct {
-	Host      string
-	Port      string
-	User      string
-	Password  string
-	FromEmail string
-	FromName  string
+	Host          string
+	Port          string
+	User          string
+	Password      string
+	FromEmail     string
+	FromName      string
+	AuthFromEmail string
+	AuthFromName  string
 }
 
 var MailService *EmailService
@@ -53,20 +55,32 @@ func InitEmail() *EmailService {
 		fromName = "ComplianceHub Nigeria"
 	}
 
-	MailService = &EmailService{
-		Host:      host,
-		Port:      port,
-		User:      user,
-		Password:  password,
-		FromEmail: fromEmail,
-		FromName:  fromName,
+	authFromEmail := os.Getenv("SMTP_AUTH_FROM_EMAIL")
+	if authFromEmail == "" || strings.Contains(authFromEmail, "@smtp-brevo.com") {
+		authFromEmail = "noreply@compliancehub.ng"
 	}
 
-	log.Printf("📧 Email service initialized via Brevo SMTP (%s:%s as %s)", host, port, fromEmail)
+	authFromName := os.Getenv("SMTP_AUTH_FROM_NAME")
+	if authFromName == "" {
+		authFromName = "ComplianceHub Security"
+	}
+
+	MailService = &EmailService{
+		Host:          host,
+		Port:          port,
+		User:          user,
+		Password:      password,
+		FromEmail:     fromEmail,
+		FromName:      fromName,
+		AuthFromEmail: authFromEmail,
+		AuthFromName:  authFromName,
+	}
+
+	log.Printf("📧 Email service initialized via Brevo SMTP (General: %s <%s>, Auth: %s <%s>)", fromName, fromEmail, authFromName, authFromEmail)
 	return MailService
 }
 
-func (s *EmailService) SendMail(to []string, subject string, htmlBody string) error {
+func (s *EmailService) SendMailCustom(fromEmail, fromName string, to []string, subject string, htmlBody string) error {
 	if s == nil {
 		return fmt.Errorf("email service not initialized")
 	}
@@ -74,12 +88,20 @@ func (s *EmailService) SendMail(to []string, subject string, htmlBody string) er
 	addr := fmt.Sprintf("%s:%s", s.Host, s.Port)
 	auth := smtp.PlainAuth("", s.User, s.Password, s.Host)
 
-	fromHeader := fmt.Sprintf("%s <%s>", s.FromName, s.FromEmail)
+	if fromEmail == "" {
+		fromEmail = s.FromEmail
+	}
+	if fromName == "" {
+		fromName = s.FromName
+	}
+
+	fromHeader := fmt.Sprintf("%s <%s>", fromName, fromEmail)
 	toHeader := strings.Join(to, ", ")
 
 	headers := make(map[string]string)
 	headers["From"] = fromHeader
 	headers["To"] = toHeader
+	headers["Reply-To"] = fromEmail
 	headers["Subject"] = subject
 	headers["MIME-Version"] = "1.0"
 	headers["Content-Type"] = "text/html; charset=UTF-8"
@@ -92,34 +114,49 @@ func (s *EmailService) SendMail(to []string, subject string, htmlBody string) er
 	message.WriteString("\r\n")
 	message.WriteString(htmlBody)
 
-	err := smtp.SendMail(addr, auth, s.FromEmail, to, message.Bytes())
+	err := smtp.SendMail(addr, auth, fromEmail, to, message.Bytes())
 	if err != nil {
-		log.Printf("❌ Failed sending email to %v: %v", to, err)
+		log.Printf("❌ Failed sending email from %s to %v: %v", fromEmail, to, err)
 		return err
 	}
 
-	log.Printf("✅ Email successfully dispatched to %v [Subject: %s]", to, subject)
+	log.Printf("✅ Email successfully dispatched from %s to %v [Subject: %s]", fromEmail, to, subject)
 	return nil
+}
+
+// SendMailCustomAsync dispatches email asynchronously with customized sender
+func (s *EmailService) SendMailCustomAsync(fromEmail, fromName string, to []string, subject string, htmlBody string) {
+	go func() {
+		if err := s.SendMailCustom(fromEmail, fromName, to, subject, htmlBody); err != nil {
+			log.Printf("⚠️ Async custom mail dispatch error from %s for %v: %v", fromEmail, to, err)
+		}
+	}()
+}
+
+func (s *EmailService) SendMail(to []string, subject string, htmlBody string) error {
+	return s.SendMailCustom(s.FromEmail, s.FromName, to, subject, htmlBody)
 }
 
 // SendMailAsync dispatches email in a background goroutine so callers aren't blocked by network latency
 func (s *EmailService) SendMailAsync(to []string, subject string, htmlBody string) {
-	go func() {
-		if err := s.SendMail(to, subject, htmlBody); err != nil {
-			log.Printf("⚠️ Async mail dispatch error for %v: %v", to, err)
-		}
-	}()
+	s.SendMailCustomAsync(s.FromEmail, s.FromName, to, subject, htmlBody)
+}
+
+// SendAuthMail dispatches security and authentication emails using AuthFromEmail (noreply@compliancehub.ng)
+func (s *EmailService) SendAuthMail(to []string, subject string, htmlBody string) error {
+	return s.SendMailCustom(s.AuthFromEmail, s.AuthFromName, to, subject, htmlBody)
+}
+
+// SendAuthMailAsync dispatches security and authentication emails asynchronously using AuthFromEmail (noreply@compliancehub.ng)
+func (s *EmailService) SendAuthMailAsync(to []string, subject string, htmlBody string) {
+	s.SendMailCustomAsync(s.AuthFromEmail, s.AuthFromName, to, subject, htmlBody)
 }
 
 // -------------------------------------------------------------
 // Transactional Email Templates
 // -------------------------------------------------------------
 
-// SendWelcomeOnboardingEmail dispatches the official onboarding confirmation
-func (s *EmailService) SendWelcomeOnboardingEmail(recipientEmail, recipientName, companyName, dashboardURL string, obligationsCount int, complianceScore int) error {
-	subject := fmt.Sprintf("Welcome to ComplianceHub: %s Workspace Activated", companyName)
-
-	tmpl := `
+const welcomeTemplate = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -178,7 +215,11 @@ func (s *EmailService) SendWelcomeOnboardingEmail(recipientEmail, recipientName,
 </html>
 `
 
-	t, err := template.New("welcome").Parse(tmpl)
+// SendWelcomeOnboardingEmail dispatches the official onboarding confirmation
+func (s *EmailService) SendWelcomeOnboardingEmail(recipientEmail, recipientName, companyName, dashboardURL string, obligationsCount int, complianceScore int) error {
+	subject := fmt.Sprintf("Welcome to ComplianceHub: %s Workspace Activated", companyName)
+
+	t, err := template.New("welcome").Parse(welcomeTemplate)
 	if err != nil {
 		return err
 	}
@@ -257,7 +298,7 @@ func (s *EmailService) SendPasswordResetEmail(recipientEmail, recipientName, res
 		return err
 	}
 
-	s.SendMailAsync([]string{recipientEmail}, subject, rendered.String())
+	s.SendAuthMailAsync([]string{recipientEmail}, subject, rendered.String())
 	return nil
 }
 
@@ -323,6 +364,31 @@ func (s *EmailService) SendTeamInviteEmail(recipientEmail, recipientName, invite
 		return err
 	}
 
-	s.SendMailAsync([]string{recipientEmail}, subject, rendered.String())
+	s.SendAuthMailAsync([]string{recipientEmail}, subject, rendered.String())
+	return nil
+}
+
+// SendRegistrationAuthEmail dispatches the welcome onboarding confirmation using AuthFromEmail (noreply@compliancehub.ng)
+func (s *EmailService) SendRegistrationAuthEmail(recipientEmail, recipientName, companyName, dashboardURL string, obligationsCount int, complianceScore int) error {
+	subject := fmt.Sprintf("Welcome to ComplianceHub: %s Workspace Activated", companyName)
+
+	t, err := template.New("reg_welcome").Parse(welcomeTemplate)
+	if err != nil {
+		return err
+	}
+
+	var rendered bytes.Buffer
+	err = t.Execute(&rendered, map[string]interface{}{
+		"RecipientName":    recipientName,
+		"CompanyName":      companyName,
+		"DashboardURL":     dashboardURL,
+		"ObligationsCount": obligationsCount,
+		"ComplianceScore":  complianceScore,
+	})
+	if err != nil {
+		return err
+	}
+
+	s.SendAuthMailAsync([]string{recipientEmail}, subject, rendered.String())
 	return nil
 }
