@@ -148,14 +148,54 @@ func ClassifyBusiness(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Workforce Pension condition
-	obligationsToSeed = append(obligationsToSeed, GeneratedObligation{
-		Title:     "Monthly Contributory Pension Remittance to Licensed PFAs",
-		Authority: "PENCOM",
-		DueDate:   time.Now().AddDate(0, 0, 10).Format("2006-01-02"),
-		Penalty:   30000,
-		IsUrgent:  false,
-	})
+	// 5. Headcount-based statutory compliance tiers under Nigerian law
+	// - Tier 1-4 (Micro): Exempt from mandatory PENCOM CPS & ITF 1%
+	// - Tier 5-14 (Small): Mandatory PENCOM CPS & ITF 1% threshold
+	// - Tier 15-49 (Medium): NHIA mandatory health insurance & NSITF ECS 1%
+	// - Tier 50-249 (Large) / 250+ (Enterprise): NCCG Corporate Governance & Full Statutory Committee
+	if req.EmployeeCount != "1-4" {
+		obligationsToSeed = append(obligationsToSeed, GeneratedObligation{
+			Title:     "Monthly Contributory Pension Remittance to Licensed PFAs (10% Employer + 8% Employee)",
+			Authority: "PENCOM",
+			DueDate:   time.Now().AddDate(0, 0, 10).Format("2006-01-02"),
+			Penalty:   50000,
+			IsUrgent:  false,
+		})
+		obligationsToSeed = append(obligationsToSeed, GeneratedObligation{
+			Title:     "Annual Industrial Training Fund (ITF) 1% Payroll Remittance",
+			Authority: "ITF",
+			DueDate:   time.Now().AddDate(0, 3, 0).Format("2006-01-02"),
+			Penalty:   100000,
+			IsUrgent:  false,
+		})
+	}
+
+	if req.EmployeeCount == "15-49" || req.EmployeeCount == "50-249" || req.EmployeeCount == "250+" {
+		obligationsToSeed = append(obligationsToSeed, GeneratedObligation{
+			Title:     "Corporate Health Insurance Statutory Coverage (NHIA Act 2022)",
+			Authority: "NHIA",
+			DueDate:   time.Now().AddDate(0, 1, 15).Format("2006-01-02"),
+			Penalty:   200000,
+			IsUrgent:  false,
+		})
+		obligationsToSeed = append(obligationsToSeed, GeneratedObligation{
+			Title:     "Monthly Employees' Compensation Scheme Remittance (NSITF 1% Payroll Levy)",
+			Authority: "NSITF",
+			DueDate:   time.Now().AddDate(0, 0, 16).Format("2006-01-02"),
+			Penalty:   50000,
+			IsUrgent:  false,
+		})
+	}
+
+	if req.EmployeeCount == "50-249" || req.EmployeeCount == "250+" {
+		obligationsToSeed = append(obligationsToSeed, GeneratedObligation{
+			Title:     "Nigerian Code of Corporate Governance (NCCG 2018) Annual Compliance Return",
+			Authority: "FRCN / CAC",
+			DueDate:   time.Now().AddDate(0, 6, 0).Format("2006-01-02"),
+			Penalty:   500000,
+			IsUrgent:  false,
+		})
+	}
 
 	for _, o := range obligationsToSeed {
 		_, _ = tx.Exec(ctx, `

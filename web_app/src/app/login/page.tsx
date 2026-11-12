@@ -21,7 +21,7 @@ import { api } from "@/lib/api";
 export default function LoginPage() {
   const router = useRouter();
   const { switchRole, login } = useAuth();
-  const [selectedRole, setSelectedRole] = useState<"BUSINESS" | "EXPERT" | "AGENCY">("BUSINESS");
+  const [selectedRole, setSelectedRole] = useState<"BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN">("BUSINESS");
   const [email, setEmail] = useState("adaeze@paywave.ng");
   const [password, setPassword] = useState("••••••••••••");
   const [loading, setLoading] = useState(false);
@@ -79,9 +79,13 @@ export default function LoginPage() {
         });
 
         if (selectedRole === "BUSINESS") {
-          router.push("/business/dashboard");
+          router.push("/business/dashboard/");
+        } else if (selectedRole === "ADMIN") {
+          router.push("/admin/dashboard/");
+        } else if (selectedRole === "STAFF") {
+          router.push("/staff/dashboard/");
         } else {
-          router.push("/practice/dashboard");
+          router.push("/practice/dashboard/");
         }
         return;
       }
@@ -93,9 +97,13 @@ export default function LoginPage() {
     switchRole(selectedRole);
     setLoading(false);
     if (selectedRole === "BUSINESS") {
-      router.push("/business/dashboard");
+      router.push("/business/dashboard/");
+    } else if (selectedRole === "ADMIN") {
+      router.push("/admin/dashboard/");
+    } else if (selectedRole === "STAFF") {
+      router.push("/staff/dashboard/");
     } else {
-      router.push("/practice/dashboard");
+      router.push("/practice/dashboard/");
     }
   };
 

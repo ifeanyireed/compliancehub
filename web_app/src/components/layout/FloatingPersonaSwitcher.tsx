@@ -69,7 +69,7 @@ export function FloatingPersonaSwitcher() {
       accentBg: "bg-[#0089C1]",
       avatar: "/character3.jpg",
       icon: Building2,
-      dashboardPath: "/business/dashboard",
+      dashboardPath: "/business/dashboard/",
       description: "Company founder managing CAC annual filings, TaxPro-MAX FIRS returns, NDPC data audits, and staff AML training."
     },
     {
@@ -83,7 +83,7 @@ export function FloatingPersonaSwitcher() {
       accentBg: "bg-[#245C44]",
       avatar: "/character1.jpg",
       icon: Briefcase,
-      dashboardPath: "/practice/dashboard",
+      dashboardPath: "/practice/dashboard/",
       description: "Independent compliance practitioner managing 8 corporate clients, statutory tasks, and monthly retainers."
     },
     {
@@ -97,7 +97,7 @@ export function FloatingPersonaSwitcher() {
       accentBg: "bg-purple-600",
       avatar: "/character2.jpg",
       icon: Users2,
-      dashboardPath: "/practice/agency",
+      dashboardPath: "/practice/agency/",
       description: "Corporate advisory firm lead supervising 4 junior associates, 24 corporate clients, and agency billing."
     },
     {
@@ -111,7 +111,7 @@ export function FloatingPersonaSwitcher() {
       accentBg: "bg-amber-500",
       avatar: "/character4.jpg",
       icon: Headphones,
-      dashboardPath: "/staff/dashboard",
+      dashboardPath: "/staff/dashboard/",
       description: "Support desk lead handling visitor live chats, regulatory tickets, and knowledge base guidance."
     },
     {
@@ -125,7 +125,7 @@ export function FloatingPersonaSwitcher() {
       accentBg: "bg-rose-600",
       avatar: "/character5.jpg",
       icon: ShieldAlert,
-      dashboardPath: "/admin/dashboard",
+      dashboardPath: "/admin/dashboard/",
       description: "Super admin managing system metrics, CMS regulatory blog articles, users, retainers, and audit trails."
     }
   ];

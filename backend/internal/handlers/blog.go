@@ -354,7 +354,25 @@ func CreateBlogPost(w http.ResponseWriter, r *http.Request) {
 			meta_title, meta_description, canonical_url, og_image,
 			view_count, published_at, created_at, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 0, NOW(), NOW(), NOW()) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 0, NOW(), NOW(), NOW())
+		ON CONFLICT (slug) DO UPDATE SET
+			title = EXCLUDED.title,
+			excerpt = EXCLUDED.excerpt,
+			content = EXCLUDED.content,
+			author_name = EXCLUDED.author_name,
+			author_role = EXCLUDED.author_role,
+			author_avatar = EXCLUDED.author_avatar,
+			author_bio = EXCLUDED.author_bio,
+			category = EXCLUDED.category,
+			tags = EXCLUDED.tags,
+			read_time = EXCLUDED.read_time,
+			status = EXCLUDED.status,
+			cover_image = EXCLUDED.cover_image,
+			meta_title = EXCLUDED.meta_title,
+			meta_description = EXCLUDED.meta_description,
+			canonical_url = EXCLUDED.canonical_url,
+			og_image = EXCLUDED.og_image,
+			updated_at = NOW()
 		RETURNING id, published_at, created_at, updated_at
 	`
 
@@ -390,12 +408,11 @@ func UpdateBlogPost(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	parts := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
-	idStr := parts[len(parts)-1]
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
+	idOrSlug := strings.TrimSpace(parts[len(parts)-1])
+	if idOrSlug == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid post ID format"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "Post ID or slug is required"})
 		return
 	}
 
@@ -423,16 +440,16 @@ func UpdateBlogPost(w http.ResponseWriter, r *http.Request) {
 			category = $9, tags = $10, read_time = $11, status = $12, cover_image = $13,
 			meta_title = $14, meta_description = $15, canonical_url = $16, og_image = $17,
 			updated_at = NOW()
-		WHERE id = $18
+		WHERE id::text = $18 OR slug = $18
 		RETURNING id, published_at, created_at, updated_at
 	`
 
-	err = db.Pool.QueryRow(ctx, query,
+	err := db.Pool.QueryRow(ctx, query,
 		p.Title, p.Slug, p.Excerpt, p.Content,
 		p.AuthorName, p.AuthorRole, p.AuthorAvatar, p.AuthorBio,
 		p.Category, p.Tags, p.ReadTime, p.Status, p.CoverImage,
 		p.MetaTitle, p.MetaDescription, p.CanonicalURL, p.OgImage,
-		id,
+		idOrSlug,
 	).Scan(&p.ID, &p.PublishedAt, &p.CreatedAt, &p.UpdatedAt)
 
 	if err != nil {
@@ -452,16 +469,15 @@ func DeleteBlogPost(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	parts := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
-	idStr := parts[len(parts)-1]
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
+	idOrSlug := strings.TrimSpace(parts[len(parts)-1])
+	if idOrSlug == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid post ID format"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "Post ID or slug is required"})
 		return
 	}
 
-	_, err = db.Pool.Exec(ctx, "DELETE FROM blog_posts WHERE id = $1", id)
+	_, err := db.Pool.Exec(ctx, "DELETE FROM blog_posts WHERE id::text = $1 OR slug = $1", idOrSlug)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)

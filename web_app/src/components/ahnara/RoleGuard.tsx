@@ -30,13 +30,13 @@ export function RoleGuard({
         if (!allowedRolesUpper.includes(userRoleUpper)) {
           // Route mismatched roles to their designated home cockpit
           if (userRoleUpper === "BUSINESS") {
-            router.push("/business/dashboard");
+            router.push("/business/dashboard/");
           } else if (userRoleUpper === "EXPERT" || userRoleUpper === "AGENCY") {
-            router.push("/practice/dashboard");
+            router.push("/practice/dashboard/");
           } else if (userRoleUpper === "STAFF") {
-            router.push("/staff/dashboard");
+            router.push("/staff/dashboard/");
           } else if (userRoleUpper === "ADMIN") {
-            router.push("/admin/dashboard");
+            router.push("/admin/dashboard/");
           } else {
             router.push(fallbackRoute);
           }

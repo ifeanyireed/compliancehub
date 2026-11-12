@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { api } from "@/lib/api";
+import { CAC_SECTORS, COMPLIANCE_HEADCOUNT_TIERS } from "@/lib/cacIndustries";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -27,9 +28,17 @@ export default function OnboardingPage() {
   // Step 1: Business profile
   const [businessName, setBusinessName] = useState("PayWave Technologies Ltd");
   const [rcNumber, setRcNumber] = useState("RC-1894231");
-  const [industry, setIndustry] = useState("FinTech & Digital Payments");
+  const [industry, setIndustry] = useState("Payment Solutions Service Provider (PSSP) & Payment Gateway");
   const [state, setState] = useState("Lagos");
-  const [employeeCount, setEmployeeCount] = useState("35");
+  const [employeeCount, setEmployeeCount] = useState("5-14");
+
+  const NIGERIAN_STATES = [
+    "Lagos", "FCT Abuja", "Rivers", "Kano", "Oyo", "Delta", "Ogun", "Anambra", 
+    "Abia", "Adamawa", "Akwa Ibom", "Bauchi", "Bayelsa", "Benue", "Borno", 
+    "Cross River", "Ebonyi", "Edo", "Ekiti", "Enugu", "Gombe", "Imo", 
+    "Jigawa", "Kaduna", "Katsina", "Kebbi", "Kogi", "Kwara", "Nasarawa", 
+    "Niger", "Ondo", "Osun", "Plateau", "Sokoto", "Taraba", "Yobe", "Zamfara"
+  ];
 
   // Step 2: Classification Questions
   const [collectsPersonalData, setCollectsPersonalData] = useState(true);
@@ -69,7 +78,7 @@ export default function OnboardingPage() {
       console.warn("Onboarding API error, continuing:", err);
     } finally {
       switchRole("BUSINESS");
-      router.push("/business/dashboard");
+      router.push("/business/dashboard/");
     }
   };
 
@@ -159,47 +168,125 @@ export default function OnboardingPage() {
                       onChange={(e) => setState(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
                     >
-                      <option value="Lagos">Lagos State</option>
-                      <option value="Abuja">FCT Abuja</option>
-                      <option value="Rivers">Rivers (Port Harcourt)</option>
-                      <option value="Kano">Kano State</option>
-                      <option value="Oyo">Oyo (Ibadan)</option>
-                      <option value="Delta">Delta State</option>
+                      {NIGERIAN_STATES.map((s) => (
+                        <option key={s} value={s}>{s} State</option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Primary Industry Sector</label>
-                    <select
-                      value={industry}
-                      onChange={(e) => setIndustry(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
-                    >
-                      <option value="FinTech & Digital Payments">FinTech & Digital Payments</option>
-                      <option value="Supply Chain & Logistics">Supply Chain & Logistics</option>
-                      <option value="Healthcare & HMO">Healthcare & HMO</option>
-                      <option value="Retail & Consumer Goods (DNFBP)">Retail & Consumer Goods (DNFBP)</option>
-                      <option value="Agro-Processing & Commodity Export">Agro-Processing & Commodity Export</option>
-                      <option value="Legal & Professional Services">Legal & Professional Services</option>
-                      <option value="Real Estate & Construction">Real Estate & Construction</option>
-                    </select>
+                {/* CAC Nature of Business / Primary Industry Sector */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Primary Industry Sector (CAC Nature of Business)
+                    </label>
+                    <span className="text-[10px] text-[#0089C1] font-bold uppercase tracking-wider">
+                      CAC NISIC Framework (21 Sectors)
+                    </span>
                   </div>
+                  <select
+                    value={industry}
+                    onChange={(e) => {
+                      const selectedVal = e.target.value;
+                      setIndustry(selectedVal);
+                      // Auto-detect DNFBP if subcategory matches
+                      for (const sec of CAC_SECTORS) {
+                        const matchedSub = sec.subCategories.find(s => s.name === selectedVal);
+                        if (matchedSub?.isDnfbp) {
+                          setIsDnfbp(true);
+                        }
+                      }
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30 font-medium"
+                  >
+                    {CAC_SECTORS.map((sector) => (
+                      <optgroup key={sector.id} label={`${sector.code}: ${sector.name}`}>
+                        {sector.subCategories.map((sub) => (
+                          <option key={sub.id} value={sub.name}>
+                            {sub.name} {sub.regulatoryBody ? `• (${sub.regulatoryBody})` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Employee Headcount</label>
-                    <select
-                      value={employeeCount}
-                      onChange={(e) => setEmployeeCount(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
-                    >
-                      <option value="1-10">1 – 10 Employees</option>
-                      <option value="11-50">11 – 50 Employees</option>
-                      <option value="51-200">51 – 200 Employees</option>
-                      <option value="200+">200+ Employees (Large Corporate)</option>
-                    </select>
+                  {/* Dynamic Sector Telemetry & Regulatory Supervisor Badge */}
+                  {(() => {
+                    for (const sec of CAC_SECTORS) {
+                      const matched = sec.subCategories.find(s => s.name === industry);
+                      if (matched) {
+                        return (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
+                            <span className="font-semibold text-slate-800">CAC Sector:</span> {sec.name}
+                            <span className="w-1 h-1 rounded-full bg-slate-300" />
+                            {sec.regulatoryBody && (
+                              <span className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-sky-200">
+                                Regulator: {sec.regulatoryBody}
+                              </span>
+                            )}
+                            {matched.isDnfbp && (
+                              <span className="bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-bold border border-amber-200">
+                                SCUML DNFBP Entity (AML/CFT Required)
+                              </span>
+                            )}
+                            {matched.requiresSpecialLicense && (
+                              <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-purple-200">
+                                Special Operating License Required
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                    }
+                    return null;
+                  })()}
+                </div>
+
+                {/* Employee Headcount & Statutory Compliance Tiers */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Employee Headcount & Compliance Tier
+                    </label>
+                    <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
+                      PENCOM, ITF & CAMA Thresholds
+                    </span>
                   </div>
+                  <select
+                    value={employeeCount}
+                    onChange={(e) => setEmployeeCount(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30 font-medium"
+                  >
+                    {COMPLIANCE_HEADCOUNT_TIERS.map((tier) => (
+                      <option key={tier.id} value={tier.id}>
+                        {tier.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Statutory Legal Threshold Implications Box */}
+                  {(() => {
+                    const selectedTier = COMPLIANCE_HEADCOUNT_TIERS.find(t => t.id === employeeCount) || COMPLIANCE_HEADCOUNT_TIERS[1];
+                    return (
+                      <div className="mt-2.5 p-3 rounded-2xl bg-slate-100/90 border border-slate-200/90 text-[11px] text-slate-600 space-y-1.5">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                          <ShieldCheck className="w-4 h-4 text-[#0089C1]" />
+                          <span>{selectedTier.category} Tier Statutory Requirements:</span>
+                        </div>
+                        <p className="leading-relaxed text-[11px] text-slate-600">
+                          {selectedTier.statutoryImplications}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {selectedTier.mandatoryStatutes.map((statute, i) => (
+                            <span key={i} className="bg-white border border-slate-200/80 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded-lg shadow-2xs">
+                              {statute}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

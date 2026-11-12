@@ -18,6 +18,22 @@ export function CompliancePublicNav() {
   const cleanPath = (pathname || "").replace(/\/+$/, "");
   const { user } = useAuth();
 
+  const getDashboardHref = () => {
+    if (!user) return "/login";
+    switch (user.role) {
+      case "ADMIN":
+        return "/admin/dashboard/";
+      case "STAFF":
+        return "/staff/dashboard/";
+      case "EXPERT":
+      case "AGENCY":
+        return "/practice/dashboard/";
+      case "BUSINESS":
+      default:
+        return "/business/dashboard/";
+    }
+  };
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", handleScroll);
@@ -106,12 +122,7 @@ export function CompliancePublicNav() {
           </Link>
 
           {user ? (
-            <Link href={
-              user.role === "BUSINESS" ? "/business/dashboard" :
-              user.role === "ADMIN" ? "/admin/dashboard" :
-              user.role === "STAFF" ? "/staff/dashboard" :
-              "/practice/dashboard"
-            }>
+            <Link href={getDashboardHref()}>
               <button className="bg-[#1E293B] text-white hover:bg-slate-800 transition-all font-bold px-5 py-2.5 rounded-full text-sm shadow-sm">
                 Dashboard
               </button>
@@ -172,7 +183,7 @@ export function CompliancePublicNav() {
                 </button>
               </Link>
               <Link 
-                href={user?.role === "BUSINESS" ? "/business/dashboard" : "/practice/dashboard"} 
+                href={getDashboardHref()} 
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <button className="w-full bg-[#1E293B] text-white hover:bg-slate-800 font-bold py-3 rounded-full text-sm shadow-sm text-center">

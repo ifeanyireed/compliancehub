@@ -582,7 +582,7 @@ func main() {
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("🚀 ComplianceHub Go API server listening on http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, withCORS(mux.ServeHTTP)); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }

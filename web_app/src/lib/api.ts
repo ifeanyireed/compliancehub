@@ -68,6 +68,28 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers.set("Content-Type", "application/json");
   }
 
+  const isAuthEndpoint =
+    endpoint.startsWith("/v1/auth/login") ||
+    endpoint.startsWith("/v1/auth/register") ||
+    endpoint.startsWith("/v1/auth/forgot-password") ||
+    endpoint.startsWith("/v1/auth/reset-password") ||
+    endpoint.startsWith("/v1/onboarding/classify");
+
+  // Prefer same-origin Next.js Neon API route on the client to avoid CORS/cold-start failures
+  if (typeof window !== "undefined" && !isAuthEndpoint) {
+    try {
+      const localResponse = await fetch(`/api${endpoint}`, {
+        ...options,
+        headers,
+      });
+      if (localResponse.ok) {
+        return await localResponse.json();
+      }
+    } catch (_) {
+      // Fall through to external API_BASE_URL
+    }
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
@@ -84,9 +106,21 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    return await response.json();
   } catch (err) {
-    console.error(`[ComplianceHub API] Request failed for ${endpoint}:`, err);
+    // Fallback to local Next.js API route if primary external backend failed
+    if (typeof window !== "undefined" && isAuthEndpoint) {
+      try {
+        const fallbackRes = await fetch(`/api${endpoint}`, {
+          ...options,
+          headers,
+        });
+        if (fallbackRes.ok) {
+          return await fallbackRes.json();
+        }
+      } catch (_) {}
+    }
+    console.warn(`[ComplianceHub API] Request fallback notice for ${endpoint}:`, err);
     return null;
   }
 }
@@ -330,7 +364,7 @@ export const api = {
     getPosts: async (params?: { category?: string; status?: string; search?: string; tag?: string; page?: number; limit?: number }) => {
       const q = new URLSearchParams();
       if (params?.category && params.category !== "ALL" && params.category !== "All") q.set("category", params.category);
-      if (params?.status && params.status !== "ALL") q.set("status", params.status);
+      if (params?.status) q.set("status", params.status);
       if (params?.search) q.set("search", params.search);
       if (params?.tag) q.set("tag", params.tag);
       if (params?.page) q.set("page", String(params.page));
@@ -341,7 +375,7 @@ export const api = {
         const localRes = await fetch(`/api/blog${queryStr}`);
         if (localRes.ok) {
           const data = await localRes.json();
-          if (Array.isArray(data) && data.length > 0) return data;
+          if (Array.isArray(data)) return data;
         }
       } catch (_) {}
 
