@@ -309,7 +309,7 @@ export async function PUT(
     const coverImage = body.cover_image !== undefined ? body.cover_image : (existing.cover_image || "/article_professional.jpg");
     const authorName = body.author_name || existing.author_name || "Dr. Olumide Adeleke";
     const authorRole = body.author_role || existing.author_role || "Super Administrator & Compliance Director";
-    const authorAvatar = body.author_avatar || existing.author_avatar || "/character5.jpg";
+    const authorAvatar = body.author_avatar !== undefined ? body.author_avatar : (existing.author_avatar || "");
     const authorBio = body.author_bio !== undefined ? body.author_bio : (existing.author_bio || "");
 
     const rows = await sql.query(

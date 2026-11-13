@@ -41,7 +41,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
     <RoleGuard allowedRoles={["BUSINESS", "ADMIN"]}>
       <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col select-none">
         {/* Top Header matching AntifakeNG styling */}
-        <header className="px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 bg-transparent border-b border-slate-300/30">
+        <header className="sticky top-0 z-40 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 bg-[#E8EFF4]/90 backdrop-blur-md border-b border-slate-300/40">
           
           {/* Left: Brand */}
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">

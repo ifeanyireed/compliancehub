@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -10,14 +10,8 @@ import {
   Users2, 
   Receipt, 
   Settings, 
-  ShieldAlert, 
-  ExternalLink, 
-  Sparkles, 
-  ChevronRight, 
-  Database,
-  Building2,
-  Menu,
-  X
+  Bell,
+  LogOut
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { RoleGuard } from "@/components/ahnara/RoleGuard";
@@ -28,121 +22,109 @@ export default function SuperAdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   const navItems = [
-    { label: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "Blog & CMS", href: "/admin/blog", icon: FileText },
-    { label: "Support Operations", href: "/admin/support", icon: Headphones },
-    { label: "Companies & Users", href: "/admin/users", icon: Users2 },
-    { label: "Invoices & Billing", href: "/admin/invoices", icon: Receipt },
-    { label: "System Settings", href: "/admin/settings", icon: Settings },
+    { name: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
+    { name: "Blog & CMS", href: "/admin/blog", icon: FileText },
+    { name: "Support Operations", href: "/admin/support", icon: Headphones },
+    { name: "Companies & Users", href: "/admin/users", icon: Users2 },
+    { name: "Invoices & Billing", href: "/admin/invoices", icon: Receipt },
+    { name: "System Settings", href: "/admin/settings", icon: Settings },
   ];
 
   return (
     <RoleGuard allowedRoles={["ADMIN"]}>
       <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col select-none">
-        {/* Top Header */}
-        <header className="px-6 py-4 flex items-center justify-between gap-4 bg-transparent border-b border-slate-300/30">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-              className="md:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-700"
-            >
-              {mobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-
+        {/* Top Header matching Business Dashboard Header Nav */}
+        <header className="sticky top-0 z-40 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 bg-[#E8EFF4]/90 backdrop-blur-md border-b border-slate-300/40">
+          
+          {/* Left: Brand */}
+          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white p-1.5 shadow-xs flex items-center justify-center font-black">
-                <ShieldAlert className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 p-1.5 shadow-xs flex items-center justify-center">
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div>
                 <span className="text-lg font-black tracking-tight text-slate-900 text-display">
                   ComplianceHub
                 </span>
-                <span className="block text-[10px] font-black text-rose-600 uppercase tracking-wider">
+                <span className="block text-[10px] font-black text-[#0089C1] uppercase tracking-wider">
                   Super Admin Cockpit
                 </span>
               </div>
             </Link>
-
-            {/* Database Live Badge */}
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-[11px] font-bold">
-              <Database className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Neon Lakebase Postgres (aws-us-east-2)</span>
-            </div>
           </div>
 
-          {/* Top Right Controls */}
-          <div className="flex items-center gap-3">
-            <Link href="/" target="_blank">
-              <button className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-xs">
-                <span>View Public Portal</span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
-              </button>
-            </Link>
-
-            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-              <img
-                src={user?.avatar || "/character5.jpg"}
-                alt={user?.name || "Admin"}
-                className="w-7 h-7 rounded-full object-cover border border-rose-300"
-              />
-              <div className="hidden sm:block text-left">
-                <p className="text-xs font-bold text-slate-900 leading-tight">{user?.name || "Dr. Olumide Adeleke"}</p>
-                <p className="text-[10px] text-rose-600 font-bold uppercase tracking-wider">Super Administrator</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Main Body */}
-        <div className="flex-1 flex max-w-7xl w-full mx-auto px-6 py-6 gap-6">
-          {/* Desktop Sidebar Navigation */}
-          <aside className="hidden md:flex flex-col w-60 shrink-0 gap-1.5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-1">
-              Platform Management
-            </div>
+          {/* Center: Top Capsule Pill Tab Menu */}
+          <nav className="flex items-center gap-1 bg-[#DDEEF3] p-1 rounded-2xl border border-slate-300/30 overflow-x-auto max-w-full">
             {navItems.map((item) => {
-              const Icon = item.icon;
               const normalizedPath = (pathname || "").replace(/\/+$/, "");
               const itemHrefClean = item.href.replace(/\/+$/, "");
               const isActive =
                 normalizedPath === itemHrefClean ||
                 (itemHrefClean !== "/admin" && normalizedPath.startsWith(`${itemHrefClean}/`));
+              const Icon = item.icon;
               return (
                 <Link
-                  key={item.href}
+                  key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all duration-200 ${
                     isActive
-                      ? "bg-[#1E293B] text-white shadow-md shadow-slate-900/10"
-                      : "bg-white/60 hover:bg-white text-slate-700 border border-slate-200/60 hover:border-slate-300"
+                      ? "bg-[#1E293B] text-white shadow-sm font-bold"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-300/20 font-semibold"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-rose-400" : "text-slate-500"}`} />
-                  <span>{item.label}</span>
+                  <Icon className={`w-4 h-4 ${isActive ? "text-[#0089C1]" : "text-slate-500"}`} />
+                  <span>{item.name}</span>
                 </Link>
               );
             })}
+          </nav>
 
-            <div className="mt-6 p-4 rounded-3xl bg-gradient-to-tr from-[#1E293B] to-slate-800 text-white shadow-md">
-              <div className="flex items-center gap-2 text-rose-400 text-[10px] font-bold uppercase tracking-wider mb-1">
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Audit Mode Active</span>
+          {/* Right: Notifications & Profile */}
+          <div className="flex items-center gap-3">
+            {/* Urgent Alerts Bell */}
+            <Link
+              href="/admin/support"
+              className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all relative bg-white shadow-xs"
+              title="Support & System Alerts"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+            </Link>
+
+            <div className="h-6 w-px bg-slate-300/60 hidden sm:block" />
+
+            {/* User Profile */}
+            <Link href="/admin/settings" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+              <img
+                src={user?.avatar || "/character5.jpg"}
+                alt={user?.name || "Super Admin"}
+                className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-xs"
+              />
+              <div className="text-left hidden lg:block">
+                <p className="font-bold text-xs text-slate-900 leading-none">{user?.name || "Dr. Olumide Adeleke"}</p>
+                <span className="text-[9px] text-[#0089C1] font-bold uppercase tracking-wider block mt-0.5">
+                  {user?.title || "Super Administrator"}
+                </span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                You are operating in Super Administrator mode. All mutations reflect across the entire Nigerian tenant directory.
-              </p>
-            </div>
-          </aside>
+            </Link>
 
-          {/* Content Area */}
-          <main className="flex-1 min-w-0">
-            {children}
-          </main>
-        </div>
+            <button
+              onClick={logout}
+              className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-all bg-white shadow-xs"
+              title="Log Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        {/* Main Workspace Body */}
+        <main className="flex-1 px-4 sm:px-8 pt-6 pb-12 max-w-7xl mx-auto w-full">
+          {children}
+        </main>
       </div>
     </RoleGuard>
   );

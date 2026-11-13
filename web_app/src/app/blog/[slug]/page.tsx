@@ -248,11 +248,18 @@ export default function SingleBlogPostPage() {
             {/* Author Card & Actions */}
             <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5">
-                <img
-                  src={post.author_avatar || "/character1.jpg"}
-                  alt={post.author_name}
-                  className="w-12 h-12 rounded-2xl object-cover border border-slate-300 shadow-xs"
-                />
+                {post.author_avatar ? (
+                  <img
+                    src={post.author_avatar}
+                    alt={post.author_name}
+                    referrerPolicy={post.author_avatar.startsWith("http") ? "no-referrer" : undefined}
+                    className="w-12 h-12 rounded-2xl object-cover border border-slate-300 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white text-sm font-black flex items-center justify-center border border-slate-300 shadow-xs shrink-0">
+                    {(post.author_name || "A").trim().charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div>
                   <div className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
                     <span>{post.author_name}</span>
@@ -340,11 +347,18 @@ export default function SingleBlogPostPage() {
           {/* Author Bio Card */}
           {post.author_bio && (
             <div className="mt-10 bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-5">
-              <img
-                src={post.author_avatar || "/character1.jpg"}
-                alt={post.author_name}
-                className="w-16 h-16 rounded-2xl object-cover border border-slate-300 shadow-xs shrink-0"
-              />
+              {post.author_avatar ? (
+                <img
+                  src={post.author_avatar}
+                  alt={post.author_name}
+                  referrerPolicy={post.author_avatar.startsWith("http") ? "no-referrer" : undefined}
+                  className="w-16 h-16 rounded-2xl object-cover border border-slate-300 shadow-xs shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-slate-900 text-white text-lg font-black flex items-center justify-center border border-slate-300 shadow-xs shrink-0">
+                  {(post.author_name || "A").trim().charAt(0).toUpperCase()}
+                </div>
+              )}
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-400">About the Author</div>
                 <div className="text-base font-extrabold text-slate-900 mt-0.5">{post.author_name}</div>

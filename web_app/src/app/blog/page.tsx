@@ -289,11 +289,18 @@ export default function BlogListingPage() {
 
                       <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-2.5">
-                          <img
-                            src={featuredPost.author_avatar || "/character1.jpg"}
-                            alt={featuredPost.author_name}
-                            className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                          />
+                          {featuredPost.author_avatar ? (
+                            <img
+                              src={featuredPost.author_avatar}
+                              alt={featuredPost.author_name}
+                              referrerPolicy={featuredPost.author_avatar.startsWith("http") ? "no-referrer" : undefined}
+                              className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center border border-slate-200 shrink-0">
+                              {(featuredPost.author_name || "A").trim().charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           <div>
                             <div className="text-xs font-bold text-slate-800">{featuredPost.author_name}</div>
                             <div className="text-[10px] text-slate-400">{featuredPost.author_role}</div>

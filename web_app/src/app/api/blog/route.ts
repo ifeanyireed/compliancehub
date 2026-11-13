@@ -125,7 +125,7 @@ export async function POST(request: Request) {
     const coverImage = body.cover_image || "/article_professional.jpg";
     const authorName = body.author_name || "Dr. Olumide Adeleke";
     const authorRole = body.author_role || "Super Administrator & Compliance Director";
-    const authorAvatar = body.author_avatar || "/character5.jpg";
+    const authorAvatar = body.author_avatar || "";
     const authorBio = body.author_bio || "";
     const category = body.category || "Taxation & FIRS";
     const tags: string[] = Array.isArray(body.tags)

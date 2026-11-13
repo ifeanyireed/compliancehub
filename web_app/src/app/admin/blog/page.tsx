@@ -30,7 +30,7 @@ import {
   Loader2
 } from "lucide-react";
 import { api } from "@/lib/api";
-import { copyBlogUrlToClipboard, getPublicBlogUrl } from "@/lib/blog-utils";
+import { copyBlogUrlToClipboard, getPublicBlogUrl, uploadBlogImageFile } from "@/lib/blog-utils";
 
 interface BlogPost {
   id: number;
@@ -124,6 +124,7 @@ export default function AdminBlogCMSPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [uploadingPostId, setUploadingPostId] = useState<number | null>(null);
   const [activeUploadPost, setActiveUploadPost] = useState<BlogPost | null>(null);
+  const [failedThumbnails, setFailedThumbnails] = useState<Record<number, boolean>>({});
   const quickFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const showToast = (msg: string) => {
@@ -138,46 +139,23 @@ export default function AdminBlogCMSPage() {
 
     setUploadingPostId(targetPost.id);
     try {
-      let uploadedUrl = "";
-      try {
-        const sigData = await api.documents.getUploadSignature(file.name, "Blog_Editorial");
-        if (sigData && sigData.signature) {
-          const formData = new FormData();
-          formData.append("file", file);
-          formData.append("api_key", sigData.api_key);
-          formData.append("timestamp", String(sigData.timestamp));
-          formData.append("signature", sigData.signature);
-          formData.append("folder", sigData.folder);
-          formData.append("public_id", sigData.public_id);
-
-          const cloudName = sigData.cloud_name || "yugcjpau";
-          const cldRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-            method: "POST",
-            body: formData,
-          });
-          if (cldRes.ok) {
-            const cldJson = await cldRes.json();
-            if (cldJson?.secure_url) {
-              uploadedUrl = cldJson.secure_url;
-            }
-          }
-        }
-      } catch (_) {}
-
-      if (!uploadedUrl) {
-        uploadedUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result || ""));
-          reader.onerror = () => reject(new Error("Failed to read file"));
-          reader.readAsDataURL(file);
-        });
-      }
+      const uploadedUrl = await uploadBlogImageFile(file, (instantPreviewUrl) => {
+        setFailedThumbnails((prev) => ({ ...prev, [targetPost.id]: false }));
+        setPosts((prev) =>
+          prev.map((p) => (p.id === targetPost.id ? { ...p, cover_image: instantPreviewUrl } : p))
+        );
+      });
 
       if (uploadedUrl) {
-        await api.blog.updatePost(targetPost.id, { ...targetPost, cover_image: uploadedUrl });
+        setFailedThumbnails((prev) => ({ ...prev, [targetPost.id]: false }));
         setPosts((prev) =>
           prev.map((p) => (p.id === targetPost.id ? { ...p, cover_image: uploadedUrl } : p))
         );
+        await api.blog.updatePost(targetPost.id, {
+          ...targetPost,
+          cover_image: uploadedUrl,
+          og_image: uploadedUrl,
+        });
         showToast("Featured cover image updated!");
       }
     } catch (err: any) {
@@ -533,13 +511,16 @@ export default function AdminBlogCMSPage() {
                           <div className="flex items-center gap-3.5">
                             {/* Featured Image Placeholder / Thumbnail with Upload Button */}
                             <div className="w-20 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 relative group shrink-0 flex items-center justify-center">
-                              {post.cover_image ? (
+                              {post.cover_image && !failedThumbnails[post.id] ? (
                                 <img
+                                  key={post.cover_image}
                                   src={post.cover_image}
                                   alt={post.title}
-                                  referrerPolicy="no-referrer"
-                                  loading="lazy"
-                                  className="w-full h-full object-cover"
+                                  referrerPolicy={post.cover_image.startsWith("http") ? "no-referrer" : undefined}
+                                  onError={() =>
+                                    setFailedThumbnails((prev) => ({ ...prev, [post.id]: true }))
+                                  }
+                                  className="absolute inset-0 w-full h-full object-cover block z-0"
                                 />
                               ) : (
                                 <ImageIcon className="w-5 h-5 text-slate-500" />
@@ -552,7 +533,7 @@ export default function AdminBlogCMSPage() {
                                   quickFileInputRef.current?.click();
                                 }}
                                 title="Upload Featured Cover Image"
-                                className="absolute inset-0 bg-slate-950/65 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5 text-white text-[9px] font-bold cursor-pointer"
+                                className="absolute inset-0 z-10 bg-slate-950/65 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5 text-white text-[9px] font-bold cursor-pointer"
                               >
                                 {uploadingPostId === post.id ? (
                                   <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-400" />
@@ -577,13 +558,19 @@ export default function AdminBlogCMSPage() {
                         </td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-2.5">
-                            <img
-                              src={post.author_avatar || "/character5.jpg"}
-                              alt={post.author_name || "Author"}
-                              referrerPolicy="no-referrer"
-                              loading="lazy"
-                              className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0 bg-slate-100"
-                            />
+                            {post.author_avatar ? (
+                              <img
+                                key={post.author_avatar}
+                                src={post.author_avatar}
+                                alt={post.author_name || "Author"}
+                                referrerPolicy={post.author_avatar.startsWith("http") ? "no-referrer" : undefined}
+                                className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0 bg-slate-100"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center border border-slate-200 shrink-0">
+                                {(post.author_name || "A").trim().charAt(0).toUpperCase()}
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <div className="font-bold text-slate-800 truncate">{post.author_name}</div>
                               {post.author_role && (

@@ -40,18 +40,13 @@ import {
   calculateReadTime, 
   copyBlogUrlToClipboard, 
   getPublicBlogUrl,
+  uploadBlogImageFile,
   NIGERIAN_MEDIA_PRESETS 
 } from "@/lib/blog-utils";
 import { renderMarkdownAndMath } from "@/lib/markdown";
 import { loadKaTeX } from "@/lib/math-renderer";
 
-const PRACTITIONER_AVATAR_PRESETS = [
-  { label: "Dr. Olumide", url: "/character5.jpg" },
-  { label: "Barr. Amina", url: "/character1.jpg" },
-  { label: "Chinedu, SAN", url: "/character2.jpg" },
-  { label: "Tunde, CAMS", url: "/character3.jpg" },
-  { label: "Zainab, ACTI", url: "/character4.jpg" },
-];
+const WRITER_PROFILE_STORAGE_KEY = "compliancehub_blog_writer_profile";
 
 export default function BlogCreatePage() {
   return (
@@ -73,12 +68,12 @@ function BlogCreateContent() {
   const [category, setCategory] = useState("Taxation & FIRS");
   const [tags, setTags] = useState("Tax Act 2026, Compliance, FIRS");
   const [content, setContent] = useState("");
-  const [coverImage, setCoverImage] = useState(NIGERIAN_MEDIA_PRESETS[0].url);
+  const [coverImage, setCoverImage] = useState("");
 
   // Author Details
   const [authorName, setAuthorName] = useState("Dr. Olumide Adeleke");
   const [authorRole, setAuthorRole] = useState("Super Administrator & Compliance Director");
-  const [authorAvatar, setAuthorAvatar] = useState("/character5.jpg");
+  const [authorAvatar, setAuthorAvatar] = useState("");
   const [authorBio, setAuthorBio] = useState("Fellow of the Institute of Chartered Accountants of Nigeria (ICAN) with 15+ years of corporate tax regulatory experience.");
 
   // SEO
@@ -98,6 +93,8 @@ function BlogCreateContent() {
   const [uploadingAuthor, setUploadingAuthor] = useState(false);
   const [coverImageError, setCoverImageError] = useState(false);
   const [authorImageError, setAuthorImageError] = useState(false);
+  const [localCoverFallback, setLocalCoverFallback] = useState<string>("");
+  const [localAuthorFallback, setLocalAuthorFallback] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -127,6 +124,23 @@ function BlogCreateContent() {
       }
     }).catch(() => {});
 
+    // Load saved writer profile for new articles
+    if (!editId && typeof window !== "undefined") {
+      try {
+        const rawProfile = window.localStorage.getItem(WRITER_PROFILE_STORAGE_KEY);
+        if (rawProfile) {
+          const savedProfile = JSON.parse(rawProfile);
+          if (savedProfile.author_name) setAuthorName(savedProfile.author_name);
+          if (savedProfile.author_role) setAuthorRole(savedProfile.author_role);
+          if (savedProfile.author_avatar) {
+            setAuthorAvatar(savedProfile.author_avatar);
+            setAuthorImageError(false);
+          }
+          if (savedProfile.author_bio !== undefined) setAuthorBio(savedProfile.author_bio);
+        }
+      } catch (_) {}
+    }
+
     // If editing existing post, load data
     if (editId) {
       setPostId(editId);
@@ -140,9 +154,11 @@ function BlogCreateContent() {
           setTags(Array.isArray(post.tags) ? post.tags.join(", ") : (post.tags || ""));
           setContent(post.content || "");
           setCoverImage(post.cover_image || NIGERIAN_MEDIA_PRESETS[0].url);
+          setCoverImageError(false);
           setAuthorName(post.author_name || "Dr. Olumide Adeleke");
           setAuthorRole(post.author_role || "Super Administrator & Compliance Director");
-          setAuthorAvatar(post.author_avatar || "/character5.jpg");
+          setAuthorAvatar(post.author_avatar || "");
+          setAuthorImageError(false);
           setAuthorBio(post.author_bio || "");
           setMetaTitle(post.meta_title || "");
           setMetaDescription(post.meta_description || "");
@@ -177,54 +193,33 @@ function BlogCreateContent() {
     setContent(prev => prev + "\n" + syntax + "\n");
   };
 
-  const uploadImageFile = async (file: File): Promise<string> => {
-    try {
-      const sigData = await api.documents.getUploadSignature(file.name, "Blog_Editorial");
-      if (sigData && sigData.signature) {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("api_key", sigData.api_key);
-        formData.append("timestamp", String(sigData.timestamp));
-        formData.append("signature", sigData.signature);
-        formData.append("folder", sigData.folder);
-        formData.append("public_id", sigData.public_id);
-
-        const cloudName = sigData.cloud_name || "yugcjpau";
-        const cldRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-          method: "POST",
-          body: formData,
-        });
-        if (cldRes.ok) {
-          const cldJson = await cldRes.json();
-          if (cldJson?.secure_url) {
-            return cldJson.secure_url;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Direct Cloudinary upload fallback to local Data URL:", err);
-    }
-
-    // Resilient fallback: read image as Data URL so upload always succeeds
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Failed to read image file"));
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processCoverFileUpload = async (file: File) => {
     setUploadingCover(true);
-    setCoverImageError(false);
     try {
-      const uploadedUrl = await uploadImageFile(file);
+      const uploadedUrl = await uploadBlogImageFile(file, (instantPreviewUrl) => {
+        setLocalCoverFallback(instantPreviewUrl);
+        setCoverImage(instantPreviewUrl);
+        setCoverImageError(false);
+      });
+
       if (uploadedUrl) {
         setCoverImage(uploadedUrl);
-        if (!ogImage) setOgImage(uploadedUrl);
-        showToast("Featured cover image uploaded successfully!");
+        setCoverImageError(false);
+        if (!ogImage || ogImage.startsWith("data:")) {
+          setOgImage(uploadedUrl);
+        }
+
+        const activeTargetId = postId || editId;
+        if (activeTargetId) {
+          api.blog
+            .updatePost(activeTargetId, {
+              cover_image: uploadedUrl,
+              og_image: uploadedUrl,
+            })
+            .catch(() => {});
+        }
+
+        showToast("Featured cover image uploaded and displayed!");
       }
     } catch (err: any) {
       alert("Failed to upload featured image: " + (err?.message || err));
@@ -234,24 +229,17 @@ function BlogCreateContent() {
     }
   };
 
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processCoverFileUpload(file);
+  };
+
   const handleCoverDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
-    setUploadingCover(true);
-    setCoverImageError(false);
-    try {
-      const uploadedUrl = await uploadImageFile(file);
-      if (uploadedUrl) {
-        setCoverImage(uploadedUrl);
-        if (!ogImage) setOgImage(uploadedUrl);
-        showToast("Featured cover image uploaded successfully!");
-      }
-    } catch (err: any) {
-      alert("Failed to upload featured image: " + (err?.message || err));
-    } finally {
-      setUploadingCover(false);
-    }
+    await processCoverFileUpload(file);
   };
 
   const handleInlineFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -259,7 +247,7 @@ function BlogCreateContent() {
     if (!file) return;
     setUploadingInline(true);
     try {
-      const uploadedUrl = await uploadImageFile(file);
+      const uploadedUrl = await uploadBlogImageFile(file);
       if (uploadedUrl) {
         const cleanCaption = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ");
         insertMarkdown(`![${cleanCaption}](${uploadedUrl})`);
@@ -273,16 +261,28 @@ function BlogCreateContent() {
     }
   };
 
-  const handleAuthorFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processAuthorFileUpload = async (file: File) => {
     setUploadingAuthor(true);
-    setAuthorImageError(false);
     try {
-      const uploadedUrl = await uploadImageFile(file);
+      const uploadedUrl = await uploadBlogImageFile(file, (instantPreviewUrl) => {
+        setLocalAuthorFallback(instantPreviewUrl);
+        setAuthorAvatar(instantPreviewUrl);
+        setAuthorImageError(false);
+      });
       if (uploadedUrl) {
         setAuthorAvatar(uploadedUrl);
-        showToast("Author portrait image uploaded successfully!");
+        setAuthorImageError(false);
+
+        const activeTargetId = postId || editId;
+        if (activeTargetId) {
+          api.blog
+            .updatePost(activeTargetId, {
+              author_avatar: uploadedUrl,
+            })
+            .catch(() => {});
+        }
+
+        showToast("Author image uploaded! Profile will be saved when you publish.");
       }
     } catch (err: any) {
       alert("Failed to upload author image: " + (err?.message || err));
@@ -290,6 +290,19 @@ function BlogCreateContent() {
       setUploadingAuthor(false);
       if (authorFileInputRef.current) authorFileInputRef.current.value = "";
     }
+  };
+
+  const handleAuthorFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processAuthorFileUpload(file);
+  };
+
+  const handleAuthorDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    await processAuthorFileUpload(file);
   };
 
   const handleSave = async (submitStatus: "PUBLISHED" | "DRAFT") => {
@@ -324,13 +337,28 @@ function BlogCreateContent() {
         cover_image: coverImage || NIGERIAN_MEDIA_PRESETS[0].url,
         author_name: authorName || "Dr. Olumide Adeleke",
         author_role: authorRole || "Super Administrator & Compliance Director",
-        author_avatar: authorAvatar || "/character5.jpg",
+        author_avatar: authorAvatar || "",
         author_bio: authorBio,
         meta_title: metaTitle || resolvedTitle,
         meta_description: metaDescription || excerpt,
         canonical_url: canonicalUrl,
         og_image: ogImage || coverImage || NIGERIAN_MEDIA_PRESETS[0].url,
       };
+
+      // Save writer profile locally when publishing or saving
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(
+            WRITER_PROFILE_STORAGE_KEY,
+            JSON.stringify({
+              author_name: payload.author_name,
+              author_role: payload.author_role,
+              author_avatar: payload.author_avatar,
+              author_bio: payload.author_bio,
+            })
+          );
+        } catch (_) {}
+      }
 
       const targetId = postId || editId;
       let res: any = null;
@@ -667,7 +695,18 @@ function BlogCreateContent() {
                 />
               </div>
             ) : (
-              <div className="p-8 sm:p-12 article-prose max-w-none text-slate-800 leading-relaxed text-sm">
+              <div className="p-8 sm:p-12 article-prose max-w-none text-slate-800 leading-relaxed text-sm space-y-6">
+                {coverImage && !coverImageError && (
+                  <div className="w-full h-64 sm:h-80 rounded-2xl overflow-hidden border border-slate-200 relative bg-slate-900 mb-6">
+                    <img
+                      key={coverImage}
+                      src={coverImage}
+                      alt={title || "Featured Cover Preview"}
+                      referrerPolicy={coverImage.startsWith("http") ? "no-referrer" : undefined}
+                      className="absolute inset-0 w-full h-full object-cover block"
+                    />
+                  </div>
+                )}
                 {previewHtml ? (
                   <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                 ) : (
@@ -775,63 +814,69 @@ function BlogCreateContent() {
               className="hidden"
             />
 
-            {/* Featured Image Placeholder & Live Preview with Upload Button */}
+            {/* Featured Image Placeholder & Live Preview with Single Upload Button */}
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleCoverDrop}
-              className="h-48 w-full rounded-2xl overflow-hidden bg-slate-900 border-2 border-dashed border-slate-300 relative group flex items-center justify-center"
+              onClick={() => {
+                if ((!coverImage || coverImageError) && !uploadingCover) {
+                  coverFileInputRef.current?.click();
+                }
+              }}
+              className={`h-48 w-full rounded-2xl overflow-hidden bg-slate-900 border-2 border-dashed border-slate-300 relative group flex items-center justify-center ${
+                !coverImage || coverImageError ? "cursor-pointer hover:border-[#0089C1]" : ""
+              }`}
             >
               {coverImage && !coverImageError ? (
                 <>
                   <img
+                    key={coverImage}
                     src={coverImage}
                     alt="Selected Cover"
-                    referrerPolicy="no-referrer"
-                    loading="lazy"
-                    onError={() => setCoverImageError(true)}
-                    className="w-full h-full object-cover"
+                    referrerPolicy={coverImage.startsWith("http") ? "no-referrer" : undefined}
+                    onLoad={() => setCoverImageError(false)}
+                    onError={() => {
+                      if (localCoverFallback && coverImage !== localCoverFallback) {
+                        setCoverImage(localCoverFallback);
+                        setCoverImageError(false);
+                      } else {
+                        setCoverImageError(true);
+                      }
+                    }}
+                    className="absolute inset-0 w-full h-full object-cover block z-0"
                   />
-                  {/* Interactive Upload Overlay on Placeholder */}
-                  <div className="absolute inset-0 bg-slate-950/45 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-4">
+                  {/* Single Action Bar on the Placeholder */}
+                  <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-slate-950/85 via-slate-950/45 to-transparent p-3 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCoverImage("");
+                        setLocalCoverFallback("");
+                        setCoverImageError(false);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/90 hover:bg-white text-rose-600 text-[10px] font-bold shadow-xs transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Clear</span>
+                    </button>
                     <button
                       type="button"
                       disabled={uploadingCover}
-                      onClick={() => coverFileInputRef.current?.click()}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0089C1] hover:bg-sky-500 text-white text-xs font-bold shadow-lg transition-all cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        coverFileInputRef.current?.click();
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0089C1] hover:bg-sky-500 text-white text-[11px] font-bold shadow-md transition-all cursor-pointer"
                     >
                       {uploadingCover ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
-                        <UploadCloud className="w-4 h-4" />
+                        <UploadCloud className="w-3.5 h-3.5" />
                       )}
-                      <span>{uploadingCover ? "Uploading Image..." : "Upload Featured Image"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCoverImage("");
-                        setCoverImageError(false);
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white text-rose-600 text-[10px] font-bold shadow-xs transition-all cursor-pointer"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Clear to Placeholder</span>
+                      <span>{uploadingCover ? "Uploading..." : "Upload Featured Image"}</span>
                     </button>
                   </div>
-                  {/* Always-visible compact Upload Badge in bottom-right corner */}
-                  <button
-                    type="button"
-                    disabled={uploadingCover}
-                    onClick={() => coverFileInputRef.current?.click()}
-                    className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/85 hover:bg-[#0089C1] text-white text-[11px] font-bold border border-white/20 shadow-md backdrop-blur-xs transition-all cursor-pointer"
-                  >
-                    {uploadingCover ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <UploadCloud className="w-3.5 h-3.5" />
-                    )}
-                    <span>{uploadingCover ? "Uploading..." : "Upload Image"}</span>
-                  </button>
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center text-center p-5 space-y-2.5">
@@ -847,7 +892,10 @@ function BlogCreateContent() {
                   <button
                     type="button"
                     disabled={uploadingCover}
-                    onClick={() => coverFileInputRef.current?.click()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      coverFileInputRef.current?.click();
+                    }}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0089C1] hover:bg-sky-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
                   >
                     {uploadingCover ? (
@@ -861,32 +909,28 @@ function BlogCreateContent() {
               )}
             </div>
 
-            {/* Dedicated Upload Button Bar */}
-            <button
-              type="button"
-              disabled={uploadingCover}
-              onClick={() => coverFileInputRef.current?.click()}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-sky-50 hover:bg-[#0089C1] text-[#0089C1] hover:text-white border border-sky-200/80 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-            >
-              {uploadingCover ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <UploadCloud className="w-4 h-4" />
-              )}
-              <span>{uploadingCover ? "Uploading to Evidence Vault..." : "Upload Image from Computer"}</span>
-            </button>
-
             {/* Custom URL Input */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">Or Paste Image URL</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-700">Or Paste Image URL</label>
+                {coverImage.startsWith("data:") && (
+                  <span className="text-[10px] font-bold text-emerald-600">
+                    ✓ Uploaded local image active
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
-                value={coverImage}
+                value={coverImage.startsWith("data:") ? "" : coverImage}
                 onChange={(e) => {
                   setCoverImage(e.target.value);
                   setCoverImageError(false);
                 }}
-                placeholder="https://cdn.punchng.com/..."
+                placeholder={
+                  coverImage.startsWith("data:")
+                    ? "Local image displayed above — paste a URL here to replace..."
+                    : "https://cdn.punchng.com/..."
+                }
                 className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
               />
             </div>
@@ -938,29 +982,46 @@ function BlogCreateContent() {
             />
 
             {/* Author Image Preview & Upload Controls */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleAuthorDrop}
+              className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3"
+            >
               <label className="block text-[11px] font-bold text-slate-700">
                 Author Image / Portrait
               </label>
 
               <div className="flex items-center gap-3.5">
                 <div
-                  onClick={() => authorFileInputRef.current?.click()}
-                  title="Click to upload author image"
-                  className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-300 relative group shrink-0 flex items-center justify-center cursor-pointer shadow-xs"
+                  onClick={() => {
+                    if (!uploadingAuthor) {
+                      authorFileInputRef.current?.click();
+                    }
+                  }}
+                  title="Click or drag image to upload author portrait"
+                  className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-900 border-2 border-dashed border-slate-300 hover:border-[#0089C1] relative group shrink-0 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
                 >
                   {authorAvatar && !authorImageError ? (
                     <img
+                      key={authorAvatar}
                       src={authorAvatar}
                       alt={authorName || "Author"}
-                      referrerPolicy="no-referrer"
-                      onError={() => setAuthorImageError(true)}
-                      className="w-full h-full object-cover"
+                      referrerPolicy={authorAvatar.startsWith("http") ? "no-referrer" : undefined}
+                      onLoad={() => setAuthorImageError(false)}
+                      onError={() => {
+                        if (localAuthorFallback && authorAvatar !== localAuthorFallback) {
+                          setAuthorAvatar(localAuthorFallback);
+                          setAuthorImageError(false);
+                        } else {
+                          setAuthorImageError(true);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full object-cover block z-0"
                     />
                   ) : (
                     <User className="w-7 h-7 text-slate-400" />
                   )}
-                  <div className="absolute inset-0 bg-slate-950/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="absolute inset-0 z-10 bg-slate-950/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     {uploadingAuthor ? (
                       <Loader2 className="w-4 h-4 text-white animate-spin" />
                     ) : (
@@ -980,7 +1041,10 @@ function BlogCreateContent() {
                     <button
                       type="button"
                       disabled={uploadingAuthor}
-                      onClick={() => authorFileInputRef.current?.click()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        authorFileInputRef.current?.click();
+                      }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer"
                     >
                       {uploadingAuthor ? (
@@ -991,72 +1055,26 @@ function BlogCreateContent() {
                       <span>{uploadingAuthor ? "Uploading..." : "Upload Author Image"}</span>
                     </button>
 
-                    {authorAvatar && authorAvatar !== "/character5.jpg" && (
+                    {authorAvatar && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setAuthorAvatar("/character5.jpg");
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAuthorAvatar("");
+                          setLocalAuthorFallback("");
                           setAuthorImageError(false);
                         }}
-                        className="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 text-[10px] font-bold transition-all cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-rose-600 text-[10px] font-bold transition-all cursor-pointer"
                       >
-                        Reset
+                        Remove
                       </button>
                     )}
                   </div>
                 </div>
               </div>
-
-              {/* Author Image URL Input */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                  Or Paste Author Image URL
-                </label>
-                <input
-                  type="text"
-                  value={authorAvatar}
-                  onChange={(e) => {
-                    setAuthorAvatar(e.target.value);
-                    setAuthorImageError(false);
-                  }}
-                  placeholder="/character5.jpg or https://..."
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
-                />
-              </div>
-
-              {/* Quick Practitioner Avatar Presets */}
-              <div>
-                <span className="text-[10px] font-bold text-slate-500 block mb-1.5">
-                  Accredited Practitioner Avatars:
-                </span>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {PRACTITIONER_AVATAR_PRESETS.map((preset) => (
-                    <button
-                      key={preset.url}
-                      type="button"
-                      onClick={() => {
-                        setAuthorAvatar(preset.url);
-                        setAuthorImageError(false);
-                      }}
-                      title={preset.label}
-                      className={`p-1 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                        authorAvatar === preset.url
-                          ? "border-[#0089C1] bg-sky-50/80 ring-2 ring-[#0089C1]/20"
-                          : "border-slate-200 bg-white hover:bg-slate-100"
-                      }`}
-                    >
-                      <img
-                        src={preset.url}
-                        alt={preset.label}
-                        className="w-8 h-8 rounded-lg object-cover"
-                      />
-                      <span className="text-[9px] font-bold text-slate-700 truncate w-full text-center">
-                        {preset.label.split(" ")[0]}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <p className="text-[10px] text-slate-400">
+                Upload your portrait image. Your author profile and image are saved automatically when you publish an article.
+              </p>
             </div>
 
             <div>
