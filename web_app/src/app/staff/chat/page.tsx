@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { 
   MessageSquare, 
@@ -138,7 +139,12 @@ export default function StaffLiveChatPage() {
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col">
       {/* Page Header */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs mb-4 flex items-center justify-between">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs mb-4 flex items-center justify-between"
+      >
         <div>
           <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
             <span>Support Live Chat Desk</span>
@@ -152,10 +158,15 @@ export default function StaffLiveChatPage() {
         <div className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
           Logged in as: <strong className="text-slate-900">Babajide Sanwo</strong>
         </div>
-      </div>
+      </motion.div>
 
       {/* 3-Pane Chat Console */}
-      <div className="flex-1 min-h-0 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="flex-1 min-h-0 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex overflow-hidden"
+      >
         {/* Left Pane: Sessions List */}
         <div className="w-72 sm:w-80 border-r border-slate-200 flex flex-col bg-slate-50/50">
           <div className="p-3 border-b border-slate-200">
@@ -348,7 +359,7 @@ export default function StaffLiveChatPage() {
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

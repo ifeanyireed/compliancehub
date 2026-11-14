@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { 
   ArrowLeft, 
   Save, 
@@ -418,10 +419,15 @@ function BlogCreateContent() {
       )}
 
       {/* Top Bar Navigation & Actions */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div className="flex items-center gap-3">
           <Link href="/admin/blog">
-            <button type="button" className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all">
+            <button type="button" className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all cursor-pointer">
               <ArrowLeft className="w-4 h-4" />
             </button>
           </Link>
@@ -495,11 +501,16 @@ function BlogCreateContent() {
             <span>{savingAction === "PUBLISHED" ? "Publishing..." : "Publish Dispatch"}</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Editorial Form Area */}
-        <div className="lg:col-span-8 space-y-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-8 space-y-6"
+        >
           {/* Title & Slug */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-4">
             <div>
@@ -758,10 +769,15 @@ function BlogCreateContent() {
               />
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Sidebar Configuration Area */}
-        <div className="lg:col-span-4 space-y-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-4 space-y-6"
+        >
           {/* Category & Tags Configuration */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
             <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
@@ -1107,7 +1123,7 @@ function BlogCreateContent() {
               />
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

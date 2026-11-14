@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { 
   Settings, 
   Database, 
@@ -24,7 +25,12 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             System Settings & Infrastructure
@@ -40,11 +46,16 @@ export default function AdminSettingsPage() {
             <span>Settings Updated</span>
           </div>
         )}
-      </div>
+      </motion.div>
 
       <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Neon Database Settings Card */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 text-xs font-semibold text-slate-700">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 text-xs font-semibold text-slate-700"
+        >
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
               <Database className="w-4 h-4" />
@@ -92,10 +103,15 @@ export default function AdminSettingsPage() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* 2026 Nigeria Tax Act Parameters */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 text-xs font-semibold text-slate-700">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 text-xs font-semibold text-slate-700"
+        >
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
             <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#0089C1] flex items-center justify-center">
               <ShieldCheck className="w-4 h-4" />
@@ -136,13 +152,13 @@ export default function AdminSettingsPage() {
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold transition-all shadow-xs flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>Save System Parameters</span>
             </button>
           </div>
-        </div>
+        </motion.div>
       </form>
     </div>
   );

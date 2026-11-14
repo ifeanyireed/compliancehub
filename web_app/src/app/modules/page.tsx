@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Calendar, 
   FolderArchive, 
@@ -25,6 +26,7 @@ import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
 import { COMPLIANCE_MODULES, ComplianceModule } from "@/lib/compliance-data";
+import { defaultEase } from "@/components/motion/MotionTransitions";
 
 export default function ModulesPage() {
   const [selectedModule, setSelectedModule] = useState<ComplianceModule>(COMPLIANCE_MODULES[0]);
@@ -35,7 +37,12 @@ export default function ModulesPage() {
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 my-8 space-y-12">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: defaultEase }}
+          className="text-center max-w-3xl mx-auto space-y-3"
+        >
           <span className="text-xs font-black text-[#0089C1] uppercase tracking-wider bg-sky-100/60 text-[#0089C1] px-3 py-1 rounded-full border border-sky-200">
             System Architecture
           </span>
@@ -45,13 +52,18 @@ export default function ModulesPage() {
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
             Every module addresses a distinct statutory requirement under Nigerian law, sharing a single data architecture, permission engine, and audit trail.
           </p>
-        </div>
+        </motion.div>
 
         {/* Master Two-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: Navigation list of all 12 modules */}
-          <div className="lg:col-span-5 bg-white rounded-3xl p-3 border border-slate-200 shadow-xs space-y-1.5 max-h-[800px] overflow-y-auto">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: defaultEase }}
+            className="lg:col-span-5 bg-white rounded-3xl p-3 border border-slate-200 shadow-xs space-y-1.5 max-h-[800px] overflow-y-auto"
+          >
             <p className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Select Module Specification
             </p>
@@ -90,10 +102,16 @@ export default function ModulesPage() {
                 </button>
               );
             })}
-          </div>
+          </motion.div>
 
           {/* Right Column: Selected Module Deep Dive */}
-          <div className="lg:col-span-7 bg-white rounded-[36px] p-8 md:p-10 border border-slate-200 shadow-xs space-y-8 sticky top-28">
+          <motion.div 
+            key={selectedModule.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: defaultEase }}
+            className="lg:col-span-7 bg-white rounded-[36px] p-8 md:p-10 border border-slate-200 shadow-xs space-y-8 sticky top-28"
+          >
             <div className="flex items-start justify-between pb-6 border-b border-slate-200">
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -165,7 +183,7 @@ export default function ModulesPage() {
                 </button>
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
       </main>
 

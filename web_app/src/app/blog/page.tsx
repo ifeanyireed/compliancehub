@@ -25,6 +25,7 @@ import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
 import { api } from "@/lib/api";
+import { MotionCard, MotionSection, defaultEase } from "@/components/motion/MotionTransitions";
 
 interface BlogPost {
   id: number;
@@ -136,7 +137,12 @@ export default function BlogListingPage() {
       <main className="flex-1 pb-24">
         {/* Header Hero Banner */}
         <section className="bg-white border-b border-slate-200/80 pt-16 pb-12 px-6">
-          <div className="max-w-6xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: defaultEase }}
+            className="max-w-6xl mx-auto"
+          >
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
               <div className="max-w-2xl">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-50 border border-sky-200/70 text-[#0089C1] text-xs font-bold mb-4">
@@ -218,7 +224,7 @@ export default function BlogListingPage() {
                 />
               </div>
             </div>
-          </div>
+          </motion.div>
         </section>
 
         {/* Articles Content Container */}
@@ -241,7 +247,7 @@ export default function BlogListingPage() {
             <div className="space-y-10">
               {/* Featured Lead Post */}
               {featuredPost && (
-                <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                <MotionCard hoverEffect className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-md transition-all group">
                   <div className="grid grid-cols-1 lg:grid-cols-12">
                     <div className="lg:col-span-7 h-64 sm:h-80 lg:h-auto relative overflow-hidden bg-slate-900">
                       <img
@@ -317,7 +323,7 @@ export default function BlogListingPage() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </MotionCard>
               )}
 
               {/* Grid of Remaining Posts */}
@@ -331,9 +337,11 @@ export default function BlogListingPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {standardPosts.map((post) => (
-                      <div
+                    {standardPosts.map((post, idx) => (
+                      <MotionCard
                         key={post.id}
+                        hoverEffect
+                        delay={idx * 0.05}
                         className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
                       >
                         <div>
@@ -391,7 +399,7 @@ export default function BlogListingPage() {
                             <ArrowRight className="w-3 h-3" />
                           </Link>
                         </div>
-                      </div>
+                      </MotionCard>
                     ))}
                   </div>
                 </div>

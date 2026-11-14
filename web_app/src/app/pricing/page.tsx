@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { CheckCircle2, Sparkles, Building2, Briefcase, ArrowRight, ShieldCheck } from "lucide-react";
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
+import { MotionPage, MotionSection, MotionCard, RiseIn, defaultEase } from "@/components/motion/MotionTransitions";
 
 export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annually">("monthly");
@@ -141,7 +143,12 @@ export default function PricingPage() {
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 my-8 space-y-12">
         {/* Title */}
-        <div className="text-center max-w-3xl mx-auto space-y-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: defaultEase }}
+          className="text-center max-w-3xl mx-auto space-y-4"
+        >
           <span className="text-xs font-black text-[#0089C1] uppercase tracking-wider bg-sky-100/60 text-[#0089C1] px-3 py-1 rounded-full border border-sky-200">
             Subscription Pricing
           </span>
@@ -200,15 +207,17 @@ export default function PricingPage() {
               </span>
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {activePlans.map((plan) => {
+          {activePlans.map((plan, index) => {
             const price = Math.round(plan.monthlyPrice * discountMultiplier);
             return (
-              <div
+              <MotionCard
                 key={plan.name}
+                delay={index * 0.08}
+                hoverEffect
                 className={`bg-white rounded-[32px] p-6 md:p-8 flex flex-col justify-between transition-all relative ${
                   plan.highlight
                     ? "border-2 border-[#0089C1] shadow-lg"
@@ -258,13 +267,13 @@ export default function PricingPage() {
                     {plan.cta}
                   </button>
                 </Link>
-              </div>
+              </MotionCard>
             );
           })}
         </div>
 
         {/* Enterprise Notice */}
-        <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
+        <MotionSection className="bg-white rounded-3xl p-8 border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 text-center md:text-left">
             <h3 className="text-lg font-black text-slate-900 text-display">
               Need custom enterprise deployment, custom APIs or multi-subsidiary governance?
@@ -278,7 +287,7 @@ export default function PricingPage() {
               Talk to Enterprise Solutions
             </button>
           </Link>
-        </div>
+        </MotionSection>
 
       </main>
 

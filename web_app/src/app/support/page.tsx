@@ -24,6 +24,7 @@ import {
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
+import { MotionSection, MotionCard, defaultEase } from "@/components/motion/MotionTransitions";
 
 interface FAQ {
   q: string;
@@ -203,7 +204,12 @@ export default function SupportCenterPage() {
       <main className="flex-1 pb-24">
         {/* Support Hero */}
         <section className="pt-12 pb-16 px-6 max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-12">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: defaultEase }}
+            className="text-center max-w-3xl mx-auto mb-12"
+          >
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-slate-200/80 shadow-xs mb-4">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-bold text-slate-800">Support & Resolution Desk</span>
@@ -226,12 +232,13 @@ export default function SupportCenterPage() {
                 className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200/80 rounded-2xl text-sm font-semibold text-slate-900 placeholder-slate-400 shadow-md focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
               />
             </div>
-          </div>
+          </motion.div>
 
           {/* Quick Action Tiles */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
             {/* Live Chat Tile */}
-            <div 
+            <MotionCard 
+              hoverEffect
               onClick={() => setChatModalOpen(true)}
               className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-[#0089C1]/40 transition-all cursor-pointer group"
             >
@@ -246,10 +253,12 @@ export default function SupportCenterPage() {
                 <span>Launch Live Chat</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </span>
-            </div>
+            </MotionCard>
 
             {/* Submit Ticket Tile */}
-            <div 
+            <MotionCard 
+              hoverEffect
+              delay={0.1}
               onClick={() => setTicketModalOpen(true)}
               className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-500/40 transition-all cursor-pointer group"
             >
@@ -264,11 +273,15 @@ export default function SupportCenterPage() {
                 <span>Create New Ticket</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </span>
-            </div>
+            </MotionCard>
 
             {/* Knowledge Base Tile */}
             <Link href="/blog">
-              <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-purple-500/40 transition-all cursor-pointer group h-full">
+              <MotionCard 
+                hoverEffect
+                delay={0.2}
+                className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-purple-500/40 transition-all cursor-pointer group h-full"
+              >
                 <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-xs">
                   <BookOpen className="w-6 h-6" />
                 </div>
@@ -280,12 +293,12 @@ export default function SupportCenterPage() {
                   <span>Browse Articles</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </span>
-              </div>
+              </MotionCard>
             </Link>
           </div>
 
           {/* FAQs Accordion */}
-          <div className="max-w-4xl mx-auto">
+          <MotionSection className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Frequently Asked Regulatory Questions
@@ -331,7 +344,7 @@ export default function SupportCenterPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </MotionSection>
         </section>
       </main>
 

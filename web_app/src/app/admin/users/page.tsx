@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { 
   Users2, 
@@ -43,7 +44,12 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Companies, Experts & Staff Directory
@@ -58,16 +64,21 @@ export default function AdminUsersPage() {
             {users.length} Active Accounts
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Filter & Search */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4"
+      >
         <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
           {["ALL", "BUSINESS", "EXPERT", "AGENCY", "STAFF"].map(r => (
             <button
               key={r}
               onClick={() => setRoleFilter(r)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 roleFilter === r
                   ? "bg-[#1E293B] text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -88,10 +99,15 @@ export default function AdminUsersPage() {
             className="w-full pl-9 pr-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider">
@@ -151,7 +167,7 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

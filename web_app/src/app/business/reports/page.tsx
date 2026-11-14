@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { 
   FileText, 
   Download, 
@@ -89,7 +90,12 @@ export default function BusinessReportsPage() {
     <div className="space-y-6 select-none">
       
       {/* Top Banner */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[#0089C1] text-white">
@@ -109,18 +115,22 @@ export default function BusinessReportsPage() {
 
         <button
           onClick={() => handleDownload("all", "Complete Regulatory Inspection Bundle")}
-          className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto"
+          className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer"
         >
           <Sparkles className="w-4 h-4 text-[#0089C1]" />
           <span>Export Complete Inspection Bundle</span>
         </button>
-      </div>
+      </motion.div>
 
       {/* Reports Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {reports.map((rep: any) => (
-          <div
+        {reports.map((rep: any, idx: number) => (
+          <motion.div
             key={rep.id}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.35, delay: idx * 0.06 }}
             className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-6 hover:border-slate-300 transition-all"
           >
             <div className="space-y-3">
@@ -149,7 +159,7 @@ export default function BusinessReportsPage() {
               <button
                 onClick={() => handleDownload(rep.id, rep.title)}
                 disabled={generatingReport === rep.title}
-                className="bg-[#0089C1] hover:bg-sky-600 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs transition-all flex items-center gap-2"
+                className="bg-[#0089C1] hover:bg-sky-600 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer"
               >
                 {generatingReport === rep.title ? (
                   <span>Compiling PDF...</span>
@@ -161,7 +171,7 @@ export default function BusinessReportsPage() {
                 )}
               </button>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   ShieldCheck, 
   AlertTriangle, 
@@ -21,6 +22,7 @@ import {
   FolderArchive
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { MotionCard, MotionSection } from "@/components/motion/MotionTransitions";
 
 export default function BusinessDashboardOverview() {
   const [showScoreModal, setShowScoreModal] = useState(false);
@@ -81,7 +83,12 @@ export default function BusinessDashboardOverview() {
     <div className="space-y-8 select-none">
       
       {/* Top Welcome & Health Header Banner */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+      >
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-[#0089C1] uppercase tracking-wider">
@@ -113,13 +120,17 @@ export default function BusinessDashboardOverview() {
             </button>
           </Link>
         </div>
-      </div>
+      </motion.div>
 
       {/* Primary KPI Grid (Blueprint Part 3.2 Screen 2) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         
         {/* Metric 1: Readiness Score Card */}
-        <div 
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: 0.05 }}
           onClick={() => setShowScoreModal(true)}
           className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs cursor-pointer hover:border-[#0089C1] transition-all flex flex-col justify-between group"
         >
@@ -149,10 +160,16 @@ export default function BusinessDashboardOverview() {
               <ChevronRight className="w-3.5 h-3.5" />
             </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Metric 2: Upcoming Deadlines */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <div className="flex items-start justify-between">
             <span className="text-xs font-bold text-slate-500">Approaching Deadlines</span>
             <span className="text-[10px] bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold">
@@ -168,10 +185,16 @@ export default function BusinessDashboardOverview() {
           <p className="text-[11px] text-slate-500 font-medium">
             Next: <strong className="text-slate-800">CIT Annual Return (18 days)</strong>
           </p>
-        </div>
+        </motion.div>
 
         {/* Metric 3: Missing Documents */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: 0.15 }}
+          className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <div className="flex items-start justify-between">
             <span className="text-xs font-bold text-slate-500">Missing Evidence</span>
             <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
@@ -187,10 +210,16 @@ export default function BusinessDashboardOverview() {
           <p className="text-[11px] text-slate-500 font-medium">
             Missing: <strong className="text-slate-800">2025 Tax Clearance (TCC)</strong>
           </p>
-        </div>
+        </motion.div>
 
         {/* Metric 4: Active Professionals */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <div className="flex items-start justify-between">
             <span className="text-xs font-bold text-slate-500">Delegated Experts</span>
             <span className="text-[10px] bg-sky-100 text-[#0089C1] px-2 py-0.5 rounded-full font-bold">
@@ -209,7 +238,7 @@ export default function BusinessDashboardOverview() {
           <p className="text-[11px] text-slate-500 font-medium">
             Tunde Bakare (AML) & Folashade (NDPA)
           </p>
-        </div>
+        </motion.div>
 
       </div>
 
@@ -217,7 +246,13 @@ export default function BusinessDashboardOverview() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Left Column: Upcoming Deadlines & Tasks (7 Cols) */}
-        <div className="lg:col-span-7 space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45 }}
+          className="lg:col-span-7 space-y-6"
+        >
           <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
@@ -235,9 +270,13 @@ export default function BusinessDashboardOverview() {
             </div>
 
             <div className="space-y-3">
-              {urgentDeadlines.map((obl) => (
-                <div
+              {urgentDeadlines.map((obl, idx) => (
+                <motion.div
                   key={obl.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.3, delay: idx * 0.05 }}
                   className="p-4 rounded-2xl bg-[#F8FAFC] border border-slate-200/80 hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
                   <div className="space-y-1">
@@ -268,7 +307,7 @@ export default function BusinessDashboardOverview() {
                       </button>
                     </Link>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -310,10 +349,16 @@ export default function BusinessDashboardOverview() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Right Column: Delegated Professionals & Audit Log (5 Cols) */}
-        <div className="lg:col-span-5 space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.45, delay: 0.1 }}
+          className="lg:col-span-5 space-y-6"
+        >
           
           {/* Active Professionals Card (Blueprint Part 3.2 Screen 4) */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
@@ -400,63 +445,76 @@ export default function BusinessDashboardOverview() {
             </div>
           </div>
 
-        </div>
+        </motion.div>
 
       </div>
 
       {/* Readiness Score Breakdown Modal (Blueprint Part 3.2 Screen 2 Explainability) */}
-      {showScoreModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 space-y-5 shadow-2xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-extrabold text-lg text-slate-900">
-                  Compliance Readiness Methodology
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Transparent criteria breakdown (Overall: 82% Readiness)
-                </p>
+      <AnimatePresence>
+        {showScoreModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ duration: 0.25 }}
+              className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 space-y-5 shadow-2xl"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900">
+                    Compliance Readiness Methodology
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Transparent criteria breakdown (Overall: 82% Readiness)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowScoreModal(false)}
+                  className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold hover:bg-slate-200 transition-colors"
+                >
+                  ✕
+                </button>
               </div>
+
+              <div className="p-3 rounded-2xl bg-amber-50 text-amber-900 text-[11px] leading-relaxed">
+                <strong>Statutory Transparency Notice:</strong> This score represents internal administrative readiness based on completed tasks and uploaded documentation. It does not replace statutory regulatory clearance from the CAC, FIRS, or NDPC.
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                  <span className="font-bold text-slate-700">CAC Statutory Standing (CAMA 2020)</span>
+                  <span className="font-mono font-bold text-emerald-700">95% (Compliant)</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                  <span className="font-bold text-slate-700">Nigeria Tax Act 2025/2026 Readiness</span>
+                  <span className="font-mono font-bold text-amber-700">75% (TCC Pending)</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                  <span className="font-bold text-slate-700">NDPA 2023 Data Protection Accountability</span>
+                  <span className="font-mono font-bold text-emerald-700">88% (RoPA Active)</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                  <span className="font-bold text-slate-700">SCUML AML/CFT Due Diligence Records</span>
+                  <span className="font-mono font-bold text-amber-700">70% (Staff Code Pending)</span>
+                </div>
+              </div>
+
               <button
                 onClick={() => setShowScoreModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+                className="w-full bg-[#1E293B] hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold text-xs transition-colors"
               >
-                ✕
+                Close Diagnostic
               </button>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-amber-50 text-amber-900 text-[11px] leading-relaxed">
-              <strong>Statutory Transparency Notice:</strong> This score represents internal administrative readiness based on completed tasks and uploaded documentation. It does not replace statutory regulatory clearance from the CAC, FIRS, or NDPC.
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
-                <span className="font-bold text-slate-700">CAC Statutory Standing (CAMA 2020)</span>
-                <span className="font-mono font-bold text-emerald-700">95% (Compliant)</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
-                <span className="font-bold text-slate-700">Nigeria Tax Act 2025/2026 Readiness</span>
-                <span className="font-mono font-bold text-amber-700">75% (TCC Pending)</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
-                <span className="font-bold text-slate-700">NDPA 2023 Data Protection Accountability</span>
-                <span className="font-mono font-bold text-emerald-700">88% (RoPA Active)</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
-                <span className="font-bold text-slate-700">SCUML AML/CFT Due Diligence Records</span>
-                <span className="font-mono font-bold text-amber-700">70% (Staff Code Pending)</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowScoreModal(false)}
-              className="w-full bg-[#1E293B] text-white py-2.5 rounded-xl font-bold text-xs"
-            >
-              Close Diagnostic
-            </button>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

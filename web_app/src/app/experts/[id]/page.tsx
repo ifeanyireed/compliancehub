@@ -2,6 +2,7 @@
 
 import React, { useState, use } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { 
   ArrowLeft, 
   ShieldCheck, 
@@ -18,6 +19,7 @@ import {
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { api } from "@/lib/api";
+import { defaultEase } from "@/components/motion/MotionTransitions";
 
 export default function ExpertProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -88,7 +90,12 @@ export default function ExpertProfilePage({ params }: { params: Promise<{ id: st
         </Link>
 
         {/* Hero Card */}
-        <div className="bg-white rounded-[36px] p-8 md:p-10 border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: defaultEase }}
+          className="bg-white rounded-[36px] p-8 md:p-10 border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
+        >
           <div className="flex items-center gap-5">
             <img
               src={expert.avatar}
@@ -126,10 +133,15 @@ export default function ExpertProfilePage({ params }: { params: Promise<{ id: st
               Active with {expert.activeClientsCount} client businesses
             </span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Profile Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: defaultEase }}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+        >
           
           {/* Main Dossier */}
           <div className="lg:col-span-2 space-y-6">
@@ -240,7 +252,7 @@ export default function ExpertProfilePage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-        </div>
+        </motion.div>
 
       </main>
 

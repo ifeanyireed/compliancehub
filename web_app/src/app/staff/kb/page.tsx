@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { 
   BookOpen, 
   Search, 
@@ -51,7 +52,12 @@ export default function StaffKnowledgeBasePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Regulatory Knowledge Base & Manuals
@@ -71,12 +77,17 @@ export default function StaffKnowledgeBasePage() {
             className="w-full pl-9 pr-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* Dual Pane Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Articles List */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden"
+        >
           {filtered.map(art => {
             const isSelected = selectedArticle?.id === art.id;
             return (
@@ -107,10 +118,15 @@ export default function StaffKnowledgeBasePage() {
               </div>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Article Reader Pane */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8"
+        >
           {selectedArticle ? (
             <div>
               <span className="px-3 py-1 rounded-full bg-sky-50 text-[#0089C1] text-xs font-bold border border-sky-200/60 inline-block mb-3">
@@ -134,7 +150,7 @@ export default function StaffKnowledgeBasePage() {
               Select an article to view details
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

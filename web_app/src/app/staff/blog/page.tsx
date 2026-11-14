@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { 
   FileText, 
   Search, 
@@ -70,7 +71,12 @@ export default function StaffBlogReferencePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 text-[#0089C1] text-xs font-bold border border-sky-200/60 mb-2">
             <BookOpen className="w-3.5 h-3.5" />
@@ -85,15 +91,20 @@ export default function StaffBlogReferencePage() {
         </div>
 
         <Link href="/blog" target="_blank">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs shadow-sm transition-all">
+          <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs shadow-sm transition-all cursor-pointer">
             <ExternalLink className="w-3.5 h-3.5" />
             <span>Open Public Journal</span>
           </button>
         </Link>
-      </div>
+      </motion.div>
 
       {/* Search and Category Filters */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"
+      >
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -114,7 +125,7 @@ export default function StaffBlogReferencePage() {
             <option key={c} value={c}>{c === "ALL" ? "All Regulatory Categories" : c}</option>
           ))}
         </select>
-      </div>
+      </motion.div>
 
       {/* Grid of Articles */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -123,8 +134,15 @@ export default function StaffBlogReferencePage() {
             No circulars match your search query.
           </div>
         ) : (
-          filtered.map(p => (
-            <div key={p.id} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:shadow-md transition-all">
+          filtered.map((p, idx) => (
+            <motion.div 
+              key={p.id} 
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.12 + Math.min(idx * 0.05, 0.3), ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: -2 }}
+              className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:shadow-md transition-all"
+            >
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="px-2.5 py-0.5 rounded-md bg-sky-50 text-[#0089C1] text-[10px] font-bold border border-sky-200/60">
@@ -153,13 +171,13 @@ export default function StaffBlogReferencePage() {
                 <Link
                   href={`/blog/${p.slug}`}
                   target="_blank"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0089C1] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0089C1] hover:underline cursor-pointer"
                 >
                   <span>Consult Full Dispatch</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
       </div>

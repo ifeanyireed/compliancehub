@@ -4,6 +4,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
+  MotionSection, 
+  MotionCard, 
+  RiseIn, 
+  defaultEase 
+} from "@/components/motion/MotionTransitions";
+import { 
   ShieldCheck, 
   ArrowRight, 
   Sparkles, 
@@ -78,32 +84,57 @@ export default function HomePage() {
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 mb-12 mt-3 space-y-12">
         
         {/* HERO CARD - Verbatim AntifakeNG rounded-[48px] with layered glass & subtle borders */}
-        <section className="w-full bg-[#E9F2F5] rounded-[48px] pt-12 pb-16 px-6 md:px-12 flex flex-col items-center text-center relative overflow-hidden border border-slate-200/50 shadow-sm">
+        <motion.section 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: defaultEase }}
+          className="w-full bg-[#E9F2F5] rounded-[48px] pt-12 pb-16 px-6 md:px-12 flex flex-col items-center text-center relative overflow-hidden border border-slate-200/50 shadow-sm"
+        >
           
           {/* Subtle Ambient Background Glows */}
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#0089C1]/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#245C44]/10 rounded-full blur-3xl pointer-events-none" />
 
           {/* Top Pill Announcement */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 border border-slate-300/40 shadow-xs mb-6 relative z-10">
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 border border-slate-300/40 shadow-xs mb-6 relative z-10"
+          >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-bold text-slate-800">
               Nigeria&apos;s Integrated Compliance Management & Workforce Platform
             </span>
-          </div>
+          </motion.div>
 
           {/* Master Headline from Blueprint */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight text-display mb-4 leading-[1.08] max-w-4xl text-center relative z-10">
+          <motion.h1 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: defaultEase }}
+            className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight text-display mb-4 leading-[1.08] max-w-4xl text-center relative z-10"
+          >
             Real compliance shouldn&apos;t mean endless regulatory anxiety.
-          </h1>
+          </motion.h1>
 
           {/* Subheading */}
-          <p className="text-slate-600 font-medium text-base md:text-xl mb-8 max-w-3xl text-center leading-relaxed relative z-10">
+          <motion.p 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.22, ease: defaultEase }}
+            className="text-slate-600 font-medium text-base md:text-xl mb-8 max-w-3xl text-center leading-relaxed relative z-10"
+          >
             <strong>Everything compliance. One workspace.</strong> Connect your company&apos;s statutory obligations, verified compliance professionals, and audit-ready evidence across CAC, FIRS, NDPC, and SCUML.
-          </p>
+          </motion.p>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-3.5 mb-10 relative z-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.28, ease: defaultEase }}
+            className="flex flex-col sm:flex-row items-center gap-3.5 mb-10 relative z-10"
+          >
             <Link href="/onboarding">
               <button className="bg-[#0089C1] hover:bg-sky-600 text-white transition-all font-bold px-7 py-3.5 rounded-full text-base shadow-md hover:shadow-lg flex items-center gap-2.5">
                 <Sparkles className="w-4 h-4" />
@@ -117,10 +148,15 @@ export default function HomePage() {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </Link>
-          </div>
+          </motion.div>
 
           {/* Interactive Feature Stats Strip */}
-          <div className="w-full max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-3 relative z-10">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35, ease: defaultEase }}
+            className="w-full max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-3 relative z-10"
+          >
             <div className="bg-white/80 backdrop-blur-xs rounded-2xl p-4 border border-slate-200/80 text-left shadow-xs">
               <div className="text-2xl font-black text-slate-900 font-mono">12 Modules</div>
               <div className="text-xs font-bold text-slate-500 mt-0.5">End-to-End Coverage</div>
@@ -137,11 +173,11 @@ export default function HomePage() {
               <div className="text-2xl font-black text-purple-700 font-mono">HubAgents</div>
               <div className="text-xs font-bold text-slate-500 mt-0.5">Practice Management</div>
             </div>
-          </div>
-        </section>
+          </motion.div>
+        </motion.section>
 
         {/* REGULATORY BODIES TICKER STRIP */}
-        <section className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-xs">
+        <MotionSection className="bg-white rounded-3xl p-6 border border-slate-200/70 shadow-xs">
           <p className="text-center text-xs font-bold uppercase tracking-wider text-slate-400 mb-5">
             Active Statutory Alignment with Nigeria&apos;s Key Regulatory Authorities
           </p>
@@ -171,10 +207,10 @@ export default function HomePage() {
               <div className="text-[10px] text-slate-500 font-medium">Workforce Statutory Returns</div>
             </div>
           </div>
-        </section>
+        </MotionSection>
 
         {/* THE FOUR INTERCONNECTED PRODUCTS (Blueprint Part 1.2) */}
-        <section className="space-y-6">
+        <MotionSection className="space-y-6">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 text-display">
               Four Interconnected Product Environments
@@ -186,7 +222,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {/* HubBusiness Card */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-[#0089C1] transition-all flex flex-col justify-between group">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-[#0089C1] transition-all flex flex-col justify-between group">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-sky-50 text-[#0089C1] flex items-center justify-center font-bold mb-4">
                   <Building2 className="w-6 h-6" />
@@ -201,10 +237,10 @@ export default function HomePage() {
                 <span>Enter Business Workspace</span>
                 <ChevronRight className="w-4 h-4" />
               </Link>
-            </div>
+            </MotionCard>
 
             {/* HubExperts Card */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-emerald-600 transition-all flex flex-col justify-between group">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-emerald-600 transition-all flex flex-col justify-between group">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold mb-4">
                   <Award className="w-6 h-6" />
@@ -219,10 +255,10 @@ export default function HomePage() {
                 <span>Explore Verified Experts</span>
                 <ChevronRight className="w-4 h-4" />
               </Link>
-            </div>
+            </MotionCard>
 
             {/* HubAgents Card */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-[#245C44] transition-all flex flex-col justify-between group">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-[#245C44] transition-all flex flex-col justify-between group">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-teal-50 text-[#245C44] flex items-center justify-center font-bold mb-4">
                   <Briefcase className="w-6 h-6" />
@@ -237,10 +273,10 @@ export default function HomePage() {
                 <span>Open Practice Suite</span>
                 <ChevronRight className="w-4 h-4" />
               </Link>
-            </div>
+            </MotionCard>
 
             {/* HubEnterprise Card */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-purple-600 transition-all flex flex-col justify-between group">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-purple-600 transition-all flex flex-col justify-between group">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold mb-4">
                   <Layers className="w-6 h-6" />
@@ -255,12 +291,12 @@ export default function HomePage() {
                 <span>Enterprise Architecture</span>
                 <ChevronRight className="w-4 h-4" />
               </Link>
-            </div>
+            </MotionCard>
           </div>
-        </section>
+        </MotionSection>
 
         {/* THE 12 COMPLIANCE MODULES SHOWCASE (Blueprint Part 2.1) */}
-        <section className="bg-white rounded-[40px] p-8 md:p-12 border border-slate-200/80 shadow-xs space-y-8">
+        <MotionSection className="bg-white rounded-[40px] p-8 md:p-12 border border-slate-200/80 shadow-xs space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-200">
             <div>
               <span className="text-xs font-black text-[#0089C1] uppercase tracking-wider block mb-1">
@@ -333,10 +369,10 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </section>
+        </MotionSection>
 
         {/* VERIFIED EXPERTS MARKETPLACE TEASER */}
-        <section className="space-y-6">
+        <MotionSection className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <span className="text-xs font-black text-emerald-700 uppercase tracking-wider block mb-1">
@@ -360,8 +396,9 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {experts.map((exp) => (
-              <div 
+              <MotionCard 
                 key={exp.id}
+                hoverEffect
                 className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between"
               >
                 <div>
@@ -403,13 +440,13 @@ export default function HomePage() {
                     </button>
                   </Link>
                 </div>
-              </div>
+              </MotionCard>
             ))}
           </div>
-        </section>
+        </MotionSection>
 
         {/* PRICING PLANS PREVIEW */}
-        <section className="bg-[#E9F2F5] rounded-[40px] p-8 md:p-12 border border-slate-200/60 shadow-xs space-y-8">
+        <MotionSection className="bg-[#E9F2F5] rounded-[40px] p-8 md:p-12 border border-slate-200/60 shadow-xs space-y-8">
           <div className="text-center max-w-xl mx-auto space-y-2">
             <span className="text-xs font-black text-[#0089C1] uppercase tracking-wider">
               Transparent Pricing
@@ -424,7 +461,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
             {/* Free Tier */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 flex flex-col justify-between shadow-xs">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border border-slate-200 flex flex-col justify-between shadow-xs">
               <div>
                 <span className="text-xs font-bold uppercase text-slate-400 block mb-1">Starter</span>
                 <h3 className="text-xl font-black text-slate-900 mb-2">Free</h3>
@@ -443,10 +480,10 @@ export default function HomePage() {
                   Get Started Free
                 </button>
               </Link>
-            </div>
+            </MotionCard>
 
             {/* Starter Tier */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 flex flex-col justify-between shadow-xs">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border border-slate-200 flex flex-col justify-between shadow-xs">
               <div>
                 <span className="text-xs font-bold uppercase text-slate-400 block mb-1">Small Business</span>
                 <h3 className="text-xl font-black text-slate-900 mb-2">Starter</h3>
@@ -465,10 +502,10 @@ export default function HomePage() {
                   Choose Starter
                 </button>
               </Link>
-            </div>
+            </MotionCard>
 
             {/* Business Tier (Popular) */}
-            <div className="bg-white rounded-3xl p-6 border-2 border-[#0089C1] relative flex flex-col justify-between shadow-md">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border-2 border-[#0089C1] relative flex flex-col justify-between shadow-md">
               <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#0089C1] text-white text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
                 Most Popular
               </span>
@@ -491,10 +528,10 @@ export default function HomePage() {
                   Select Business
                 </button>
               </Link>
-            </div>
+            </MotionCard>
 
             {/* Professional Tier */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 flex flex-col justify-between shadow-xs">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border border-slate-200 flex flex-col justify-between shadow-xs">
               <div>
                 <span className="text-xs font-bold uppercase text-slate-400 block mb-1">Regulated Entities</span>
                 <h3 className="text-xl font-black text-slate-900 mb-2">Professional</h3>
@@ -514,12 +551,12 @@ export default function HomePage() {
                   Contact Sales / Upgrade
                 </button>
               </Link>
-            </div>
+            </MotionCard>
           </div>
-        </section>
+        </MotionSection>
 
         {/* FREQUENTLY ASKED QUESTIONS */}
-        <section className="max-w-3xl mx-auto space-y-6">
+        <MotionSection className="max-w-3xl mx-auto space-y-6">
           <div className="text-center space-y-2">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 text-display">
               Frequently Asked Questions
@@ -544,18 +581,26 @@ export default function HomePage() {
                     +
                   </span>
                 </button>
-                {activeFaq === i && (
-                  <div className="px-6 pb-4 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
-                    {f.a}
-                  </div>
-                )}
+                <AnimatePresence>
+                  {activeFaq === i && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="px-6 pb-4 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3"
+                    >
+                      {f.a}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
-        </section>
+        </MotionSection>
 
         {/* BOTTOM FINAL CALL TO ACTION CARD */}
-        <section className="w-full bg-[#1E293B] rounded-[48px] p-8 md:p-14 text-white text-center relative overflow-hidden shadow-xl">
+        <MotionSection className="w-full bg-[#1E293B] rounded-[48px] p-8 md:p-14 text-white text-center relative overflow-hidden shadow-xl">
           <div className="absolute top-0 right-0 w-80 h-80 bg-[#0089C1]/20 rounded-full blur-3xl pointer-events-none" />
           
           <h2 className="text-3xl sm:text-4xl font-black text-display mb-4 max-w-2xl mx-auto leading-tight">
@@ -579,7 +624,7 @@ export default function HomePage() {
               </button>
             </Link>
           </div>
-        </section>
+        </MotionSection>
 
       </main>
 

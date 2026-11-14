@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { 
   Receipt, 
@@ -30,7 +31,12 @@ export default function AdminInvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Billing, Invoices & Escrow Settlements
@@ -45,10 +51,15 @@ export default function AdminInvoicesPage() {
             Monthly Platform Fees: ₦2,485,000
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Invoices Table */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider">
@@ -100,7 +111,7 @@ export default function AdminInvoicesPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

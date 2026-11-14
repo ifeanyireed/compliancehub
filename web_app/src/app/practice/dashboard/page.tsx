@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { 
   Building2, 
   CheckSquare, 
@@ -84,7 +85,12 @@ export default function PracticeDashboardPage() {
     <div className="space-y-8 select-none">
       
       {/* Top Welcome Banner */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+      >
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-[#245C44] uppercase tracking-wider">
@@ -119,57 +125,99 @@ export default function PracticeDashboardPage() {
             </button>
           </Link>
         </div>
-      </div>
+      </motion.div>
 
       {/* KPI Cards (Blueprint Part 3.4 Screen 1) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         
         {/* Metric 1 */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.35, delay: 0.03 }}
+          className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Clients</span>
           <div className="text-3xl font-black text-slate-900 font-mono my-2">{clients.length}</div>
           <span className="text-[10px] text-emerald-700 font-bold">Verified Engagements</span>
-        </div>
+        </motion.div>
 
         {/* Metric 2 */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.35, delay: 0.06 }}
+          className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Open Tasks</span>
           <div className="text-3xl font-black text-slate-900 font-mono my-2">{liveTasks.length > 0 ? liveTasks.length : 12}</div>
           <span className="text-[10px] text-slate-500 font-medium">Across all tenants</span>
-        </div>
+        </motion.div>
 
         {/* Metric 3 */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.35, delay: 0.09 }}
+          className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Statutory Deadlines</span>
           <div className="text-3xl font-black text-amber-600 font-mono my-2">4</div>
           <span className="text-[10px] text-amber-700 font-bold">Due Next 30 Days</span>
-        </div>
+        </motion.div>
 
         {/* Metric 4 */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.35, delay: 0.12 }}
+          className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sign-offs Pending</span>
           <div className="text-3xl font-black text-slate-900 font-mono my-2">3</div>
           <span className="text-[10px] text-slate-500 font-medium">Awaiting Business</span>
-        </div>
+        </motion.div>
 
         {/* Metric 5 */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.35, delay: 0.15 }}
+          className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Monthly Retainers</span>
           <div className="text-2xl font-black text-emerald-800 font-mono my-2">₦2.4M</div>
           <span className="text-[10px] text-emerald-700 font-bold">Recurring ARR</span>
-        </div>
+        </motion.div>
 
         {/* Metric 6 */}
-        <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.35, delay: 0.18 }}
+          className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Avg Health Rate</span>
           <div className="text-3xl font-black text-slate-900 font-mono my-2">84%</div>
           <span className="text-[10px] text-emerald-700 font-bold">Audit-Ready</span>
-        </div>
+        </motion.div>
 
       </div>
 
       {/* Client Workspaces Matrix */}
-      <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.45 }}
+        className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6"
+      >
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <h3 className="font-extrabold text-base text-slate-900">
@@ -186,9 +234,13 @@ export default function PracticeDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {clients.map((c) => (
-            <div
+          {clients.map((c, idx) => (
+            <motion.div
               key={c.id}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.35, delay: idx * 0.05 }}
               className="bg-[#F8FAFC] rounded-2xl p-5 border border-slate-200/80 hover:border-[#245C44] transition-all flex flex-col justify-between space-y-4 group"
             >
               <div className="space-y-3">
@@ -247,10 +299,10 @@ export default function PracticeDashboardPage() {
                 <span>Access Authorised Workspace</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
-            </div>
+            </motion.div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
     </div>
   );

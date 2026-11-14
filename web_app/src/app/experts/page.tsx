@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, 
   MapPin, 
@@ -13,14 +14,15 @@ import {
   ArrowRight,
   Clock,
   Sparkles,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
 import { ComplianceExpert } from "@/lib/compliance-data";
 import { api } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { MotionCard, MotionSection, defaultEase } from "@/components/motion/MotionTransitions";
 
 export default function ExpertsMarketplacePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,7 +100,12 @@ export default function ExpertsMarketplacePage() {
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 my-8 space-y-10">
         
         {/* Marketplace Banner */}
-        <div className="bg-white rounded-[40px] p-8 md:p-12 border border-slate-200/80 shadow-xs text-center max-w-4xl mx-auto space-y-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: defaultEase }}
+          className="bg-white rounded-[40px] p-8 md:p-12 border border-slate-200/80 shadow-xs text-center max-w-4xl mx-auto space-y-4"
+        >
           <span className="text-xs font-black text-emerald-700 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
             HubExperts Marketplace
           </span>
@@ -141,7 +148,7 @@ export default function ExpertsMarketplacePage() {
               </Link>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Specialisation Pills */}
         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -172,9 +179,11 @@ export default function ExpertsMarketplacePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredExperts.map((exp) => (
-              <div
+            {filteredExperts.map((exp, idx) => (
+              <MotionCard
                 key={exp.id}
+                hoverEffect
+                delay={idx * 0.05}
                 className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between space-y-6"
               >
                 <div className="space-y-4">
@@ -264,7 +273,7 @@ export default function ExpertsMarketplacePage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </MotionCard>
             ))}
           </div>
         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   FolderArchive, 
   Upload, 
@@ -172,7 +173,12 @@ export default function BusinessDocumentsPage() {
     <div className="space-y-6 select-none">
       
       {/* Top Header Banner */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[#0089C1] text-white">
@@ -204,10 +210,15 @@ export default function BusinessDocumentsPage() {
             <span>Upload New Evidence</span>
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Filter / Search Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+      >
         {/* Category Pills */}
         <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
           {categories.map((cat) => (
@@ -236,10 +247,16 @@ export default function BusinessDocumentsPage() {
             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-[#0089C1]"
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* Documents Table */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.45 }}
+        className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
@@ -365,106 +382,119 @@ export default function BusinessDocumentsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
 
       {/* Upload Modal */}
-      {uploadModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in duration-150">
-            <button 
-              onClick={() => setUploadModalOpen(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1"
+      <AnimatePresence>
+        {uploadModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 12 }}
+              transition={{ duration: 0.25 }}
+              className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 relative"
             >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div>
-              <h3 className="font-extrabold text-base text-slate-900">
-                Upload Statutory Evidence Document
-              </h3>
-              <p className="text-xs text-slate-500">
-                Uploaded files are stored in the Cloudinary evidence vault with immutable time-stamps.
-              </p>
-            </div>
-
-            {uploadSuccess && (
-              <div className="my-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Document successfully secured in Cloudinary & logged in Neon DB!</span>
-              </div>
-            )}
-
-            <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs mt-3">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Document Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 2025 Tax Clearance Certificate (TCC)"
-                  value={newDocName}
-                  onChange={(e) => setNewDocName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Document Category</label>
-                <select
-                  value={newDocCat}
-                  onChange={(e) => setNewDocCat(e.target.value as any)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
-                >
-                  <option value="Corporate">Corporate (CAC)</option>
-                  <option value="Tax">Tax (FIRS / NRS)</option>
-                  <option value="Employee">Employee / HR</option>
-                  <option value="Vendor">Vendor / DPA</option>
-                  <option value="AML / KYC">AML / KYC (SCUML)</option>
-                  <option value="Licences">Licences & Permits</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Statutory Expiry Date</label>
-                <input
-                  type="text"
-                  value={newDocExpiry}
-                  onChange={(e) => setNewDocExpiry(e.target.value)}
-                  placeholder="e.g. 2026-12-31 or Perpetual"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
-                />
-              </div>
-
-              <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center space-y-2 bg-[#F8FAFC]">
-                <Upload className="w-8 h-8 text-[#0089C1] mx-auto" />
-                <p className="text-xs text-slate-600 font-bold">
-                  {selectedFile ? selectedFile.name : "Drag & drop evidence PDF or click to browse"}
-                </p>
-                <span className="text-[10px] text-slate-400 block">PDF, PNG, DOCX up to 25MB</span>
-                <input
-                  type="file"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setSelectedFile(e.target.files[0]);
-                      if (!newDocName) {
-                        setNewDocName(e.target.files[0].name.replace(/\.[^/.]+$/, ""));
-                      }
-                    }
-                  }}
-                  className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-[#0089C1] hover:file:bg-sky-100"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={uploading}
-                className="w-full bg-[#0089C1] hover:bg-sky-600 text-white font-bold py-3 rounded-xl shadow-xs transition-all text-xs cursor-pointer disabled:opacity-50"
+              <button 
+                onClick={() => setUploadModalOpen(false)}
+                className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
-                {uploading ? "Securing in Cloudinary Vault..." : "Save & Lodge in HubDocs"}
+                <X className="w-4 h-4" />
               </button>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  Upload Statutory Evidence Document
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Uploaded files are stored in the Cloudinary evidence vault with immutable time-stamps.
+                </p>
+              </div>
+
+              {uploadSuccess && (
+                <div className="my-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Document successfully secured in Cloudinary & logged in Neon DB!</span>
+                </div>
+              )}
+
+              <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs mt-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Document Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 2025 Tax Clearance Certificate (TCC)"
+                    value={newDocName}
+                    onChange={(e) => setNewDocName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Document Category</label>
+                  <select
+                    value={newDocCat}
+                    onChange={(e) => setNewDocCat(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
+                  >
+                    <option value="Corporate">Corporate (CAC)</option>
+                    <option value="Tax">Tax (FIRS / NRS)</option>
+                    <option value="Employee">Employee / HR</option>
+                    <option value="Vendor">Vendor / DPA</option>
+                    <option value="AML / KYC">AML / KYC (SCUML)</option>
+                    <option value="Licences">Licences & Permits</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Statutory Expiry Date</label>
+                  <input
+                    type="text"
+                    value={newDocExpiry}
+                    onChange={(e) => setNewDocExpiry(e.target.value)}
+                    placeholder="e.g. 2026-12-31 or Perpetual"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
+                  />
+                </div>
+
+                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center space-y-2 bg-[#F8FAFC]">
+                  <Upload className="w-8 h-8 text-[#0089C1] mx-auto" />
+                  <p className="text-xs text-slate-600 font-bold">
+                    {selectedFile ? selectedFile.name : "Drag & drop evidence PDF or click to browse"}
+                  </p>
+                  <span className="text-[10px] text-slate-400 block">PDF, PNG, DOCX up to 25MB</span>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedFile(e.target.files[0]);
+                        if (!newDocName) {
+                          setNewDocName(e.target.files[0].name.replace(/\.[^/.]+$/, ""));
+                        }
+                      }
+                    }}
+                    className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-[#0089C1] hover:file:bg-sky-100"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={uploading}
+                  className="w-full bg-[#0089C1] hover:bg-sky-600 text-white font-bold py-3 rounded-xl shadow-xs transition-all text-xs cursor-pointer disabled:opacity-50"
+                >
+                  {uploading ? "Securing in Cloudinary Vault..." : "Save & Lodge in HubDocs"}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

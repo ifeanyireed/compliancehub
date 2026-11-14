@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { api } from "@/lib/api";
 import { 
   Ticket, 
@@ -123,7 +124,12 @@ export default function StaffTicketsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Support Inquiries & Filing Tickets
@@ -138,16 +144,21 @@ export default function StaffTicketsPage() {
             {tickets.length} Registered Tickets
           </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Filter and Search */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4"
+      >
         <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
           {["ALL", "OPEN", "IN_PROGRESS", "RESOLVED"].map(s => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 statusFilter === s
                   ? "bg-[#1E293B] text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -168,12 +179,17 @@ export default function StaffTicketsPage() {
             className="w-full pl-9 pr-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
           />
         </div>
-      </div>
+      </motion.div>
 
       {/* Dual Pane / Table */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Ticket List */}
-        <div className={`${selectedTicket ? "lg:col-span-6" : "lg:col-span-12"} bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden`}>
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className={`${selectedTicket ? "lg:col-span-6" : "lg:col-span-12"} bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden`}
+        >
           <div className="p-4 border-b border-slate-100 font-bold text-xs text-slate-500 uppercase tracking-wider">
             Tickets Queue ({filtered.length})
           </div>
@@ -224,110 +240,118 @@ export default function StaffTicketsPage() {
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
         {/* Selected Ticket Conversation Drawer */}
-        {selectedTicket && (
-          <div className="lg:col-span-6 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col max-h-[700px] overflow-hidden">
-            {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono font-bold text-xs text-slate-500">{selectedTicket.id}</span>
-                  <span className="text-xs font-bold text-slate-900">{selectedTicket.category}</span>
-                </div>
-                <h3 className="text-sm font-extrabold text-slate-900 leading-tight">
-                  {selectedTicket.subject}
-                </h3>
-              </div>
-
-              <button
-                onClick={() => setSelectedTicket(null)}
-                className="w-7 h-7 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Quick Status Toggle */}
-            <div className="px-5 py-2.5 bg-slate-100/70 border-b border-slate-200/80 flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-semibold">Change Status:</span>
-              <div className="flex items-center gap-1.5">
-                {["OPEN", "IN_PROGRESS", "RESOLVED"].map(st => (
-                  <button
-                    key={st}
-                    onClick={() => handleStatusChange(st)}
-                    className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
-                      selectedTicket.status === st
-                        ? "bg-[#0089C1] text-white"
-                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Conversation Thread */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-4 text-xs">
-              {/* Original Query */}
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-slate-900">{selectedTicket.customer_name}</span>
-                  <span className="text-[10px] text-slate-400">{selectedTicket.created_at?.split("T")[0]}</span>
-                </div>
-                <p className="text-slate-700 leading-relaxed font-medium">
-                  {selectedTicket.description}
-                </p>
-              </div>
-
-              {/* Thread Replies */}
-              {selectedTicket.replies?.map((rep, idx) => {
-                const isStaff = rep.sender_role === "STAFF";
-                return (
-                  <div
-                    key={idx}
-                    className={`p-4 rounded-2xl ${
-                      isStaff 
-                        ? "bg-sky-50/80 border border-sky-200 text-sky-950 ml-4" 
-                        : "bg-slate-50 border border-slate-200 text-slate-800 mr-4"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold">{rep.sender_name}</span>
-                      <span className="text-[10px] text-slate-400">{rep.created_at?.split("T")[0]}</span>
-                    </div>
-                    <p className="leading-relaxed font-medium">
-                      {rep.message}
-                    </p>
+        <AnimatePresence>
+          {selectedTicket && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.98, x: 20 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.98, x: 20 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="lg:col-span-6 bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col max-h-[700px] overflow-hidden"
+            >
+              {/* Drawer Header */}
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono font-bold text-xs text-slate-500">{selectedTicket.id}</span>
+                    <span className="text-xs font-bold text-slate-900">{selectedTicket.category}</span>
                   </div>
-                );
-              })}
-            </div>
+                  <h3 className="text-sm font-extrabold text-slate-900 leading-tight">
+                    {selectedTicket.subject}
+                  </h3>
+                </div>
 
-            {/* Reply Input Bar */}
-            <div className="p-4 bg-white border-t border-slate-200">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Type official support reply..."
-                  value={replyText}
-                  onChange={e => setReplyText(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleSendReply()}
-                  className="flex-1 px-4 py-2 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
-                />
                 <button
-                  onClick={handleSendReply}
-                  disabled={sendingReply}
-                  className="px-4 py-2 bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs rounded-xl transition-all shadow-xs"
+                  onClick={() => setSelectedTicket(null)}
+                  className="w-7 h-7 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 cursor-pointer"
                 >
-                  {sendingReply ? "Sending..." : "Reply"}
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+
+              {/* Quick Status Toggle */}
+              <div className="px-5 py-2.5 bg-slate-100/70 border-b border-slate-200/80 flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-semibold">Change Status:</span>
+                <div className="flex items-center gap-1.5">
+                  {["OPEN", "IN_PROGRESS", "RESOLVED"].map(st => (
+                    <button
+                      key={st}
+                      onClick={() => handleStatusChange(st)}
+                      className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                        selectedTicket.status === st
+                          ? "bg-[#0089C1] text-white"
+                          : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Conversation Thread */}
+              <div className="flex-1 p-5 overflow-y-auto space-y-4 text-xs">
+                {/* Original Query */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-slate-900">{selectedTicket.customer_name}</span>
+                    <span className="text-[10px] text-slate-400">{selectedTicket.created_at?.split("T")[0]}</span>
+                  </div>
+                  <p className="text-slate-700 leading-relaxed font-medium">
+                    {selectedTicket.description}
+                  </p>
+                </div>
+
+                {/* Thread Replies */}
+                {selectedTicket.replies?.map((rep, idx) => {
+                  const isStaff = rep.sender_role === "STAFF";
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-2xl ${
+                        isStaff 
+                          ? "bg-sky-50/80 border border-sky-200 text-sky-950 ml-4" 
+                          : "bg-slate-50 border border-slate-200 text-slate-800 mr-4"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold">{rep.sender_name}</span>
+                        <span className="text-[10px] text-slate-400">{rep.created_at?.split("T")[0]}</span>
+                      </div>
+                      <p className="leading-relaxed font-medium">
+                        {rep.message}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Reply Input Bar */}
+              <div className="p-4 bg-white border-t border-slate-200">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Type official support reply..."
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleSendReply()}
+                    className="flex-1 px-4 py-2 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                  />
+                  <button
+                    onClick={handleSendReply}
+                    disabled={sendingReply}
+                    className="px-4 py-2 bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {sendingReply ? "Sending..." : "Reply"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

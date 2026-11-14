@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -97,7 +98,12 @@ export default function BusinessCalendarPage() {
     <div className="space-y-6 select-none">
       
       {/* Header */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[#0089C1] text-white">
@@ -145,10 +151,15 @@ export default function BusinessCalendarPage() {
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Filter / Authority Switcher Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         {/* Authority Badges */}
         <div className="flex flex-wrap items-center gap-1.5">
           {authorities.map((auth) => (
@@ -180,7 +191,7 @@ export default function BusinessCalendarPage() {
             <option value="Verified">Verified</option>
           </select>
         </div>
-      </div>
+      </motion.div>
 
       {/* List View of Deadlines */}
       {viewMode === "list" ? (
@@ -196,9 +207,13 @@ export default function BusinessCalendarPage() {
               <p className="font-bold">No regulatory obligations match this filter.</p>
             </div>
           ) : (
-            filtered.map((ob) => (
-              <div
+            filtered.map((ob, idx) => (
+              <motion.div
                 key={ob.id}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.35, delay: idx * 0.04 }}
                 onClick={() => {
                   setActiveModalObligation(ob);
                   setUploadSuccess(false);
@@ -273,13 +288,18 @@ export default function BusinessCalendarPage() {
                     <span>{ob.status}</span>
                   </span>
                 </div>
-              </div>
+              </motion.div>
             ))
           )}
         </div>
       ) : (
         /* Month Calendar Preview */
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xs space-y-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xs space-y-4"
+        >
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <h2 className="font-extrabold text-base text-slate-900">
               Q1 / Q2 2026 Statutory Calendar Matrix
@@ -288,9 +308,12 @@ export default function BusinessCalendarPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((ob) => (
-              <div 
+            {filtered.map((ob, idx) => (
+              <motion.div 
                 key={ob.id}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3, delay: idx * 0.03 }}
                 onClick={() => {
                   setActiveModalObligation(ob);
                   setUploadSuccess(false);
@@ -309,89 +332,102 @@ export default function BusinessCalendarPage() {
                 <p className="text-[11px] text-slate-500 line-clamp-1">
                   Penalty: {ob.penaltyDescription}
                 </p>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Obligation Details / Evidence Submission Modal */}
-      {activeModalObligation && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in duration-150 space-y-4">
-            <button
-              onClick={() => setActiveModalObligation(null)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1"
+      <AnimatePresence>
+        {activeModalObligation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 12 }}
+              transition={{ duration: 0.25 }}
+              className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 relative space-y-4"
             >
-              <X className="w-4 h-4" />
-            </button>
+              <button
+                onClick={() => setActiveModalObligation(null)}
+                className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
 
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-800">
-                  {activeModalObligation.authority}
-                </span>
-                <span className="text-xs font-bold text-[#0089C1]">
-                  {activeModalObligation.category}
-                </span>
-              </div>
-              <h3 className="font-extrabold text-lg text-slate-900 leading-snug">
-                {activeModalObligation.title}
-              </h3>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-950 text-xs space-y-1">
-              <strong className="block text-[11px] font-black uppercase text-red-800">
-                Statutory Default Consequence:
-              </strong>
-              <p className="leading-relaxed">{activeModalObligation.penaltyDescription}</p>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
-                <span className="text-slate-500 font-bold">Governing Act:</span>
-                <span className="font-bold text-slate-800">{activeModalObligation.applicableLaw}</span>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-800">
+                    {activeModalObligation.authority}
+                  </span>
+                  <span className="text-xs font-bold text-[#0089C1]">
+                    {activeModalObligation.category}
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-lg text-slate-900 leading-snug">
+                  {activeModalObligation.title}
+                </h3>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
-                <span className="text-slate-500 font-bold">Responsible Officer:</span>
-                <span className="font-bold text-[#0089C1]">{activeModalObligation.assignedTo}</span>
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-950 text-xs space-y-1">
+                <strong className="block text-[11px] font-black uppercase text-red-800">
+                  Statutory Default Consequence:
+                </strong>
+                <p className="leading-relaxed">{activeModalObligation.penaltyDescription}</p>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
-                <span className="text-slate-500 font-bold">Statutory Deadline:</span>
-                <span className="font-mono font-black text-slate-900">{activeModalObligation.deadline}</span>
+              <div className="space-y-3 text-xs">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
+                  <span className="text-slate-500 font-bold">Governing Act:</span>
+                  <span className="font-bold text-slate-800">{activeModalObligation.applicableLaw}</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
+                  <span className="text-slate-500 font-bold">Responsible Officer:</span>
+                  <span className="font-bold text-[#0089C1]">{activeModalObligation.assignedTo}</span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
+                  <span className="text-slate-500 font-bold">Statutory Deadline:</span>
+                  <span className="font-mono font-black text-slate-900">{activeModalObligation.deadline}</span>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-50 space-y-1">
+                  <span className="text-slate-500 font-bold block">Required Statutory Evidence:</span>
+                  <span className="font-medium text-slate-800">{activeModalObligation.requiredEvidence}</span>
+                </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-slate-50 space-y-1">
-                <span className="text-slate-500 font-bold block">Required Statutory Evidence:</span>
-                <span className="font-medium text-slate-800">{activeModalObligation.requiredEvidence}</span>
-              </div>
-            </div>
-
-            {/* Evidence Submission Area */}
-            {!uploadSuccess ? (
-              <div className="pt-2 space-y-3">
-                <button
-                  onClick={() => handleMarkComplete(activeModalObligation)}
-                  className="w-full bg-[#0089C1] hover:bg-sky-600 text-white font-bold py-3 rounded-2xl text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Attach Evidence Document & Submit for Review</span>
-                </button>
-              </div>
-            ) : (
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2 text-xs">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                <p className="font-bold text-emerald-950">Evidence Successfully Lodged & Marked Filed!</p>
-                <p className="text-emerald-800">
-                  Transmitted to <strong>{activeModalObligation.assignedTo}</strong> for compliance sign-off.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+              {/* Evidence Submission Area */}
+              {!uploadSuccess ? (
+                <div className="pt-2 space-y-3">
+                  <button
+                    onClick={() => handleMarkComplete(activeModalObligation)}
+                    className="w-full bg-[#0089C1] hover:bg-sky-600 text-white font-bold py-3 rounded-2xl text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Attach Evidence Document & Submit for Review</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2 text-xs">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                  <p className="font-bold text-emerald-950">Evidence Successfully Lodged & Marked Filed!</p>
+                  <p className="text-emerald-800">
+                    Transmitted to <strong>{activeModalObligation.assignedTo}</strong> for compliance sign-off.
+                  </p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

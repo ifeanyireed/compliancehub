@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   CreditCard, 
   Download, 
@@ -104,7 +105,12 @@ export default function PracticeCommercialPage() {
     <div className="space-y-6 select-none">
       
       {/* Top Banner */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
           <span className="text-xs font-black text-[#245C44] uppercase tracking-wider block mb-1">
             Commercial & Billing Cockpit
@@ -125,11 +131,16 @@ export default function PracticeCommercialPage() {
           {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
           <span>{generating ? "Generating..." : "Generate Monthly Invoices"}</span>
         </button>
-      </div>
+      </motion.div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-2">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-2"
+        >
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
             Total Monthly Retainer Volume
           </span>
@@ -139,9 +150,14 @@ export default function PracticeCommercialPage() {
           <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
             <TrendingUp className="w-3.5 h-3.5" /> Across {clients.length} Retainer Clients
           </span>
-        </div>
+        </motion.div>
 
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-2">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-2"
+        >
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
             Next Paystack Payout
           </span>
@@ -149,9 +165,14 @@ export default function PracticeCommercialPage() {
             ₦{totalMonthlyRetainers.toLocaleString()}
           </div>
           <span className="text-xs text-slate-500 font-medium">Scheduled for 1st of next month</span>
-        </div>
+        </motion.div>
 
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-2">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-2"
+        >
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
             Average Client Yield (ARPA)
           </span>
@@ -159,11 +180,16 @@ export default function PracticeCommercialPage() {
             ₦{clients.length > 0 ? Math.round(totalMonthlyRetainers / clients.length).toLocaleString() : "0"}
           </div>
           <span className="text-xs text-slate-500 font-medium">Monthly recurring fee per client</span>
-        </div>
+        </motion.div>
       </div>
 
       {/* Active Retainers Table */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden"
+      >
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <h3 className="font-extrabold text-base text-slate-900">Active Engagement Agreements</h3>
           <span className="text-xs text-slate-400 font-mono">{clients.length} Active Contracts</span>
@@ -226,10 +252,15 @@ export default function PracticeCommercialPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
 
       {/* Past Collections */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4"
+      >
         <h3 className="font-extrabold text-base text-slate-900">Recent Disbursements & Invoices</h3>
         <div className="space-y-2.5">
           {invoices.length === 0 ? (
@@ -238,7 +269,11 @@ export default function PracticeCommercialPage() {
             </div>
           ) : (
             invoices.map((inv) => (
-              <div key={inv.id} className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
+              <motion.div 
+                key={inv.id} 
+                whileHover={{ y: -1 }}
+                className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs"
+              >
                 <div>
                   <span className="font-bold text-slate-900 block">{inv.id} • {inv.client}</span>
                   <span className="text-[10px] text-slate-500 font-mono">Date: {inv.date} • Ref: {inv.payoutRef}</span>
@@ -249,45 +284,58 @@ export default function PracticeCommercialPage() {
                     {inv.status}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             ))
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* SLA Modal */}
-      {selectedSlaClient && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-extrabold text-base text-slate-900">Master Service Agreement & SLA</h3>
-                <p className="text-xs text-slate-500">{selectedSlaClient.name} ({selectedSlaClient.rcNumber})</p>
+      <AnimatePresence>
+        {selectedSlaClient && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900">Master Service Agreement & SLA</h3>
+                  <p className="text-xs text-slate-500">{selectedSlaClient.name} ({selectedSlaClient.rcNumber})</p>
+                </div>
+                <button
+                  onClick={() => setSelectedSlaClient(null)}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold cursor-pointer transition-all"
+                >
+                  ✕
+                </button>
               </div>
+
+              <div className="space-y-2.5 text-xs text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <p><strong>Retainer Fee:</strong> ₦{selectedSlaClient.retainerMonthly.toLocaleString()}/month</p>
+                <p><strong>Billing Cadence:</strong> Monthly automated recurring debit via Paystack Escrow</p>
+                <p><strong>Scope of Authority:</strong> CAMA 2020 annual filings, FIRS TaxPro-MAX remittances, NDPA 2023 RoPA audit</p>
+                <p><strong>Dispute Resolution:</strong> High Court of Lagos State Commercial Division Arbitration</p>
+              </div>
+
               <button
                 onClick={() => setSelectedSlaClient(null)}
-                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
+                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer transition-all"
               >
-                ✕
+                Close Agreement
               </button>
-            </div>
-
-            <div className="space-y-2.5 text-xs text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-              <p><strong>Retainer Fee:</strong> ₦{selectedSlaClient.retainerMonthly.toLocaleString()}/month</p>
-              <p><strong>Billing Cadence:</strong> Monthly automated recurring debit via Paystack Escrow</p>
-              <p><strong>Scope of Authority:</strong> CAMA 2020 annual filings, FIRS TaxPro-MAX remittances, NDPA 2023 RoPA audit</p>
-              <p><strong>Dispute Resolution:</strong> High Court of Lagos State Commercial Division Arbitration</p>
-            </div>
-
-            <button
-              onClick={() => setSelectedSlaClient(null)}
-              className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold"
-            >
-              Close Agreement
-            </button>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

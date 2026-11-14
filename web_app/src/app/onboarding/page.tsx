@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, 
   CheckCircle2, 
@@ -19,6 +20,7 @@ import {
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { api } from "@/lib/api";
 import { CAC_SECTORS, COMPLIANCE_HEADCOUNT_TIERS } from "@/lib/cacIndustries";
+import { defaultEase } from "@/components/motion/MotionTransitions";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -121,7 +123,12 @@ export default function OnboardingPage() {
 
       {/* Main Container */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
-        <div className="bg-white rounded-[36px] max-w-2xl w-full p-6 sm:p-10 border border-slate-200/90 shadow-xl space-y-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: defaultEase }}
+          className="bg-white rounded-[36px] max-w-2xl w-full p-6 sm:p-10 border border-slate-200/90 shadow-xl space-y-8"
+        >
           
           {/* STEP 1: BUSINESS PROFILE */}
           {step === 1 && (
@@ -692,7 +699,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-        </div>
+        </motion.div>
       </main>
     </div>
   );

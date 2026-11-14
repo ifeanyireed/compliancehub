@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   CheckSquare, 
   Clock, 
@@ -122,7 +123,12 @@ export default function PracticeTasksPage() {
     <div className="space-y-6 select-none">
       
       {/* Top Banner */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
           <span className="text-xs font-black text-[#245C44] uppercase tracking-wider block mb-1">
             Work Management Cockpit
@@ -142,10 +148,15 @@ export default function PracticeTasksPage() {
           <Plus className="w-4 h-4" />
           <span>New Practice Task</span>
         </button>
-      </div>
+      </motion.div>
 
       {/* Status Filter Chips */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-wrap items-center gap-2">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-wrap items-center gap-2"
+      >
         <span className="text-xs font-bold text-slate-400 mr-2 flex items-center gap-1">
           <Filter className="w-3.5 h-3.5" /> Pipeline Status:
         </span>
@@ -162,13 +173,17 @@ export default function PracticeTasksPage() {
             {s}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* Task Cards List */}
       <div className="space-y-3">
-        {filteredTasks.map((t) => (
-          <div
+        {filteredTasks.map((t, idx) => (
+          <motion.div
             key={t.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.12 + Math.min(idx * 0.05, 0.3), ease: [0.22, 1, 0.36, 1] }}
+            whileHover={{ y: -2 }}
             className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
           >
             <div className="flex items-start gap-4">
@@ -230,112 +245,125 @@ export default function PracticeTasksPage() {
                 </button>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
       {/* New Practice Task Modal */}
-      {showTaskModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-extrabold text-lg text-slate-900">Assign Practice Task</h3>
-                <p className="text-xs text-slate-500">Lodge an actionable obligation for a client entity.</p>
-              </div>
-              <button
-                onClick={() => setShowTaskModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!taskTitle || !selectedTenantId) return;
-                setCreatingTask(true);
-                try {
-                  await api.practice.createTask({
-                    tenant_id: selectedTenantId,
-                    title: taskTitle,
-                    authority: taskAuthority,
-                    is_urgent: true,
-                  });
-                  await loadTasks();
-                  setShowTaskModal(false);
-                  setTaskTitle("");
-                } catch (err) {
-                  console.error("Task creation failed:", err);
-                } finally {
-                  setCreatingTask(false);
-                }
-              }}
-              className="space-y-4"
+      <AnimatePresence>
+        {showTaskModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl"
             >
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Target Client Business</label>
-                <select
-                  value={selectedTenantId}
-                  onChange={(e) => setSelectedTenantId(e.target.value)}
-                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
-                >
-                  {clientsList.map((c) => (
-                    <option key={c.tenant_id} value={c.tenant_id}>
-                      {c.company_name} ({c.rc_number || "RC-Pending"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Task Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Prepare SCUML Quarterly Compliance Audit Pack"
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Statutory Authority</label>
-                <select
-                  value={taskAuthority}
-                  onChange={(e) => setTaskAuthority(e.target.value)}
-                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
-                >
-                  <option value="CAC">CAC (Corporate Affairs Commission)</option>
-                  <option value="FIRS">FIRS / NRS TaxPro-MAX</option>
-                  <option value="NDPC">NDPC (Nigeria Data Protection Commission)</option>
-                  <option value="SCUML">SCUML / NFIU</option>
-                  <option value="PENCOM">PENCOM</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900">Assign Practice Task</h3>
+                  <p className="text-xs text-slate-500">Lodge an actionable obligation for a client entity.</p>
+                </div>
                 <button
-                  type="button"
                   onClick={() => setShowTaskModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold cursor-pointer transition-all"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingTask}
-                  className="px-5 py-2 rounded-xl bg-[#245C44] hover:bg-[#1E4E39] text-white text-xs font-bold transition-all disabled:opacity-50"
-                >
-                  {creatingTask ? "Lodging..." : "Lodge Practice Task"}
+                  ✕
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!taskTitle || !selectedTenantId) return;
+                  setCreatingTask(true);
+                  try {
+                    await api.practice.createTask({
+                      tenant_id: selectedTenantId,
+                      title: taskTitle,
+                      authority: taskAuthority,
+                      is_urgent: true,
+                    });
+                    await loadTasks();
+                    setShowTaskModal(false);
+                    setTaskTitle("");
+                  } catch (err) {
+                    console.error("Task creation failed:", err);
+                  } finally {
+                    setCreatingTask(false);
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Target Client Business</label>
+                  <select
+                    value={selectedTenantId}
+                    onChange={(e) => setSelectedTenantId(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                  >
+                    {clientsList.map((c) => (
+                      <option key={c.tenant_id} value={c.tenant_id}>
+                        {c.company_name} ({c.rc_number || "RC-Pending"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Task Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Prepare SCUML Quarterly Compliance Audit Pack"
+                    value={taskTitle}
+                    onChange={(e) => setTaskTitle(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Statutory Authority</label>
+                  <select
+                    value={taskAuthority}
+                    onChange={(e) => setTaskAuthority(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#245C44]"
+                  >
+                    <option value="CAC">CAC (Corporate Affairs Commission)</option>
+                    <option value="FIRS">FIRS / NRS TaxPro-MAX</option>
+                    <option value="NDPC">NDPC (Nigeria Data Protection Commission)</option>
+                    <option value="SCUML">SCUML / NFIU</option>
+                    <option value="PENCOM">PENCOM</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskModal(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingTask}
+                    className="px-5 py-2 rounded-xl bg-[#245C44] hover:bg-[#1E4E39] text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {creatingTask ? "Lodging..." : "Lodge Practice Task"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

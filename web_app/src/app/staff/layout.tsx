@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { 
   LayoutDashboard, 
   MessageSquare, 
@@ -117,9 +118,14 @@ export default function StaffLayout({
         </header>
 
         {/* Main Workspace Body */}
-        <main className="flex-1 px-4 sm:px-8 pt-6 pb-12 max-w-7xl mx-auto w-full">
+        <motion.main
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="flex-1 px-4 sm:px-8 pt-6 pb-12 max-w-7xl mx-auto w-full"
+        >
           {children}
-        </main>
+        </motion.main>
       </div>
     </RoleGuard>
   );

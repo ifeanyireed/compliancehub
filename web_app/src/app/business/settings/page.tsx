@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, 
   ShieldCheck, 
@@ -111,7 +112,12 @@ export default function BusinessSettingsPage() {
     <div className="space-y-6 select-none">
       
       {/* Top Banner */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
           <span className="text-xs font-black text-[#0089C1] uppercase tracking-wider block mb-1">
             Workspace Governance
@@ -128,7 +134,7 @@ export default function BusinessSettingsPage() {
         <div className="bg-[#E8EFF4] p-1.5 rounded-2xl border border-slate-300/40 flex flex-wrap items-center">
           <button
             onClick={() => setActiveTab("entity")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === "entity" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
             }`}
           >
@@ -136,7 +142,7 @@ export default function BusinessSettingsPage() {
           </button>
           <button
             onClick={() => setActiveTab("members")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === "members" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
             }`}
           >
@@ -144,7 +150,7 @@ export default function BusinessSettingsPage() {
           </button>
           <button
             onClick={() => setActiveTab("billing")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === "billing" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
             }`}
           >
@@ -152,14 +158,14 @@ export default function BusinessSettingsPage() {
           </button>
           <button
             onClick={() => setActiveTab("security")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === "security" ? "bg-white text-slate-900 shadow-xs" : "text-slate-600"
             }`}
           >
             MFA & Sessions
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {savedBanner && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2">
@@ -170,7 +176,12 @@ export default function BusinessSettingsPage() {
 
       {/* TAB 1: ENTITY PROFILE */}
       {activeTab === "entity" && (
-        <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6"
+        >
           <h3 className="font-extrabold text-base text-slate-900">
             Registered Entity Information (CAC Synchronised)
           </h3>
@@ -220,17 +231,22 @@ export default function BusinessSettingsPage() {
 
             <button
               type="submit"
-              className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-xs transition-all"
+              className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-xs transition-all cursor-pointer"
             >
               Save Entity Profile
             </button>
           </form>
-        </div>
+        </motion.div>
       )}
 
       {/* TAB 2: USERS & ROLES */}
       {activeTab === "members" && (
-        <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-5">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-5"
+        >
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-extrabold text-base text-slate-900">Tenant Workspace Users</h3>
@@ -272,12 +288,17 @@ export default function BusinessSettingsPage() {
               ))
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* TAB 3: BILLING */}
       {activeTab === "billing" && (
-        <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6"
+        >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-sky-50/60 border border-sky-200">
             <div>
               <span className="text-[10px] uppercase font-bold text-[#0089C1] tracking-wider">Active Plan</span>
@@ -285,7 +306,7 @@ export default function BusinessSettingsPage() {
               <p className="text-xs text-slate-600 mt-0.5">₦45,000 billed monthly via Paystack • Renews on 28th of next month</p>
             </div>
             <Link href="/pricing">
-              <button className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs">
+              <button className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs cursor-pointer">
                 Change Subscription Plan
               </button>
             </Link>
@@ -313,12 +334,17 @@ export default function BusinessSettingsPage() {
               ))
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* TAB 4: SECURITY */}
       {activeTab === "security" && (
-        <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6"
+        >
           <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
             <div className="flex items-center gap-3">
               <Smartphone className="w-5 h-5 text-emerald-600" />
@@ -353,84 +379,97 @@ export default function BusinessSettingsPage() {
               </button>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Invite Member Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-extrabold text-lg text-slate-900">Invite Workspace Team Member</h3>
-                <p className="text-xs text-slate-500">Provide user credentials to grant internal access.</p>
-              </div>
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleInvite} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Chukwudi Obi"
-                  value={inviteName}
-                  onChange={(e) => setInviteName(e.target.value)}
-                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Work Email</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="e.g. chukwudi@paywave.ng"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Workspace Role</label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
-                >
-                  <option value="MEMBER">Member (Standard Operations)</option>
-                  <option value="ADMIN">Admin (Full Workspace Management)</option>
-                  <option value="VIEWER">Viewer (Auditor / Read-Only)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
+      <AnimatePresence>
+        {showInviteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 12 }}
+              transition={{ duration: 0.25 }}
+              className="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900">Invite Workspace Team Member</h3>
+                  <p className="text-xs text-slate-500">Provide user credentials to grant internal access.</p>
+                </div>
                 <button
-                  type="button"
                   onClick={() => setShowInviteModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold hover:bg-slate-200 cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={inviting}
-                  className="px-5 py-2 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white text-xs font-bold transition-all disabled:opacity-50"
-                >
-                  {inviting ? "Inviting..." : "Send Invitation"}
+                  ✕
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <form onSubmit={handleInvite} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Chukwudi Obi"
+                    value={inviteName}
+                    onChange={(e) => setInviteName(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Work Email</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. chukwudi@paywave.ng"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Workspace Role</label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0089C1]"
+                  >
+                    <option value="MEMBER">Member (Standard Operations)</option>
+                    <option value="ADMIN">Admin (Full Workspace Management)</option>
+                    <option value="VIEWER">Viewer (Auditor / Read-Only)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowInviteModal(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={inviting}
+                    className="px-5 py-2 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {inviting ? "Inviting..." : "Send Invitation"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

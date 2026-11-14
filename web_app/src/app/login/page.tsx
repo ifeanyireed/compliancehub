@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, 
   Briefcase, 
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth, DEMO_USERS } from "@/components/ahnara/AuthContext";
 import { api } from "@/lib/api";
+import { defaultEase } from "@/components/motion/MotionTransitions";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -111,7 +113,12 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col items-center justify-center p-4 select-none">
       
       {/* Brand Header */}
-      <div className="text-center mb-8">
+      <motion.div 
+        initial={{ opacity: 0, y: -15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: defaultEase }}
+        className="text-center mb-8"
+      >
         <Link href="/" className="inline-flex items-center gap-2.5 mb-3 group">
           <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 p-1.5 shadow-xs flex items-center justify-center">
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
@@ -123,10 +130,15 @@ export default function LoginPage() {
         <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
           Everything compliance. One workspace.
         </p>
-      </div>
+      </motion.div>
 
       {/* Main Login Card */}
-      <div className="bg-white rounded-[36px] max-w-md w-full p-8 border border-slate-200/80 shadow-lg space-y-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1, ease: defaultEase }}
+        className="bg-white rounded-[36px] max-w-md w-full p-8 border border-slate-200/80 shadow-lg space-y-6"
+      >
         <div>
           <h1 className="text-xl font-black text-slate-900 text-display">Sign In to Your Workspace</h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -271,7 +283,7 @@ export default function LoginPage() {
             Start Free Assessment
           </Link>
         </div>
-      </div>
+      </motion.div>
 
       {/* Forgot Password Modal */}
       {showForgotModal && (

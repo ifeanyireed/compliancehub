@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { 
   Building2, 
@@ -56,7 +57,12 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6"
+      >
         <div>
           <div className="flex items-center gap-2 text-rose-600 text-xs font-bold uppercase tracking-wider mb-1">
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
@@ -72,24 +78,29 @@ export default function AdminDashboardPage() {
 
         <div className="flex items-center gap-3">
           <Link href="/admin/blog">
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs shadow-sm transition-all">
+            <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#0089C1] hover:bg-sky-600 text-white font-bold text-xs shadow-sm transition-all cursor-pointer">
               <Plus className="w-4 h-4" />
               <span>Publish Blog Post</span>
             </button>
           </Link>
           <Link href="/admin/support">
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#1E293B] hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all">
+            <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#1E293B] hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer">
               <Headphones className="w-4 h-4" />
               <span>Support Desk</span>
             </button>
           </Link>
         </div>
-      </div>
+      </motion.div>
 
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Companies */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
             <span>Corporate Tenants</span>
             <Building2 className="w-4 h-4 text-[#0089C1]" />
@@ -101,10 +112,15 @@ export default function AdminDashboardPage() {
             <TrendingUp className="w-3.5 h-3.5" />
             <span>+14.2% MoM growth</span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Filings Completed */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
             <span>Completed Filings</span>
             <FileCheck2 className="w-4 h-4 text-emerald-600" />
@@ -115,10 +131,15 @@ export default function AdminDashboardPage() {
           <div className="mt-1 flex items-center gap-1 text-[11px] font-bold text-slate-500">
             <span>{metrics.pending_filings} awaiting CAC seal</span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Monthly Retainer Volume */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
             <span>Monthly Retainers</span>
             <Receipt className="w-4 h-4 text-purple-600" />
@@ -130,10 +151,15 @@ export default function AdminDashboardPage() {
             <TrendingUp className="w-3.5 h-3.5" />
             <span>Escrow protected</span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Open Inquiries & Chat */}
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
             <span>Active Support Sessions</span>
             <MessageSquare className="w-4 h-4 text-amber-500" />
@@ -145,13 +171,18 @@ export default function AdminDashboardPage() {
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>98.4% SLA Compliance</span>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Main Grid: Live Filings Feed & Operational Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Recent Filings Feed */}
-        <div className="lg:col-span-8 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-8 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-extrabold text-slate-900">
@@ -202,10 +233,15 @@ export default function AdminDashboardPage() {
               </div>
             )))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Platform Regulatory Authority Breakdown */}
-        <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 mb-1">
               Filing Breakdown by Authority
@@ -259,12 +295,12 @@ export default function AdminDashboardPage() {
 
           <div className="mt-6 pt-4 border-t border-slate-100">
             <Link href="/admin/users">
-              <button className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors text-center">
+              <button className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors text-center cursor-pointer">
                 Review Registered Companies Directory
               </button>
             </Link>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

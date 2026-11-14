@@ -30,6 +30,7 @@ import { api } from "@/lib/api";
 import { renderMarkdownAndMath } from "@/lib/markdown";
 import { loadKaTeX } from "@/lib/math-renderer";
 import { copyBlogUrlToClipboard } from "@/lib/blog-utils";
+import { MotionSection, MotionCard, defaultEase } from "@/components/motion/MotionTransitions";
 
 interface Comment {
   id: number;
@@ -218,7 +219,12 @@ export default function SingleBlogPostPage() {
         {/* Article Container */}
         <article className="max-w-4xl mx-auto px-6">
           {/* Header */}
-          <div className="mb-8">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: defaultEase }}
+            className="mb-8"
+          >
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <span className="px-3 py-1 rounded-full bg-[#0089C1]/10 text-[#0089C1] text-xs font-bold border border-[#0089C1]/20">
                 {post.category}
@@ -289,10 +295,15 @@ export default function SingleBlogPostPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Hero Cover Image (Real Nigerian Media with referrerpolicy no-referrer) */}
-          <div className="w-full h-80 sm:h-96 rounded-3xl overflow-hidden border border-slate-200 shadow-md mb-10 relative bg-slate-900">
+          <motion.div 
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: defaultEase }}
+            className="w-full h-80 sm:h-96 rounded-3xl overflow-hidden border border-slate-200 shadow-md mb-10 relative bg-slate-900"
+          >
             <img
               src={post.cover_image}
               alt={post.title}
@@ -300,7 +311,7 @@ export default function SingleBlogPostPage() {
               loading="lazy"
               className="w-full h-full object-cover"
             />
-          </div>
+          </motion.div>
 
           {/* Statutory Advisory Notice Callout */}
           <div className="bg-sky-50/90 border border-sky-200 rounded-2xl p-6 mb-10 flex items-start gap-4 shadow-xs">
@@ -371,7 +382,7 @@ export default function SingleBlogPostPage() {
           )}
 
           {/* Interactive Comments Section */}
-          <div className="mt-12 bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 shadow-sm">
+          <MotionSection className="mt-12 bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 shadow-sm">
             <div className="flex items-center gap-2 mb-6">
               <MessageSquare className="w-5 h-5 text-[#0089C1]" />
               <h3 className="text-lg font-black text-slate-900 tracking-tight">
@@ -452,7 +463,7 @@ export default function SingleBlogPostPage() {
                 </button>
               </div>
             </form>
-          </div>
+          </MotionSection>
 
           {/* Related Articles Section */}
           {relatedPosts.length > 0 && (
@@ -489,7 +500,7 @@ export default function SingleBlogPostPage() {
           )}
 
           {/* Call to Action Card: HubExperts Marketplace */}
-          <div className="mt-12 bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+          <MotionCard hoverEffect className="mt-12 bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
                 HubExperts Advisory
@@ -510,7 +521,7 @@ export default function SingleBlogPostPage() {
                 </button>
               </Link>
             </div>
-          </div>
+          </MotionCard>
         </article>
       </main>
 

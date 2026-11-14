@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   UserCheck, 
   ShieldAlert, 
@@ -101,7 +102,12 @@ export default function BusinessProfessionalsPage() {
     <div className="space-y-6 select-none">
       
       {/* Top Banner */}
-      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-[32px] p-6 sm:p-8 border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[#0089C1] text-white">
@@ -120,34 +126,50 @@ export default function BusinessProfessionalsPage() {
         </div>
 
         <Link href="/experts">
-          <button className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto">
+          <button className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-5 py-2.5 rounded-2xl text-xs shadow-xs flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer">
             <Plus className="w-4 h-4" />
             <span>Engage New Specialist</span>
           </button>
         </Link>
-      </div>
+      </motion.div>
 
       {/* Revocation Alert Banner */}
-      {revokedBanner && (
-        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-xs font-bold flex items-center gap-3">
-          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-          <span>{revokedBanner}</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {revokedBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-xs font-bold flex items-center gap-3"
+          >
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>{revokedBanner}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Security Rule Card (Blueprint Part 5.1 & 5.2) */}
-      <div className="bg-white/80 rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center gap-3 text-xs text-slate-600">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white/80 rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center gap-3 text-xs text-slate-600"
+      >
         <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
         <div>
           <strong className="text-slate-900">Multi-Tenant Isolation Enforced:</strong> Professionals receive delegated, time-bound access scoped strictly to authorized modules. They cannot view documents from modules they have not been explicitly assigned.
         </div>
-      </div>
+      </motion.div>
 
       {/* Professionals List */}
       <div className="space-y-4">
-        {professionals.map((pro) => (
-          <div
+        {professionals.map((pro, idx) => (
+          <motion.div
             key={pro.id}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.35, delay: idx * 0.06 }}
             className={`bg-white rounded-3xl p-6 md:p-8 border shadow-xs transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6 ${
               pro.status === "Access Revoked" ? "opacity-60 border-red-200 bg-red-50/20" : "border-slate-200"
             }`}
@@ -196,7 +218,7 @@ export default function BusinessProfessionalsPage() {
                 <button
                   onClick={() => handleToggleDualApproval(pro.id)}
                   disabled={pro.status === "Access Revoked"}
-                  className={`mt-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                  className={`mt-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                     pro.dualApprovalRequired
                       ? "bg-amber-100 text-amber-900 border border-amber-300"
                       : "bg-slate-100 text-slate-600 border border-slate-200"
@@ -223,7 +245,7 @@ export default function BusinessProfessionalsPage() {
                 </span>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 

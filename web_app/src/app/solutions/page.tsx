@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, 
   ShieldCheck, 
@@ -18,6 +19,7 @@ import {
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
+import { MotionSection, MotionCard, defaultEase } from "@/components/motion/MotionTransitions";
 
 export default function SolutionsPage() {
   const [selectedIndustry, setSelectedIndustry] = useState<string>("fintech");
@@ -85,7 +87,12 @@ export default function SolutionsPage() {
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 my-8 space-y-12">
         {/* Header Section */}
-        <div className="text-center max-w-3xl mx-auto space-y-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: defaultEase }}
+          className="text-center max-w-3xl mx-auto space-y-4"
+        >
           <span className="text-xs font-black text-[#0089C1] uppercase tracking-wider bg-sky-100/60 text-[#0089C1] px-3 py-1 rounded-full border border-sky-200">
             Tailored Industry Solutions
           </span>
@@ -95,16 +102,19 @@ export default function SolutionsPage() {
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
             Every Nigerian industry has distinct regulatory overseers. ComplianceHub maps your exact statutory obligations across CAC, FIRS, NDPC, CBN, and SCUML into customized operating workflows.
           </p>
-        </div>
+        </motion.div>
 
         {/* Industry Selector Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {industries.map((ind) => {
+          {industries.map((ind, index) => {
             const Icon = ind.icon;
             const isSelected = selectedIndustry === ind.id;
             return (
-              <button
+              <motion.button
                 key={ind.id}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.06 }}
                 onClick={() => setSelectedIndustry(ind.id)}
                 className={`p-5 rounded-3xl text-left border transition-all flex flex-col justify-between ${
                   isSelected
@@ -119,13 +129,13 @@ export default function SolutionsPage() {
                     Sector Solution
                   </p>
                 </div>
-              </button>
+              </motion.button>
             );
           })}
         </div>
 
         {/* Selected Industry Deep Dive Card */}
-        <section className="bg-white rounded-[40px] p-8 md:p-12 border border-slate-200 shadow-xs">
+        <MotionSection className="bg-white rounded-[40px] p-8 md:p-12 border border-slate-200 shadow-xs">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="space-y-6">
               <div>
@@ -194,10 +204,10 @@ export default function SolutionsPage() {
               </div>
             </div>
           </div>
-        </section>
+        </MotionSection>
 
         {/* Persona Solutions (Blueprint Part 1.1) */}
-        <section className="space-y-6">
+        <MotionSection className="space-y-6">
           <div className="text-center max-w-xl mx-auto space-y-2">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 text-display">
               Solutions by Stakeholder Role
@@ -208,7 +218,7 @@ export default function SolutionsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
+            <MotionCard hoverEffect className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
               <div>
                 <Building2 className="w-8 h-8 text-[#0089C1] mb-3" />
                 <h3 className="font-bold text-lg text-slate-900 mb-2">Business Owners & Managing Directors</h3>
@@ -220,9 +230,9 @@ export default function SolutionsPage() {
                 <span>Explore Business Dashboard</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
-            </div>
+            </MotionCard>
 
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
+            <MotionCard hoverEffect delay={0.1} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
               <div>
                 <Briefcase className="w-8 h-8 text-[#245C44] mb-3" />
                 <h3 className="font-bold text-lg text-slate-900 mb-2">Independent Compliance Officers</h3>
@@ -234,9 +244,9 @@ export default function SolutionsPage() {
                 <span>Explore HubAgents Practice Suite</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
-            </div>
+            </MotionCard>
 
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
+            <MotionCard hoverEffect delay={0.2} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
               <div>
                 <Users2 className="w-8 h-8 text-purple-600 mb-3" />
                 <h3 className="font-bold text-lg text-slate-900 mb-2">Compliance Consulting Agencies & DPCOs</h3>
@@ -248,9 +258,9 @@ export default function SolutionsPage() {
                 <span>Explore HubAgency Features</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
-            </div>
+            </MotionCard>
           </div>
-        </section>
+        </MotionSection>
 
       </main>
 

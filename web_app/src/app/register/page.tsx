@@ -3,6 +3,7 @@
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { 
   Building2, 
   Briefcase, 
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { api } from "@/lib/api";
+import { defaultEase } from "@/components/motion/MotionTransitions";
 
 function RegisterForm() {
   const router = useRouter();
@@ -80,7 +82,12 @@ function RegisterForm() {
   };
 
   return (
-    <div className="bg-white rounded-[36px] max-w-lg w-full p-8 border border-slate-200/80 shadow-xl space-y-6 select-none">
+    <motion.div 
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: defaultEase }}
+      className="bg-white rounded-[36px] max-w-lg w-full p-8 border border-slate-200/80 shadow-xl space-y-6 select-none"
+    >
       <div>
         <h1 className="text-xl font-black text-slate-900 text-display">Choose Account Type</h1>
         <p className="text-xs text-slate-500 mt-1">
@@ -201,14 +208,19 @@ function RegisterForm() {
           Sign In
         </Link>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col items-center justify-center p-4">
-      <div className="text-center mb-6">
+      <motion.div 
+        initial={{ opacity: 0, y: -15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: defaultEase }}
+        className="text-center mb-6"
+      >
         <Link href="/" className="inline-flex items-center gap-2.5 mb-2 group">
           <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 p-1.5 shadow-xs flex items-center justify-center">
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
@@ -220,7 +232,7 @@ export default function RegisterPage() {
         <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
           Create Your Compliance Environment
         </p>
-      </div>
+      </motion.div>
 
       <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading registration form...</div>}>
         <RegisterForm />

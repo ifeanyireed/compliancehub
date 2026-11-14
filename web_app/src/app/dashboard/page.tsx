@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { AhnaraLoader } from "@/components/ahnara/AhnaraLoader";
 
@@ -46,8 +47,13 @@ export default function UniversalDashboardRedirect() {
   }, [user, loading, router]);
 
   return (
-    <div className="min-h-screen bg-[#E8EFF4] flex items-center justify-center">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className="min-h-screen bg-[#E8EFF4] flex items-center justify-center"
+    >
       <AhnaraLoader fullScreen size="lg" label="Directing to your workspace dashboard..." />
-    </div>
+    </motion.div>
   );
 }

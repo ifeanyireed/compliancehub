@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { 
   Headphones, 
@@ -68,7 +69,12 @@ export default function AdminSupportPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Support Operations & Resolution Desk
@@ -79,16 +85,21 @@ export default function AdminSupportPage() {
         </div>
 
         <Link href="/staff/dashboard">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#1E293B] hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all">
+          <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#1E293B] hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer">
             <Headphones className="w-4 h-4" />
             <span>Open Staff Console</span>
           </button>
         </Link>
-      </div>
+      </motion.div>
 
       {/* SLA Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
             <span>Average Resolution Time</span>
             <Clock className="w-4 h-4 text-emerald-600" />
@@ -99,9 +110,14 @@ export default function AdminSupportPage() {
           <div className="mt-1 text-[11px] font-bold text-emerald-600">
             Target: &lt; 4.0 Hours
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
             <span>Open Ticket Queue</span>
             <Ticket className="w-4 h-4 text-amber-500" />
@@ -112,9 +128,14 @@ export default function AdminSupportPage() {
           <div className="mt-1 text-[11px] font-bold text-slate-500">
             {tickets.filter(t => t.priority === "URGENT" || t.priority === "HIGH").length} high priority
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
             <span>Live Chat Sessions</span>
             <MessageSquare className="w-4 h-4 text-[#0089C1]" />
@@ -125,13 +146,18 @@ export default function AdminSupportPage() {
           <div className="mt-1 text-[11px] font-bold text-emerald-600">
             2 staff officers online
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Grid: Tickets & Active Chats */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Support Tickets Queue */}
-        <div className="lg:col-span-8 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-8 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs"
+        >
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-extrabold text-slate-900">
@@ -211,10 +237,15 @@ export default function AdminSupportPage() {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Active Live Chat Monitor */}
-        <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-4 bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between"
+        >
           <div>
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -260,12 +291,12 @@ export default function AdminSupportPage() {
 
           <div className="mt-6 pt-4 border-t border-slate-100">
             <Link href="/staff/chat">
-              <button className="w-full py-2.5 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white text-xs font-bold transition-colors text-center shadow-xs">
+              <button className="w-full py-2.5 rounded-xl bg-[#0089C1] hover:bg-sky-600 text-white text-xs font-bold transition-colors text-center shadow-xs cursor-pointer">
                 Open Full Support Live Chat Desk
               </button>
             </Link>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

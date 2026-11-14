@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   FileText, 
   Download, 
@@ -17,6 +18,7 @@ import {
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
+import { MotionSection, MotionCard, defaultEase } from "@/components/motion/MotionTransitions";
 
 export default function ResourcesPage() {
   const [downloadedItem, setDownloadedItem] = useState<string | null>(null);
@@ -77,7 +79,12 @@ export default function ResourcesPage() {
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-6 my-8 space-y-12">
         {/* Banner */}
-        <div className="text-center max-w-3xl mx-auto space-y-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: defaultEase }}
+          className="text-center max-w-3xl mx-auto space-y-4"
+        >
           <span className="text-xs font-black text-amber-700 uppercase tracking-wider bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
             Regulatory Intelligence
           </span>
@@ -87,21 +94,30 @@ export default function ResourcesPage() {
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
             Curated and annotated by our in-house regulatory intelligence team to help Nigerian founders and compliance practitioners navigate complex legal changes without ambiguity.
           </p>
-        </div>
+        </motion.div>
 
         {/* Download notification */}
-        {downloadedItem && (
-          <div className="max-w-xl mx-auto p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold text-center flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>Downloaded &ldquo;{downloadedItem}&rdquo; successfully!</span>
-          </div>
-        )}
+        <AnimatePresence>
+          {downloadedItem && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="max-w-xl mx-auto p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold text-center flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Downloaded &ldquo;{downloadedItem}&rdquo; successfully!</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Guides Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {guides.map((g) => (
-            <div
+          {guides.map((g, index) => (
+            <MotionCard
               key={g.id}
+              delay={index * 0.08}
+              hoverEffect
               className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-xs flex flex-col justify-between space-y-6 hover:border-slate-300 transition-all"
             >
               <div className="space-y-4">
@@ -144,12 +160,12 @@ export default function ResourcesPage() {
                   <span>Download Guide</span>
                 </button>
               </div>
-            </div>
+            </MotionCard>
           ))}
         </div>
 
         {/* Regulatory Advisory Box */}
-        <div className="bg-[#E9F2F5] rounded-[36px] p-8 md:p-10 border border-slate-200/80 space-y-4">
+        <MotionSection className="bg-[#E9F2F5] rounded-[36px] p-8 md:p-10 border border-slate-200/80 space-y-4">
           <div className="flex items-center gap-2.5 text-slate-900 font-black text-lg">
             <Scale className="w-6 h-6 text-[#0089C1]" />
             <span>Need Custom Statutory Interpretation?</span>
@@ -164,7 +180,7 @@ export default function ResourcesPage() {
               </button>
             </Link>
           </div>
-        </div>
+        </MotionSection>
 
       </main>
 
