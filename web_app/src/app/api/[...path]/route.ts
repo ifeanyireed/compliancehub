@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import crypto from "crypto";
+import {
+  checkRedisHealth,
+  rateLimitCheck,
+  getCached,
+  setCached,
+  acquireWebhookIdempotency,
+  getGlobalKey,
+} from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -67,20 +75,130 @@ async function handleRequest(
     return new NextResponse(null, { status: 200 });
   }
 
+  // Extract client IP for distributed rate limiting
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "127.0.0.1";
+
+  // Tier 1: Auth Rate Limiting (10 requests / minute / IP)
+  if (
+    cleanPath.startsWith("/v1/auth/login") ||
+    cleanPath.startsWith("/v1/auth/register") ||
+    cleanPath.startsWith("/v1/auth/forgot-password") ||
+    cleanPath.startsWith("/v1/auth/reset-password") ||
+    cleanPath.startsWith("/v1/corporate-audit/claim")
+  ) {
+    const rl = await rateLimitCheck("auth", clientIp);
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: "Too many authentication attempts. Please wait a moment before trying again." },
+        { status: 429, headers: { "Retry-After": String(rl.reset) } }
+      );
+    }
+  }
+
+  // Tier 2: Public Inquiries Rate Limiting (15 requests / minute / IP)
+  if (
+    cleanPath.startsWith("/support/tickets") ||
+    cleanPath.startsWith("/chat/messages") ||
+    cleanPath.startsWith("/blog/subscribe")
+  ) {
+    const rl = await rateLimitCheck("public", clientIp);
+    if (!rl.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait a moment before retrying." },
+        { status: 429, headers: { "Retry-After": String(rl.reset) } }
+      );
+    }
+  }
+
   try {
     const sql = getSql();
     const tenantId = getTenantId(request);
     const demoUser = getDemoUser(request);
 
     // ==========================================
-    // Health Check
+    // Health Check with Redis Connectivity Status
     // ==========================================
     if (cleanPath === "/health") {
+      const redisHealth = await checkRedisHealth();
       return NextResponse.json({
         status: "ok",
         database: "Neon Lakebase Postgres (connected)",
+        redis: redisHealth.message || redisHealth.status,
         service: "ComplianceHub.ng Core API",
       });
+    }
+
+    // ==========================================
+    // Master Regulatory Frameworks & Obligations (24h Redis Cache)
+    // ==========================================
+    if (cleanPath === "/v1/frameworks" && method === "GET") {
+      const cacheKey = getGlobalKey("shared", "frameworks", "all");
+      const cached = await getCached<any[]>(cacheKey);
+      if (cached && cached.length > 0) {
+        return NextResponse.json(cached, { headers: { "X-Cache": "HIT" } });
+      }
+
+      const frameworks = await sql.query(`
+        SELECT id, authority, statute_name, COALESCE(section_reference, '') AS section_reference,
+               COALESCE(official_source_url, '') AS official_source_url, frequency,
+               COALESCE(applies_to_industries, ARRAY[]::text[]) AS applies_to_industries,
+               COALESCE(penalty_formula, '') AS penalty_formula, created_at
+        FROM regulatory_frameworks
+        ORDER BY authority ASC
+      `);
+
+      const obligations = await sql.query(`
+        SELECT id, COALESCE(framework_id::text, '') AS framework_id, title, authority, description,
+               statutory_ref, default_frequency, COALESCE(required_evidence_type, '') AS required_evidence_type, is_statutory
+        FROM obligations
+        ORDER BY authority ASC, title ASC
+      `);
+
+      const obMap: Record<string, any[]> = {};
+      for (const o of (obligations as any[]) || []) {
+        if (!obMap[o.framework_id]) obMap[o.framework_id] = [];
+        obMap[o.framework_id].push(o);
+      }
+
+      const combined = ((frameworks as any[]) || []).map((f: any) => ({
+        ...f,
+        obligations: obMap[f.id] || [],
+      }));
+
+      if (combined.length > 0) {
+        await setCached(cacheKey, combined, 86400); // 24 hours
+      }
+
+      return NextResponse.json(combined, { headers: { "X-Cache": "MISS" } });
+    }
+
+    // ==========================================
+    // Paystack Webhook with Distributed Idempotency Lock
+    // ==========================================
+    if (
+      (cleanPath === "/v1/payments/webhook" || cleanPath === "/payments/paystack/webhook") &&
+      method === "POST"
+    ) {
+      const body = await request.json().catch(() => ({}));
+      const reference = body?.data?.reference || `evt_${body?.data?.id || Date.now()}`;
+      const acquired = await acquireWebhookIdempotency(reference);
+      if (!acquired) {
+        return NextResponse.json(
+          { status: "ignored", message: "Duplicate payment webhook event already handled or in progress" },
+          { status: 200 }
+        );
+      }
+
+      if (body?.event === "charge.success" && reference) {
+        await sql.query(
+          "UPDATE invoices SET status = 'SETTLED', paid_at = NOW(), payout_ref = $1 WHERE invoice_number = $2 OR id::text = $2",
+          [reference, reference]
+        );
+      }
+      return NextResponse.json({ status: "success", message: "Paystack webhook processed successfully" });
     }
 
     // ==========================================
@@ -361,6 +479,622 @@ async function handleRequest(
     }
 
     // ==========================================
+    // Corporate Audit Diagnostic Engine
+    // ==========================================
+    if (cleanPath === "/v1/corporate-audit/evaluate" && method === "POST") {
+      const body = await request.json();
+      if (!body.company_name || !body.contact_email) {
+        return NextResponse.json({ error: "Company name and contact email are required." }, { status: 400 });
+      }
+
+      // 1. Pillar Calculations
+      const pillars: Record<string, any> = {};
+      const infractions: any[] = [];
+      const roadmap: any[] = [];
+      let totalPenalty = 0;
+
+      // CAC
+      let cacScore = 20;
+      let cacPenalty = 0;
+      let cacStatus = "COMPLIANT";
+      let cacNotice = "Annual returns and statutory filings are up to date under CAMA 2020.";
+
+      if (body.cac_status === "overdue_1yr") {
+        cacScore = 10;
+        cacPenalty = 75000;
+        cacStatus = "WARNING";
+        cacNotice = "CAMA 2020 s.377: Form CAC 19 Annual Return overdue for past financial year.";
+        infractions.push({
+          authority: "CAC",
+          title: "Overdue Annual Returns Filing (Form CAC 19)",
+          statutory_ref: "CAMA 2020 s.377 & s.378",
+          severity: "HIGH",
+          penalty_ngn: 75000,
+          description: "Failure to submit audited financial statements and annual return within 42 days of the AGM.",
+          remedy: "File pending Form CAC 19 along with audited accounts to restore good standing and prevent status downgrade.",
+        });
+        roadmap.push({
+          phase: "30-Day",
+          authority: "CAC",
+          title: "File Past Year Annual Return (Form CAC 19)",
+          action: "Prepare and upload audited balance sheet or small-company financial statements on the CAC CRP portal.",
+          statutory_ref: "CAMA 2020 s.377",
+          impact: "Eliminates daily default penalty accumulation and maintains active corporate status.",
+        });
+      } else if (body.cac_status === "overdue_2_3yr") {
+        cacScore = 4;
+        cacPenalty = 225000;
+        cacStatus = "CRITICAL";
+        cacNotice = "Multi-year annual return default. Imminent risk of company classification as 'INACTIVE' on the CAC public register.";
+        infractions.push({
+          authority: "CAC",
+          title: "Multi-Year CAMA 2020 Filing Default & Inactive Status Risk",
+          statutory_ref: "CAMA 2020 s.377 & s.692",
+          severity: "CRITICAL",
+          penalty_ngn: 225000,
+          description: "The CAC is actively striking off entities with >2 years of consecutive unfiled annual returns from the register of companies.",
+          remedy: "Perform emergency regularization: submit back-year filings, updated PSC registers, and pay accumulated late surcharges.",
+        });
+        roadmap.push({
+          phase: "30-Day",
+          authority: "CAC",
+          title: "Emergency CAC Post-Incorporation Regularization",
+          action: "Engage an accredited CAC agent to file back-year returns and update the Register of Persons with Significant Control (PSC).",
+          statutory_ref: "CAMA 2020 s.119 & s.377",
+          impact: "Averts imminent corporate de-registration and commercial banking restrictions.",
+        });
+      } else if (body.cac_status === "never_filed") {
+        cacScore = 0;
+        cacPenalty = 350000;
+        cacStatus = "CRITICAL";
+        cacNotice = "Entity has accumulated total statutory filing default since incorporation date.";
+        infractions.push({
+          authority: "CAC",
+          title: "Total Annual Return Default Since Incorporation",
+          statutory_ref: "CAMA 2020 s.377, s.692",
+          severity: "CRITICAL",
+          penalty_ngn: 350000,
+          description: "No post-incorporation statutory compliance evidence found. Commercial banks will freeze corporate accounts during periodic KYC refreshes.",
+          remedy: "Immediate full historical filing package must be drafted and submitted through an accredited corporate secretary.",
+        });
+        roadmap.push({
+          phase: "30-Day",
+          authority: "CAC",
+          title: "Historical CAC Backlog Filing Package",
+          action: "Commission full corporate secretarial audit to file all outstanding returns from incorporation year.",
+          statutory_ref: "CAMA 2020 s.377",
+          impact: "Clears company record for public procurement, bank facilities, and institutional equity investments.",
+        });
+      }
+
+      totalPenalty += cacPenalty;
+      pillars["cac"] = {
+        pillar_name: "Corporate Affairs (CAC)",
+        authority: "CAC",
+        score: cacScore * 5,
+        status: cacStatus,
+        penalty_ngn: cacPenalty,
+        statutory_ref: "Companies and Allied Matters Act (CAMA 2020)",
+        summary_notice: cacNotice,
+      };
+
+      // FIRS / Tax
+      let taxScore = 20;
+      let taxPenalty = 0;
+      let taxStatus = "COMPLIANT";
+      let taxNotice = "TaxPro-MAX TIN active, monthly VAT/WHT returns and Company Income Tax up to date.";
+
+      if (body.tax_status === "irregular") {
+        taxScore = 8;
+        taxPenalty = 450000;
+        taxStatus = "CRITICAL";
+        taxNotice = "Irregular VAT or Withholding Tax filings under TaxPro-MAX and 2026 Tax Act rules.";
+        infractions.push({
+          authority: "FIRS / State IRS",
+          title: "Default in Monthly TaxPro-MAX VAT / WHT Filings",
+          statutory_ref: "VATA s.15 & Nigeria Tax Act 2025/2026",
+          severity: "CRITICAL",
+          penalty_ngn: 450000,
+          description: "Monthly VAT default incurs ₦50,000 for the first month and ₦25,000 for each subsequent month of non-remittance, plus 10% penalty and statutory interest.",
+          remedy: "Submit reconciliation schedules on TaxPro-MAX and remit unremitted WHT deductions to obtain modern Withholding Tax Credit Notes.",
+        });
+        roadmap.push({
+          phase: "30-Day",
+          authority: "FIRS / NRS",
+          title: "TaxPro-MAX Monthly VAT & WHT Reconciliation",
+          action: "Reconcile sales/invoices on TaxPro-MAX and remit outstanding VAT before the 21st statutory monthly cutoff.",
+          statutory_ref: "VATA s.15 & CITA s.55",
+          impact: "Halts automatic accumulation of statutory interest and avoids automated TaxPro-MAX system lockouts.",
+        });
+      } else if (body.tax_status === "not_registered") {
+        taxScore = 0;
+        taxPenalty = 1500000;
+        taxStatus = "CRITICAL";
+        taxNotice = "Entity is operating without an active TaxPro-MAX registration or Corporate Tax Clearance.";
+        infractions.push({
+          authority: "FIRS / NRS",
+          title: "Unregistered Corporate Tax Entity (Missing TaxPro-MAX Login)",
+          statutory_ref: "CITA s.55 & FIRS Establishment Act",
+          severity: "CRITICAL",
+          penalty_ngn: 1500000,
+          description: "Operating a registered company in Nigeria without TaxPro-MAX registration subjects directors to administrative audits and retroactive back-tax assessments.",
+          remedy: "Complete TaxPro-MAX corporate registration, link primary director NIN, and validate JTB Tax Identification Number.",
+        });
+        roadmap.push({
+          phase: "30-Day",
+          authority: "FIRS / NRS",
+          title: "TaxPro-MAX Corporate Onboarding & TIN Validation",
+          action: "Visit nearest FIRS Medium/Small Tax Office (MTO/STO) or onboard via TaxPro-MAX with Certificate of Incorporation.",
+          statutory_ref: "CITA s.55",
+          impact: "Enables lawful invoicing, government contract bidding, and prevents corporate bank account restriction.",
+        });
+      } else if (body.tax_status === "pending_audit") {
+        taxScore = 5;
+        taxPenalty = 2500000;
+        taxStatus = "CRITICAL";
+        taxNotice = "Company is facing an active FIRS/State IRS tax audit or jeopardy assessment notice.";
+        infractions.push({
+          authority: "FIRS / SIRS",
+          title: "Active Tax Regulatory Audit & Disputed Assessment",
+          statutory_ref: "FIRS Establishment Act s.26 & PITA s.58",
+          severity: "HIGH",
+          penalty_ngn: 2500000,
+          description: "Pending notice of tax assessment will crystallize into an enforceable debt within 30 days unless formally objected to with supporting evidence.",
+          remedy: "Retain an accredited ICAN/CITN tax practitioner to draft a formal Notice of Objection and prepare audit defense working papers.",
+        });
+        roadmap.push({
+          phase: "30-Day",
+          authority: "FIRS / SIRS",
+          title: "Lodge Formal Notice of Objection to Tax Assessment",
+          action: "Submit documented objection within statutory 30-day window with evidence of prior remittances and audited financials.",
+          statutory_ref: "FIRS Act s.26",
+          impact: "Stays enforcement action and prevents final and conclusive assessment status.",
+        });
+      }
+
+      totalPenalty += taxPenalty;
+      pillars["tax"] = {
+        pillar_name: "Tax & Fiscal Remittances (FIRS / State IRS)",
+        authority: "FIRS / NRS",
+        score: taxScore * 5,
+        status: taxStatus,
+        penalty_ngn: taxPenalty,
+        statutory_ref: "Companies Income Tax Act & Nigeria Tax Act 2025/2026",
+        summary_notice: taxNotice,
+      };
+
+      // NDPC / Data Privacy
+      let privacyScore = 20;
+      let privacyPenalty = 0;
+      let privacyStatus = "COMPLIANT";
+      let privacyNotice = "Data protection compliance framework maintained under NDPA 2023.";
+
+      const isDCMI = body.collects_personal_data && (body.estimated_data_subjects === "10k-100k" || body.estimated_data_subjects === "100k+" || body.processes_payments);
+
+      if (body.collects_personal_data) {
+        if (body.privacy_status === "no_framework") {
+          if (isDCMI) {
+            privacyScore = 0;
+            privacyPenalty = 5000000;
+            privacyStatus = "CRITICAL";
+            privacyNotice = "Critical Default: Qualified as Data Controller of Major Importance (DCMI) without mandatory RoPA, DPO, or DPCO audit return.";
+            infractions.push({
+              authority: "NDPC",
+              title: "Unregistered DCMI & Failure to File Statutory Annual DPCO Audit Return",
+              statutory_ref: "NDPA 2023 s.32, s.44 & s.48",
+              severity: "CRITICAL",
+              penalty_ngn: 5000000,
+              description: "Section 48 of the NDPA 2023 imposes statutory fines up to ₦10,000,000 or 2% of annual gross turnover on major controllers failing to file annual audit returns by March 15.",
+              remedy: "Designate a Data Protection Officer (DPO), establish a Record of Processing Activities (RoPA), and retain a licensed DPCO to file the statutory audit.",
+            });
+            roadmap.push({
+              phase: "30-Day",
+              authority: "NDPC",
+              title: "Designate DPO & Formalize Record of Processing Activities (RoPA)",
+              action: "Map all consumer data flows, storage locations, lawful bases, and cross-border transfers into a formal RoPA register.",
+              statutory_ref: "NDPA 2023 s.32 & s.44",
+              impact: "Satisfies fundamental legal prerequisites for NDPC compliance.",
+            });
+            roadmap.push({
+              phase: "60-Day",
+              authority: "NDPC",
+              title: "Commission Annual Statutory Audit via Licensed DPCO",
+              action: "Retain an accredited Data Protection Compliance Organisation (DPCO) on HubExperts to conduct external audit and file with NDPC.",
+              statutory_ref: "NDPA 2023 s.48",
+              impact: "Protects entity from multi-million Naira enforcement penalties and public regulatory sanctions.",
+            });
+          } else {
+            privacyScore = 6;
+            privacyPenalty = 750000;
+            privacyStatus = "WARNING";
+            privacyNotice = "Personal data processed without published Privacy Notice, consent protocols, or data retention schedules.";
+          }
+        } else if (body.privacy_status === "internal_only") {
+          if (isDCMI) {
+            privacyScore = 10;
+            privacyPenalty = 2500000;
+            privacyStatus = "WARNING";
+            privacyNotice = "Internal data privacy guidelines exist, but statutory external DPCO annual audit return has not been submitted to the NDPC.";
+            infractions.push({
+              authority: "NDPC",
+              title: "Unfiled Statutory Annual DPCO Audit Return (DCMI Requirement)",
+              statutory_ref: "NDPA 2023 s.48",
+              severity: "HIGH",
+              penalty_ngn: 2500000,
+              description: "Internal privacy policies are insufficient for Data Controllers of Major Importance; statutory law mandates an external audit verified by a licensed DPCO.",
+              remedy: "Submit evidence pack to a licensed DPCO for formal sign-off and filing before the statutory annual cutoff.",
+            });
+          } else {
+            privacyScore = 16;
+            privacyNotice = "Basic data privacy protocols in place for standard data controller.";
+          }
+        }
+      } else {
+        privacyStatus = "EXEMPT";
+        privacyNotice = "Business indicates no collection or automated processing of third-party personal data.";
+      }
+
+      totalPenalty += privacyPenalty;
+      pillars["ndpc"] = {
+        pillar_name: "Data Protection & Privacy (NDPC)",
+        authority: "NDPC",
+        score: privacyScore * 5,
+        status: privacyStatus,
+        penalty_ngn: privacyPenalty,
+        statutory_ref: "Nigeria Data Protection Act (NDPA 2023)",
+        summary_notice: privacyNotice,
+      };
+
+      // SCUML / AML
+      let scumlScore = 20;
+      let scumlPenalty = 0;
+      let scumlStatus = "COMPLIANT";
+      let scumlNotice = "Anti-Money Laundering compliance maintained under MLA 2022.";
+
+      if (body.is_dnfbp) {
+        if (body.scuml_status === "not_registered") {
+          scumlScore = 0;
+          scumlPenalty = 5000000;
+          scumlStatus = "CRITICAL";
+          scumlNotice = "Critical Default: Designated Non-Financial Business or Profession (DNFBP) operating without mandatory SCUML Registration.";
+          infractions.push({
+            authority: "SCUML / NFIU",
+            title: "Unregistered DNFBP Under Money Laundering Act 2022",
+            statutory_ref: "MLA 2022 s.6, s.11 & s.17",
+            severity: "CRITICAL",
+            penalty_ngn: 5000000,
+            description: "Operating a designated business without SCUML registration triggers immediate bank account restrictions (Post-No-Debit) and fines up to ₦25,000,000.",
+            remedy: "Submit SCUML registration dossier, appoint a dedicated AML Compliance Officer, and adopt an AML/CFT manual.",
+          });
+          roadmap.push({
+            phase: "30-Day",
+            authority: "SCUML",
+            title: "Apply for Official SCUML Registration Certificate",
+            action: "Assemble CAC documentation, Tax Clearance Certificate, and professional certifications to submit via the SCUML portal.",
+            statutory_ref: "MLA 2022 s.6",
+            impact: "Protects corporate bank accounts from NFIU Post-No-Debit orders.",
+          });
+        } else if (body.scuml_status === "pending") {
+          scumlScore = 10;
+          scumlPenalty = 250000;
+          scumlStatus = "WARNING";
+          scumlNotice = "SCUML application pending review; operational AML policies must be formally adopted.";
+        }
+      } else {
+        scumlStatus = "EXEMPT";
+        scumlNotice = "Entity operations do not fall under statutory DNFBP classifications under MLA 2022.";
+      }
+
+      totalPenalty += scumlPenalty;
+      pillars["scuml"] = {
+        pillar_name: "Anti-Money Laundering & CFT (SCUML / NFIU)",
+        authority: "SCUML",
+        score: scumlScore * 5,
+        status: scumlStatus,
+        penalty_ngn: scumlPenalty,
+        statutory_ref: "Money Laundering (Prevention and Prohibition) Act 2022",
+        summary_notice: scumlNotice,
+      };
+
+      // Labor / PENCOM / ITF
+      let laborScore = 20;
+      let laborPenalty = 0;
+      let laborStatus = "COMPLIANT";
+      let laborNotice = "Employee pensions, ITF, and statutory workplace insurance up to date.";
+
+      const isMicro = body.employee_bracket === "1-4";
+      if (!isMicro) {
+        if (body.pension_status === "not_enrolled") {
+          laborScore = 2;
+          laborPenalty = 1800000;
+          laborStatus = "CRITICAL";
+          laborNotice = "Failure to establish mandatory Contributory Pension Scheme (CPS), 1% ITF payroll levy, and NSITF workplace compensation.";
+          infractions.push({
+            authority: "PENCOM / ITF / NSITF",
+            title: "Unenrolled Contributory Pension Scheme & Unremitted Payroll Levies",
+            statutory_ref: "Pension Reform Act 2014 s.11 & ITF Act Cap I9",
+            severity: "CRITICAL",
+            penalty_ngn: 1800000,
+            description: "Employers with 5+ staff must remit 10% employer + 8% employee pension monthly, plus 1% annual payroll contribution to ITF.",
+            remedy: "Register corporate code with licensed PFAs, calculate back contributions, and secure annual PENCOM and ITF Certificates of Clearance.",
+          });
+          roadmap.push({
+            phase: "30-Day",
+            authority: "PENCOM",
+            title: "Set Up Contributory Pension Scheme with Licensed PFAs",
+            action: "Collect RSA PINs from all eligible employees and execute employer contribution agreements with accredited Pension Fund Administrators.",
+            statutory_ref: "PRA 2014 s.11",
+            impact: "Stops the 2% compound monthly surcharge on unpaid pension obligations.",
+          });
+        } else if (body.pension_status === "pending_remittance") {
+          laborScore = 9;
+          laborPenalty = 650000;
+          laborStatus = "WARNING";
+          laborNotice = "PFA accounts set up, but monthly remittances or annual clearance certificates are currently in arrears.";
+        }
+      } else {
+        laborStatus = "EXEMPT";
+        laborNotice = "Micro-enterprise (1-4 staff) exempt from mandatory Contributory Pension Scheme and 1% ITF levy.";
+      }
+
+      totalPenalty += laborPenalty;
+      pillars["labor"] = {
+        pillar_name: "Labor, Pension & Social Security (PENCOM/ITF/NSITF)",
+        authority: "PENCOM / ITF",
+        score: laborScore * 5,
+        status: laborStatus,
+        penalty_ngn: laborPenalty,
+        statutory_ref: "Pension Reform Act 2014 & Industrial Training Fund Act",
+        summary_notice: laborNotice,
+      };
+
+      // Governance & Sectoral
+      const governanceScore = body.employee_bracket === "50-249" || body.employee_bracket === "250+" ? 15 : 20;
+      pillars["governance"] = {
+        pillar_name: "Sectoral Licensing & Governance (NCCG / Regulators)",
+        authority: "FRCN / Sectoral",
+        score: governanceScore * 5,
+        status: "COMPLIANT",
+        penalty_ngn: 0,
+        statutory_ref: "Nigerian Code of Corporate Governance 2018",
+        summary_notice: "Corporate structure complies with Nigerian Code of Corporate Governance (NCCG) guidelines.",
+      };
+
+      // Calculate Weighted Health Index
+      let weightedScore = cacScore + taxScore + privacyScore + scumlScore + laborScore;
+      if (weightedScore > 100) weightedScore = 100;
+      if (weightedScore < 10) weightedScore = 10;
+
+      let riskLevel = "MODERATE HEALTH";
+      if (weightedScore < 50) {
+        riskLevel = "CRITICAL REGULATORY EXPOSURE";
+      } else if (weightedScore < 75) {
+        riskLevel = "SUBSTANTIAL COMPLIANCE DEFICIT";
+      } else if (weightedScore >= 90) {
+        riskLevel = "STATUTORY EXCELLENCE";
+      }
+
+      const reportToken = `audit-${crypto.randomBytes(8).toString("hex")}`;
+      const reportURL = `https://compliancehub.ng/corporate-audit/report/${reportToken}`;
+      const claimURL = `https://compliancehub.ng/corporate-audit/report/${reportToken}?claim=1`;
+
+      // Persist to Neon DB
+      try {
+        await sql.query(
+          `INSERT INTO corporate_audits (
+            report_token, company_name, rc_number, entity_type, incorporation_year,
+            state_of_operation, industry_sector, industry_subcategory, employee_bracket,
+            turnover_bracket, operates_branches, has_foreign_ownership,
+            collects_personal_data, estimated_data_subjects, processes_payments, is_dnfbp,
+            active_vendor_count, cac_status, tax_status, pension_status, privacy_status,
+            scuml_status, compliance_score, risk_level, total_penalty_exposure_ngn,
+            pillar_breakdown, infractions, recommendations,
+            contact_name, contact_email, contact_phone, contact_title, service_preference
+          ) VALUES (
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, $9,
+            $10, $11, $12,
+            $13, $14, $15, $16,
+            $17, $18, $19, $20, $21,
+            $22, $23, $24, $25,
+            $26, $27, $28,
+            $29, $30, $31, $32, $33
+          )`,
+          [
+            reportToken,
+            body.company_name,
+            body.rc_number || "",
+            body.entity_type || "LTD",
+            body.incorporation_year || 2020,
+            body.state_of_operation || "Lagos",
+            body.industry_sector || "ICT & Software",
+            body.industry_subcategory || "",
+            body.employee_bracket || "5-14",
+            body.turnover_bracket || "25m-100m",
+            Boolean(body.operates_branches),
+            Boolean(body.has_foreign_ownership),
+            Boolean(body.collects_personal_data),
+            body.estimated_data_subjects || "<1k",
+            Boolean(body.processes_payments),
+            Boolean(body.is_dnfbp),
+            Number(body.active_vendor_count || 0),
+            body.cac_status || "up_to_date",
+            body.tax_status || "active_cleared",
+            body.pension_status || "active_pfa",
+            body.privacy_status || "internal_only",
+            body.scuml_status || "not_applicable",
+            weightedScore,
+            riskLevel,
+            totalPenalty,
+            JSON.stringify(pillars),
+            JSON.stringify(infractions),
+            JSON.stringify(roadmap),
+            body.contact_name || "Managing Director",
+            body.contact_email,
+            body.contact_phone || "",
+            body.contact_title || "Executive Director",
+            body.service_preference || "hybrid",
+          ]
+        );
+      } catch (dbErr) {
+        console.warn("Notice: Audit record persistence fallback:", dbErr);
+      }
+
+      return NextResponse.json(
+        {
+          report_token: reportToken,
+          company_name: body.company_name,
+          rc_number: body.rc_number,
+          compliance_score: weightedScore,
+          risk_level: riskLevel,
+          total_penalty_exposure: totalPenalty,
+          pillars,
+          infractions,
+          roadmap,
+          contact_name: body.contact_name,
+          contact_email: body.contact_email,
+          report_url: reportURL,
+          claim_url: claimURL,
+          created_at: new Date().toISOString(),
+        },
+        { status: 201 }
+      );
+    }
+
+    // GET /v1/corporate-audit/report/:token
+    if (cleanPath.startsWith("/v1/corporate-audit/report/") && method === "GET") {
+      const token = cleanPath.replace("/v1/corporate-audit/report/", "").trim();
+      const rows = await sql.query(
+        `SELECT id, company_name, rc_number, compliance_score, risk_level,
+                total_penalty_exposure_ngn::float8 AS total_penalty_exposure,
+                pillar_breakdown, infractions, recommendations,
+                contact_name, contact_email, created_at
+         FROM corporate_audits
+         WHERE report_token = $1`,
+        [token]
+      );
+
+      if (!rows || rows.length === 0) {
+        return NextResponse.json({ error: "Audit report not found" }, { status: 404 });
+      }
+
+      const r = rows[0];
+      return NextResponse.json({
+        id: r.id,
+        report_token: token,
+        company_name: r.company_name,
+        rc_number: r.rc_number,
+        compliance_score: r.compliance_score,
+        risk_level: r.risk_level,
+        total_penalty_exposure: r.total_penalty_exposure,
+        pillars: typeof r.pillar_breakdown === "string" ? JSON.parse(r.pillar_breakdown) : r.pillar_breakdown,
+        infractions: typeof r.infractions === "string" ? JSON.parse(r.infractions) : r.infractions,
+        roadmap: typeof r.recommendations === "string" ? JSON.parse(r.recommendations) : r.recommendations,
+        contact_name: r.contact_name,
+        contact_email: r.contact_email,
+        report_url: `https://compliancehub.ng/corporate-audit/report/${token}`,
+        claim_url: `https://compliancehub.ng/corporate-audit/report/${token}?claim=1`,
+        created_at: r.created_at,
+      });
+    }
+
+    // POST /v1/corporate-audit/claim
+    if (cleanPath === "/v1/corporate-audit/claim" && method === "POST") {
+      const body = await request.json();
+      if (!body.report_token || !body.password) {
+        return NextResponse.json({ error: "Report token and password are required" }, { status: 400 });
+      }
+
+      const auditRows = await sql.query(
+        `SELECT id, company_name, rc_number, state_of_operation, industry_sector,
+                employee_bracket, contact_email, contact_name, compliance_score, infractions
+         FROM corporate_audits
+         WHERE report_token = $1`,
+        [body.report_token]
+      );
+
+      if (!auditRows || auditRows.length === 0) {
+        return NextResponse.json({ error: "Corporate audit not found" }, { status: 404 });
+      }
+
+      const audit = auditRows[0];
+      const email = (body.email || audit.contact_email).toLowerCase().trim();
+      const fullName = body.full_name || audit.contact_name;
+
+      // Create Organisation
+      const orgRows = await sql.query(
+        `INSERT INTO organisations (legal_name, rc_number, org_type, industry, state_of_operation, employee_bracket)
+         VALUES ($1, $2, 'BUSINESS', $3, $4, $5)
+         RETURNING id`,
+        [audit.company_name, audit.rc_number || "", audit.industry_sector || "", audit.state_of_operation || "Lagos", audit.employee_bracket || "5-14"]
+      );
+      const orgId = orgRows[0]?.id;
+      const slug = `${slugify(audit.company_name)}-${Date.now() % 10000}`;
+
+      // Create Tenant
+      const tenantRows = await sql.query(
+        `INSERT INTO tenants (organisation_id, workspace_name, slug, plan_tier, compliance_score)
+         VALUES ($1, $2, $3, 'Business', $4)
+         RETURNING id`,
+        [orgId, audit.company_name, slug, audit.compliance_score]
+      );
+      const newTenantId = tenantRows[0]?.id;
+
+      // Link User as Owner
+      await sql.query(
+        `INSERT INTO tenant_members (tenant_id, user_id, role, is_primary)
+         VALUES ($1, $2, 'OWNER', true)
+         ON CONFLICT (tenant_id, user_id) DO NOTHING`,
+        [newTenantId, demoUser.id]
+      );
+
+      // Seed obligations from audit infractions
+      const infractionsList = typeof audit.infractions === "string" ? JSON.parse(audit.infractions) : (audit.infractions || []);
+      for (let i = 0; i < infractionsList.length; i++) {
+        const inf = infractionsList[i];
+        await sql.query(
+          `INSERT INTO tenant_obligations (tenant_id, title, authority, due_date, status, estimated_penalty_ngn, is_urgent)
+           VALUES ($1, $2, $3, CURRENT_DATE + (INTERVAL '14 days' * $4), 'PENDING', $5, true)`,
+          [newTenantId, inf.title, inf.authority, i + 1, inf.penalty_ngn || 50000]
+        );
+      }
+
+      // Default VAT obligation
+      await sql.query(
+        `INSERT INTO tenant_obligations (tenant_id, title, authority, due_date, status, estimated_penalty_ngn, is_urgent)
+         VALUES ($1, 'Monthly TaxPro-MAX VAT Filing (2026 Transition Window)', 'FIRS / NRS', CURRENT_DATE + INTERVAL '18 days', 'PENDING', 50000, true)
+         ON CONFLICT DO NOTHING`,
+        [newTenantId]
+      );
+
+      // Link audit to tenant
+      await sql.query(
+        `UPDATE corporate_audits
+         SET tenant_id = $1, claimed_at = NOW(), updated_at = NOW()
+         WHERE id = $2`,
+        [newTenantId, audit.id]
+      );
+
+      return NextResponse.json(
+        {
+          success: true,
+          token: "demo-token-business",
+          tenant_id: newTenantId,
+          workspace_slug: slug,
+          company_name: audit.company_name,
+          user: {
+            id: demoUser.id,
+            email: email,
+            full_name: fullName,
+            role: "BUSINESS",
+          },
+          message: "HubBusiness workspace provisioned successfully with seeded statutory obligations.",
+        },
+        { status: 201 }
+      );
+    }
+
+    // ==========================================
     // HubCalendar: Statutory Deadlines
     // ==========================================
     if (cleanPath === "/v1/calendar/obligations") {
@@ -549,6 +1283,14 @@ async function handleRequest(
     // ==========================================
     if (cleanPath === "/v1/professionals" && method === "GET") {
       const spec = searchParams.get("specialisation") || "";
+      const specKey = (!spec || spec === "All") ? "all" : spec.toLowerCase();
+      const cacheKey = getGlobalKey("experts", "profile", specKey);
+
+      const cached = await getCached<any[]>(cacheKey);
+      if (cached && cached.length > 0) {
+        return NextResponse.json(cached, { headers: { "X-Cache": "HIT" } });
+      }
+
       let query = `
         SELECT p.id, p.user_id, p.firm_name, p.qualification, p.years_experience,
                p.specialisations, p.hourly_rate_ngn::float8 AS hourly_rate_ngn,
@@ -566,7 +1308,12 @@ async function handleRequest(
       }
       query += " ORDER BY p.active_clients_count DESC, p.years_experience DESC";
       const rows = await sql.query(query, args);
-      return NextResponse.json(rows || []);
+
+      if (rows && rows.length > 0) {
+        await setCached(cacheKey, rows, 1800); // 30 minutes
+      }
+
+      return NextResponse.json(rows || [], { headers: { "X-Cache": "MISS" } });
     }
 
     if (cleanPath === "/v1/practice/clients") {

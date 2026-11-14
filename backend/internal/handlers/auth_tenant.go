@@ -2,9 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
 	"compliancehub-backend/internal/models"
@@ -333,11 +336,32 @@ func GetMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type TenantCurrentResponse struct {
+	Tenant          models.Tenant `json:"tenant"`
+	Role            string        `json:"role"`
+	DocumentsCount  int           `json:"documents_count"`
+	EmployeesCount  int           `json:"employees_count"`
+	UrgentDeadlines int           `json:"urgent_deadlines"`
+}
+
 func GetCurrentTenant(w http.ResponseWriter, r *http.Request) {
 	tenantCtx := middleware.GetTenantContext(r)
 	if tenantCtx == nil {
 		http.Error(w, "Tenant not resolved", http.StatusBadRequest)
 		return
+	}
+
+	cacheKey := fmt.Sprintf("chub:%s:business:tenant_%s:profile", cache.GetEnvNamespace(), tenantCtx.TenantID)
+
+	// Check Redis cache first (fail-open)
+	if cache.DefaultClient != nil {
+		var cachedResp TenantCurrentResponse
+		if err := cache.DefaultClient.GetJSON(r.Context(), cacheKey, &cachedResp); err == nil && cachedResp.Tenant.ID != "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Cache", "HIT")
+			json.NewEncoder(w).Encode(cachedResp)
+			return
+		}
 	}
 
 	ctx := r.Context()
@@ -367,14 +391,22 @@ func GetCurrentTenant(w http.ResponseWriter, r *http.Request) {
 	_ = db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM employees WHERE tenant_id = $1", tenant.ID).Scan(&empCount)
 	_ = db.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM tenant_obligations WHERE tenant_id = $1 AND is_urgent = true AND status = 'PENDING'", tenant.ID).Scan(&urgentCount)
 
+	resp := TenantCurrentResponse{
+		Tenant:          tenant,
+		Role:            tenantCtx.Role,
+		DocumentsCount:  docCount,
+		EmployeesCount:  empCount,
+		UrgentDeadlines: urgentCount,
+	}
+
+	// Store in Redis with 30-minute TTL
+	if cache.DefaultClient != nil {
+		_ = cache.DefaultClient.SetJSON(r.Context(), cacheKey, resp, 30*time.Minute)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"tenant":           tenant,
-		"role":             tenantCtx.Role,
-		"documents_count":  docCount,
-		"employees_count":  empCount,
-		"urgent_deadlines": urgentCount,
-	})
+	w.Header().Set("X-Cache", "MISS")
+	json.NewEncoder(w).Encode(resp)
 }
 
 func ListAllTenants(w http.ResponseWriter, r *http.Request) {
@@ -466,6 +498,14 @@ func UpdateCurrentTenant(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to update tenant: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Invalidate tenant profile and readiness score in Redis
+	if cache.DefaultClient != nil {
+		profileKey := fmt.Sprintf("chub:%s:business:tenant_%s:profile", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeleteKey(r.Context(), profileKey)
+		scoreKey := fmt.Sprintf("chub:%s:business:tenant_%s:score:current", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeleteKey(r.Context(), scoreKey)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

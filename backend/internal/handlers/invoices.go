@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
 )
@@ -126,5 +127,65 @@ func CreateInvoice(w http.ResponseWriter, r *http.Request) {
 		"invoice_number": invNum,
 		"status":         "PENDING",
 		"message":        "Invoice generated successfully",
+	})
+}
+
+// HandlePaystackWebhook handles Paystack payment events with Redis distributed idempotency locking
+func HandlePaystackWebhook(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload struct {
+		Event string `json:"event"`
+		Data  struct {
+			ID        int64                  `json:"id"`
+			Reference string                 `json:"reference"`
+			Amount    float64                `json:"amount"`
+			Status    string                 `json:"status"`
+			Metadata  map[string]interface{} `json:"metadata"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid webhook payload", http.StatusBadRequest)
+		return
+	}
+
+	eventID := payload.Data.Reference
+	if eventID == "" {
+		eventID = fmt.Sprintf("evt_%d", payload.Data.ID)
+	}
+
+	// Distributed Idempotency Lock: SET chub:{env}:lock:global:idempotency:{event_id} "PROCESSING" NX EX 86400
+	if cache.DefaultClient != nil {
+		lockKey := fmt.Sprintf("chub:%s:lock:global:idempotency:%s", cache.GetEnvNamespace(), eventID)
+		acquired, _ := cache.DefaultClient.AcquireLock(r.Context(), lockKey, 24*time.Hour)
+		if !acquired {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "ignored",
+				"message": "Duplicate payment webhook event already processed or in progress",
+			})
+			return
+		}
+	}
+
+	// Settle invoice in Neon Lakebase PostgreSQL
+	if payload.Event == "charge.success" && payload.Data.Reference != "" {
+		_, _ = db.Pool.Exec(r.Context(), `
+			UPDATE invoices
+			SET status = 'SETTLED', paid_at = NOW(), payout_ref = $1
+			WHERE invoice_number = $2 OR id::text = $2
+		`, payload.Data.Reference, payload.Data.Reference)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  "success",
+		"message": "Paystack webhook settled successfully",
 	})
 }

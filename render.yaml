@@ -15,5 +15,9 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_ENV
+        value: "prod"
       - key: PORT
         value: "8080"

@@ -321,6 +321,46 @@ export const api = {
     }) => apiFetch("/v1/onboarding/classify", { method: "POST", body: JSON.stringify(data) }),
   },
 
+  // Corporate Audit Diagnostic Engine
+  corporateAudit: {
+    evaluate: (data: {
+      company_name: string;
+      rc_number: string;
+      entity_type: string;
+      incorporation_year: number;
+      state_of_operation: string;
+      industry_sector: string;
+      industry_subcategory: string;
+      employee_bracket: string;
+      turnover_bracket: string;
+      operates_branches: boolean;
+      has_foreign_ownership: boolean;
+      collects_personal_data: boolean;
+      estimated_data_subjects: string;
+      processes_payments: boolean;
+      is_dnfbp: boolean;
+      active_vendor_count: number;
+      cac_status: string;
+      tax_status: string;
+      pension_status: string;
+      privacy_status: string;
+      scuml_status: string;
+      contact_name: string;
+      contact_email: string;
+      contact_phone: string;
+      contact_title: string;
+      service_preference: string;
+    }) => apiFetch("/v1/corporate-audit/evaluate", { method: "POST", body: JSON.stringify(data) }),
+    getReport: (token: string) =>
+      apiFetch(`/v1/corporate-audit/report/${token}`, { method: "GET" }),
+    claimWorkspace: (data: {
+      report_token: string;
+      password: string;
+      full_name?: string;
+      email?: string;
+    }) => apiFetch("/v1/corporate-audit/claim", { method: "POST", body: JSON.stringify(data) }),
+  },
+
   // Admin Cockpit (Requires ADMIN system role)
   admin: {
     getMetrics: () => apiFetch("/admin/metrics", { method: "GET" }),
@@ -434,5 +474,9 @@ export const api = {
     subscribe: (email: string, source: string = "BLOG_EDITORIAL") =>
       apiFetch("/blog/subscribe", { method: "POST", body: JSON.stringify({ email, source }) }),
     deleteSubscriber: (id: number | string) => apiFetch(`/blog/subscribers/${id}`, { method: "DELETE" }),
+  },
+  frameworks: {
+    getAll: () => apiFetch("/v1/frameworks", { method: "GET" }),
+    invalidateCache: () => apiFetch("/v1/frameworks/cache", { method: "DELETE" }),
   },
 };

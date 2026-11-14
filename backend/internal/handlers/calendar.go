@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
 	"compliancehub-backend/internal/models"
@@ -20,6 +22,27 @@ func ListTenantObligations(w http.ResponseWriter, r *http.Request) {
 
 	authority := r.URL.Query().Get("authority")
 	status := r.URL.Query().Get("status")
+
+	authKey := authority
+	if authKey == "" || authKey == "All" {
+		authKey = "all"
+	}
+	statKey := status
+	if statKey == "" || statKey == "All" {
+		statKey = "all"
+	}
+	cacheKey := fmt.Sprintf("chub:%s:business:tenant_%s:calendar:%s:%s", cache.GetEnvNamespace(), tenantCtx.TenantID, strings.ToLower(authKey), strings.ToLower(statKey))
+
+	// Check Redis cache first (fail-open)
+	if cache.DefaultClient != nil {
+		var cached []models.TenantObligation
+		if err := cache.DefaultClient.GetJSON(r.Context(), cacheKey, &cached); err == nil && len(cached) > 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Cache", "HIT")
+			json.NewEncoder(w).Encode(cached)
+			return
+		}
+	}
 
 	query := `
 		SELECT id, tenant_id, obligation_id, title, authority, TO_CHAR(due_date, 'YYYY-MM-DD'),
@@ -68,7 +91,13 @@ func ListTenantObligations(w http.ResponseWriter, r *http.Request) {
 		obligations = []models.TenantObligation{}
 	}
 
+	// Cache result in Redis for 15 minutes
+	if cache.DefaultClient != nil && len(obligations) > 0 {
+		_ = cache.DefaultClient.SetJSON(r.Context(), cacheKey, obligations, 15*time.Minute)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Cache", "MISS")
 	json.NewEncoder(w).Encode(obligations)
 }
 
@@ -130,6 +159,14 @@ func CreateCustomObligation(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
 		VALUES ($1, $2, $3, $4, 'CREATE_OBLIGATION', $5)
 	`, tenantCtx.TenantID, userID, actorName, tenantCtx.Role, "Scheduled regulatory deadline: "+req.Title)
+
+	// Invalidate tenant calendar cache and readiness score in Redis
+	if cache.DefaultClient != nil {
+		calPattern := fmt.Sprintf("chub:%s:business:tenant_%s:calendar:*", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeletePattern(r.Context(), calPattern)
+		scoreKey := fmt.Sprintf("chub:%s:business:tenant_%s:score:current", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeleteKey(r.Context(), scoreKey)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -193,6 +230,14 @@ func CompleteObligation(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
 		VALUES ($1, $2, $3, 'LEAD', 'COMPLETE_OBLIGATION', $4)
 	`, tenantCtx.TenantID, actorID, actorName, "Marked obligation as filed and verified")
+
+	// Invalidate tenant calendar cache and readiness score in Redis
+	if cache.DefaultClient != nil {
+		calPattern := fmt.Sprintf("chub:%s:business:tenant_%s:calendar:*", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeletePattern(r.Context(), calPattern)
+		scoreKey := fmt.Sprintf("chub:%s:business:tenant_%s:score:current", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeleteKey(r.Context(), scoreKey)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

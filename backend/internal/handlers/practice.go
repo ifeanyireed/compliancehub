@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
 	"compliancehub-backend/internal/models"
@@ -17,6 +18,22 @@ import (
 
 func ListPractitioners(w http.ResponseWriter, r *http.Request) {
 	specialisation := r.URL.Query().Get("specialisation")
+	specKey := specialisation
+	if specKey == "" || specKey == "All" {
+		specKey = "all"
+	}
+	cacheKey := fmt.Sprintf("chub:%s:experts:global:profile:%s", cache.GetEnvNamespace(), strings.ToLower(specKey))
+
+	// Check Redis cache first (fail-open)
+	if cache.DefaultClient != nil {
+		var cachedExperts []models.ProfessionalProfile
+		if err := cache.DefaultClient.GetJSON(r.Context(), cacheKey, &cachedExperts); err == nil && len(cachedExperts) > 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Cache", "HIT")
+			json.NewEncoder(w).Encode(cachedExperts)
+			return
+		}
+	}
 
 	query := `
 		SELECT p.id, p.user_id, p.firm_name, p.qualification, p.years_experience,
@@ -60,7 +77,13 @@ func ListPractitioners(w http.ResponseWriter, r *http.Request) {
 		experts = []models.ProfessionalProfile{}
 	}
 
+	// Store in Redis with 30-minute TTL
+	if cache.DefaultClient != nil && len(experts) > 0 {
+		_ = cache.DefaultClient.SetJSON(r.Context(), cacheKey, experts, 30*time.Minute)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Cache", "MISS")
 	json.NewEncoder(w).Encode(experts)
 }
 
@@ -302,6 +325,12 @@ func RevokeEngagement(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Revocation failed: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Cache Invalidation: Evict cached consultant permissions immediately across this tenant
+	if cache.DefaultClient != nil {
+		pattern := fmt.Sprintf("chub:%s:agents:tenant_%s:perms:*", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeletePattern(r.Context(), pattern)
 	}
 
 	// Audit trail log

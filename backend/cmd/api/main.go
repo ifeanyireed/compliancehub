@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/handlers"
 	"compliancehub-backend/internal/middleware"
@@ -64,18 +67,44 @@ func main() {
 	log.Printf("📧 Initializing Brevo SMTP Email Relay...")
 	services.InitEmail()
 
+	redisURL := os.Getenv("REDIS_URL")
+	log.Printf("⚡ Initializing Upstash Redis Connection...")
+	redisClient, err := cache.InitRedis(redisURL)
+	if err != nil {
+		log.Printf("⚠️ Warning: Redis initialization notice: %v", err)
+	}
+	if redisClient != nil {
+		defer redisClient.Close()
+	}
+
+	// Start background tasks
+	handlers.StartBlogViewFlusher(context.Background())
+
 	mux := http.NewServeMux()
 
 	// Health endpoints
 	healthHandler := withCORS(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		redisStatus := "Upstash Redis (unconfigured, running fail-open)"
+		if cache.DefaultClient != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+			defer cancel()
+			latency, pingErr := cache.DefaultClient.Ping(ctx)
+			if pingErr == nil {
+				redisStatus = fmt.Sprintf("Upstash Redis (connected, latency: %v)", latency.Round(time.Millisecond))
+			} else {
+				redisStatus = fmt.Sprintf("Upstash Redis (degraded: %v, fail-open active)", pingErr)
+			}
+		}
+
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":   "ok",
 			"database": "Neon Lakebase Postgres (connected)",
+			"redis":    redisStatus,
 			"service":  "ComplianceHub.ng Core API",
 			"storage":  "Cloudinary Evidence Vault (configured)",
 			"email":    "Brevo SMTP Relay (active)",
-			"region":   "aws-us-east-2",
+			"region":   "frankfurt",
 		})
 	})
 	mux.HandleFunc("/health", healthHandler)
@@ -155,6 +184,33 @@ func main() {
 	}))
 
 	// ==========================================
+	// Corporate Audit Diagnostic Engine
+	// ==========================================
+	mux.HandleFunc("/api/v1/corporate-audit/evaluate", withCORS(middleware.RateLimitAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handlers.EvaluateCorporateAudit(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	mux.HandleFunc("/api/v1/corporate-audit/report/", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.GetCorporateAuditReport(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/api/v1/corporate-audit/claim", withCORS(middleware.RateLimitAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handlers.ClaimCorporateAudit(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+
+	// ==========================================
 	// HubCalendar: Statutory Deadlines & Reminders
 	// ==========================================
 	mux.HandleFunc("/api/v1/calendar/obligations", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
@@ -177,15 +233,27 @@ func main() {
 	})))
 
 	// ==========================================
+	// Master Regulatory Frameworks & Catalog (24h Redis Cache)
+	// ==========================================
+	mux.HandleFunc("/api/v1/frameworks", withCORS(handlers.ListRegulatoryFrameworks))
+	mux.HandleFunc("/api/v1/frameworks/cache", withCORS(middleware.RequireSystemRole("ADMIN", "STAFF")(handlers.InvalidateRegulatoryFrameworks)))
+
+	// ==========================================
+	// Paystack Webhooks with Distributed Idempotency Locks
+	// ==========================================
+	mux.HandleFunc("/api/v1/payments/webhook", withCORS(handlers.HandlePaystackWebhook))
+	mux.HandleFunc("/api/payments/paystack/webhook", withCORS(handlers.HandlePaystackWebhook))
+
+	// ==========================================
 	// HubDocs: Cloudinary Evidence Vault
 	// ==========================================
-	mux.HandleFunc("/api/v1/documents/upload-signature", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/documents/upload-signature", withCORS(middleware.RequireTenant(middleware.RateLimitTenantUploads(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			handlers.GenerateUploadSignature(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	})))
+	}))))
 
 	mux.HandleFunc("/api/v1/documents", withCORS(middleware.RequireTenant(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -514,7 +582,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/support/tickets", withCORS(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/support/tickets", withCORS(middleware.RateLimitPublic(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			middleware.RequireAuth(handlers.ListTickets)(w, r)
@@ -523,7 +591,7 @@ func main() {
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	}))
+	})))
 
 	mux.HandleFunc("/api/chat/sessions", withCORS(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -536,7 +604,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/chat/messages", withCORS(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/chat/messages", withCORS(middleware.RateLimitPublic(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			handlers.GetChatMessages(w, r)
@@ -545,7 +613,7 @@ func main() {
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-	}))
+	})))
 
 	// Admin Cockpit: strictly requires platform ADMIN system role
 	mux.HandleFunc("/api/admin/metrics", withCORS(middleware.RequireSystemRole("ADMIN")(func(w http.ResponseWriter, r *http.Request) {

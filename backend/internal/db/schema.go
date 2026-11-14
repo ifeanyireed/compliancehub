@@ -426,6 +426,55 @@ func MigrateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 		);`,
 
+		// 20. Corporate Audits & Diagnostic Wizard
+		`CREATE TABLE IF NOT EXISTS corporate_audits (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			report_token VARCHAR(64) UNIQUE NOT NULL,
+			company_name VARCHAR(255) NOT NULL,
+			rc_number VARCHAR(100),
+			entity_type VARCHAR(50) NOT NULL DEFAULT 'LTD',
+			incorporation_year INT DEFAULT 2020,
+			state_of_operation VARCHAR(100) NOT NULL,
+			industry_sector VARCHAR(100) NOT NULL,
+			industry_subcategory VARCHAR(255),
+			employee_bracket VARCHAR(50) NOT NULL,
+			turnover_bracket VARCHAR(50) NOT NULL,
+			operates_branches BOOLEAN DEFAULT FALSE,
+			has_foreign_ownership BOOLEAN DEFAULT FALSE,
+			collects_personal_data BOOLEAN DEFAULT FALSE,
+			estimated_data_subjects VARCHAR(50),
+			processes_payments BOOLEAN DEFAULT FALSE,
+			is_dnfbp BOOLEAN DEFAULT FALSE,
+			active_vendor_count INT DEFAULT 0,
+			cac_status VARCHAR(50) NOT NULL,
+			tax_status VARCHAR(50) NOT NULL,
+			pension_status VARCHAR(50) NOT NULL,
+			privacy_status VARCHAR(50) NOT NULL,
+			scuml_status VARCHAR(50) NOT NULL,
+			compliance_score INT NOT NULL,
+			risk_level VARCHAR(50) NOT NULL,
+			total_penalty_exposure_ngn NUMERIC(14, 2) NOT NULL DEFAULT 0,
+			pillar_breakdown JSONB NOT NULL DEFAULT '{}',
+			infractions JSONB NOT NULL DEFAULT '[]',
+			recommendations JSONB NOT NULL DEFAULT '[]',
+			contact_name VARCHAR(255) NOT NULL,
+			contact_email VARCHAR(255) NOT NULL,
+			contact_phone VARCHAR(50),
+			contact_title VARCHAR(100),
+			service_preference VARCHAR(50) DEFAULT 'hybrid',
+			tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
+			claimed_at TIMESTAMPTZ,
+			pdf_download_count INT DEFAULT 0,
+			ip_address VARCHAR(100),
+			user_agent TEXT,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		);`,
+
+		`CREATE INDEX IF NOT EXISTS idx_corporate_audits_report_token ON corporate_audits(report_token);`,
+		`CREATE INDEX IF NOT EXISTS idx_corporate_audits_email ON corporate_audits(contact_email);`,
+		`CREATE INDEX IF NOT EXISTS idx_corporate_audits_score ON corporate_audits(compliance_score);`,
+
 		// 19. Defense-in-Depth Row-Level Security (RLS) & Policies
 		`DO $$
 		BEGIN

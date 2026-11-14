@@ -114,10 +114,10 @@ export function CompliancePublicNav() {
 
         {/* Action Buttons */}
         <div className="hidden md:flex items-center gap-3">
-          <Link href="/onboarding">
-            <button className="bg-[#0089C1] hover:bg-sky-600 text-white transition-all font-bold px-5 py-2.5 rounded-full text-sm shadow-sm flex items-center gap-2">
+          <Link href="/corporate-audit">
+            <button className="bg-[#0089C1] hover:bg-sky-600 text-white transition-all font-bold px-5 py-2.5 rounded-full text-sm shadow-sm flex items-center gap-2 cursor-pointer">
               <Sparkles className="w-4 h-4" />
-              <span>Free Diagnostic</span>
+              <span>Corporate Audit</span>
             </button>
           </Link>
 
@@ -177,9 +177,9 @@ export function CompliancePublicNav() {
             </Link>
 
             <div className="pt-4 border-t border-slate-300/30 flex flex-col gap-3">
-              <Link href="/onboarding" onClick={() => setMobileMenuOpen(false)}>
+              <Link href="/corporate-audit" onClick={() => setMobileMenuOpen(false)}>
                 <button className="w-full bg-[#0089C1] hover:bg-sky-600 text-white font-bold py-3 rounded-full text-sm shadow-sm text-center">
-                  Start Free Compliance Assessment
+                  Corporate Compliance Audit
                 </button>
               </Link>
               <Link 

@@ -392,3 +392,110 @@ func (s *EmailService) SendRegistrationAuthEmail(recipientEmail, recipientName, 
 	s.SendAuthMailAsync([]string{recipientEmail}, subject, rendered.String())
 	return nil
 }
+
+// SendCorporateAuditReportEmail dispatches the executive corporate compliance audit diagnostic memo
+func (s *EmailService) SendCorporateAuditReportEmail(
+	recipientEmail, recipientName, companyName, reportURL, claimURL, riskLevel string,
+	complianceScore int,
+	totalPenaltyExposure float64,
+	topInfractions []string,
+) error {
+	subject := fmt.Sprintf("[CONFIDENTIAL] Corporate Compliance Diagnostic Report — %s", companyName)
+
+	tmpl := `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Corporate Compliance Audit Diagnostic</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px; color: #1E293B; }
+    .container { max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+    .header { background: #0F172A; padding: 32px 28px; text-align: left; color: #ffffff; border-bottom: 4px solid #0089C1; }
+    .brand { font-size: 13px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #38BDF8; margin-bottom: 8px; }
+    .header h1 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.3; }
+    .content { padding: 32px 28px; line-height: 1.6; }
+    .score-banner { background: #F1F5F9; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #CBD5E1; text-align: center; }
+    .score-value { font-size: 42px; font-weight: 900; color: #0F172A; line-height: 1; }
+    .penalty-banner { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 18px; margin: 20px 0; }
+    .penalty-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #991B1B; }
+    .penalty-amt { font-size: 26px; font-weight: 900; color: #DC2626; margin-top: 4px; }
+    .infraction-list { background: #F8FAFC; border-radius: 8px; padding: 16px 20px; margin: 20px 0; border-left: 4px solid #F59E0B; }
+    .infraction-item { font-size: 13px; color: #334155; margin-bottom: 8px; }
+    .btn { display: inline-block; background: #0089C1; color: #ffffff !important; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; margin: 12px 6px; }
+    .btn-secondary { display: inline-block; background: #0F172A; color: #ffffff !important; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; margin: 12px 6px; }
+    .footer { padding: 24px 28px; font-size: 11px; color: #64748B; background: #F8FAFC; border-top: 1px solid #E2E8F0; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">ComplianceHub.ng Diagnostic Intelligence</div>
+      <h1>Statutory Corporate Compliance Audit</h1>
+      <p style="margin: 8px 0 0 0; font-size: 14px; color: #94A3B8;">Confidential Regulatory Assessment for <strong>{{.CompanyName}}</strong></p>
+    </div>
+    <div class="content">
+      <p>Dear <strong>{{.RecipientName}}</strong>,</p>
+      <p>Our regulatory audit diagnostic engine has concluded its analysis of <strong>{{.CompanyName}}</strong> across Nigeria's 6 statutory regulatory pillars (CAC CAMA 2020, FIRS/NRS TaxPro-MAX, NDPC NDPA 2023, SCUML AML/CFT 2022, and Labor/Social Security statutes).</p>
+
+      <div class="score-banner">
+        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #64748B; letter-spacing: 0.5px;">Statutory Compliance Health Score</div>
+        <div class="score-value">{{.ComplianceScore}}<span style="font-size: 20px; color: #64748B;">/100</span></div>
+        <div style="font-size: 13px; font-weight: 700; margin-top: 6px; color: #0369A1;">Risk Rating: {{.RiskLevel}}</div>
+      </div>
+
+      <div class="penalty-banner">
+        <div class="penalty-label">Cumulative Estimated Statutory Penalty Exposure</div>
+        <div class="penalty-amt">₦{{printf "%.2f" .TotalPenaltyExposure}}</div>
+        <div style="font-size: 12px; color: #7F1D1D; margin-top: 4px;">Potential financial liabilities and late filing surcharges if audited by regulators today.</div>
+      </div>
+
+      <h3 style="font-size: 15px; margin-top: 24px; color: #0F172A;">Priority Regulatory Infractions Identified:</h3>
+      <div class="infraction-list">
+        {{range .TopInfractions}}
+          <div class="infraction-item">• {{.}}</div>
+        {{end}}
+      </div>
+
+      <p style="text-align: center; margin: 30px 0;">
+        <a href="{{.ReportURL}}" class="btn">View Full Diagnostic Report & Heatmap</a>
+        <a href="{{.ClaimURL}}" class="btn-secondary">Claim Free Business Workspace</a>
+      </p>
+
+      <p style="font-size: 13px; color: #475569;">
+        <strong>Remediation Advisory:</strong> Claiming your workspace pre-populates your statutory calendar, uploads missing evidence into your HubDocs vault, and allows you to retain verified DPCOs or tax consultants via HubExperts.
+      </p>
+    </div>
+    <div class="footer">
+      ComplianceHub.ng &bull; Regulatory Intelligence & Compliance Governance Desk<br>
+      Plot 12B, Admiralty Way, Lekki Phase 1, Lagos, Nigeria<br>
+      This audit diagnostic is generated based on self-reported inputs and statutory schedules under Nigerian Law.
+    </div>
+  </div>
+</body>
+</html>
+`
+
+	t, err := template.New("corporate_audit").Parse(tmpl)
+	if err != nil {
+		return err
+	}
+
+	var rendered bytes.Buffer
+	err = t.Execute(&rendered, map[string]interface{}{
+		"RecipientName":        recipientName,
+		"CompanyName":          companyName,
+		"ReportURL":            reportURL,
+		"ClaimURL":             claimURL,
+		"RiskLevel":            riskLevel,
+		"ComplianceScore":      complianceScore,
+		"TotalPenaltyExposure": totalPenaltyExposure,
+		"TopInfractions":       topInfractions,
+	})
+	if err != nil {
+		return err
+	}
+
+	s.SendAuthMailAsync([]string{recipientEmail}, subject, rendered.String())
+	return nil
+}

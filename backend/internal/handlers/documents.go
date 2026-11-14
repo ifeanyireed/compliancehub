@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/middleware"
 	"compliancehub-backend/internal/models"
@@ -67,6 +69,22 @@ func ListDocuments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	category := r.URL.Query().Get("category")
+	catKey := category
+	if catKey == "" || catKey == "All" {
+		catKey = "all"
+	}
+	cacheKey := fmt.Sprintf("chub:%s:business:tenant_%s:docs:list:%s", cache.GetEnvNamespace(), tenantCtx.TenantID, strings.ToLower(catKey))
+
+	// Check Redis cache first (fail-open)
+	if cache.DefaultClient != nil {
+		var cachedDocs []models.Document
+		if err := cache.DefaultClient.GetJSON(r.Context(), cacheKey, &cachedDocs); err == nil && len(cachedDocs) > 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Cache", "HIT")
+			json.NewEncoder(w).Encode(cachedDocs)
+			return
+		}
+	}
 
 	query := `
 		SELECT d.id, d.tenant_id, d.name, d.category, d.cloudinary_public_id, d.cloudinary_secure_url,
@@ -118,7 +136,13 @@ func ListDocuments(w http.ResponseWriter, r *http.Request) {
 		docs = []models.Document{}
 	}
 
+	// Cache document list in Redis with 15-minute TTL
+	if cache.DefaultClient != nil && len(docs) > 0 {
+		_ = cache.DefaultClient.SetJSON(r.Context(), cacheKey, docs, 15*time.Minute)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Cache", "MISS")
 	json.NewEncoder(w).Encode(docs)
 }
 
@@ -156,6 +180,23 @@ func RegisterDocument(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" || req.CloudinarySecureURL == "" {
 		http.Error(w, "Document name and Cloudinary URL are required", http.StatusBadRequest)
 		return
+	}
+
+	// Distributed lock on document public ID to prevent duplicate concurrent uploads
+	if cache.DefaultClient != nil && req.CloudinaryPublicID != "" {
+		lockKey := fmt.Sprintf("chub:%s:lock:global:doc:%s", cache.GetEnvNamespace(), req.CloudinaryPublicID)
+		acquired, _ := cache.DefaultClient.AcquireLock(r.Context(), lockKey, 30*time.Second)
+		if !acquired {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "This document is currently being registered by another process. Please wait.",
+			})
+			return
+		}
+		defer func() {
+			_ = cache.DefaultClient.ReleaseLock(context.Background(), lockKey)
+		}()
 	}
 
 	if req.Version == "" {
@@ -199,6 +240,14 @@ func RegisterDocument(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
 		VALUES ($1, $2, $3, 'OPERATOR', 'UPLOAD_DOCUMENT', $4)
 	`, tenantCtx.TenantID, userID, actorName, "Uploaded regulatory evidence: "+req.Name)
+
+	// Invalidate tenant document list and compliance readiness score in Redis
+	if cache.DefaultClient != nil {
+		docPattern := fmt.Sprintf("chub:%s:business:tenant_%s:docs:list:*", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeletePattern(r.Context(), docPattern)
+		scoreKey := fmt.Sprintf("chub:%s:business:tenant_%s:score:current", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeleteKey(r.Context(), scoreKey)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -252,6 +301,14 @@ func DeleteDocument(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO activity_logs (tenant_id, user_id, actor_name, actor_role, action_type, details)
 		VALUES ($1, $2, $3, $4, 'DELETE_DOCUMENT', $5)
 	`, tenantCtx.TenantID, actorID, actorName, tenantCtx.Role, fmt.Sprintf("Permanently deleted regulatory evidence document: %s", docID))
+
+	// Invalidate tenant document list and compliance readiness score in Redis
+	if cache.DefaultClient != nil {
+		docPattern := fmt.Sprintf("chub:%s:business:tenant_%s:docs:list:*", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeletePattern(r.Context(), docPattern)
+		scoreKey := fmt.Sprintf("chub:%s:business:tenant_%s:score:current", cache.GetEnvNamespace(), tenantCtx.TenantID)
+		_ = cache.DefaultClient.DeleteKey(r.Context(), scoreKey)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})

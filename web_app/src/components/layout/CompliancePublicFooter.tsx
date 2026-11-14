@@ -49,6 +49,12 @@ export function CompliancePublicFooter() {
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
+                <Link href="/corporate-audit" className="text-slate-900 hover:text-[#0089C1] transition-colors font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#0089C1]" />
+                  <span>Corporate Audit</span>
+                </Link>
+              </li>
+              <li>
                 <Link href="/business/dashboard" className="text-slate-600 hover:text-slate-950 transition-colors">
                   HubBusiness
                 </Link>

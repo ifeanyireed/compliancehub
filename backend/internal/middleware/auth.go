@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/models"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type contextKey string
@@ -39,6 +41,11 @@ type TenantContext struct {
 	IsExternal   bool
 	EngagementID *string
 	Permissions  map[string]models.EngagementPermission
+}
+
+type CachedConsultantPermissions struct {
+	EngagementID string                             `json:"engagement_id"`
+	Permissions  map[string]models.EngagementPermission `json:"permissions"`
 }
 
 // CanManageWorkspace checks if the user has administrative governance authority over the workspace
@@ -165,6 +172,7 @@ func getJWTSecret() []byte {
 
 func GenerateToken(user models.User, defaultTenantID string) (string, error) {
 	expirationTime := time.Now().Add(getTokenTTL())
+	jti := uuid.New().String()
 	claims := &Claims{
 		UserID:     user.ID,
 		Email:      user.Email,
@@ -172,6 +180,7 @@ func GenerateToken(user models.User, defaultTenantID string) (string, error) {
 		SystemRole: user.SystemRole,
 		TenantID:   defaultTenantID,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti,
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "compliancehub.ng",
@@ -200,7 +209,42 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		return nil, errors.New("invalid token user payload")
 	}
 
+	// Distributed JWT Token Revocation check (Redis Blacklist)
+	if claims.ID != "" && cache.DefaultClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancel()
+		if cache.DefaultClient.IsTokenBlacklisted(ctx, claims.ID) {
+			return nil, errors.New("token has been revoked")
+		}
+	}
+
 	return claims, nil
+}
+
+// RevokeToken blacklists a JWT token until its expiration
+func RevokeToken(tokenString string) error {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return getJWTSecret(), nil
+	})
+	if err != nil || !token.Valid || claims.ID == "" {
+		return errors.New("cannot revoke invalid token")
+	}
+
+	ttl := 72 * time.Hour
+	if claims.ExpiresAt != nil {
+		remaining := time.Until(claims.ExpiresAt.Time)
+		if remaining > 0 {
+			ttl = remaining
+		}
+	}
+
+	if cache.DefaultClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return cache.DefaultClient.BlacklistToken(ctx, claims.ID, ttl)
+	}
+	return nil
 }
 
 // RequireAuth ensures a valid JWT bearer token is present
@@ -346,7 +390,24 @@ func RequireTenant(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// 2. Check delegated professional engagement
+		// 2. Check delegated professional engagement (with Redis cache)
+		var cachedPerms CachedConsultantPermissions
+		permsCacheKey := fmt.Sprintf("chub:%s:agents:tenant_%s:perms:%s", cache.GetEnvNamespace(), tenantID, user.ID)
+		if cache.DefaultClient != nil {
+			if err := cache.DefaultClient.GetJSON(r.Context(), permsCacheKey, &cachedPerms); err == nil && cachedPerms.EngagementID != "" {
+				tenantCtx := &TenantContext{
+					TenantID:     tenantID,
+					Role:         "DELEGATED_EXPERT",
+					IsExternal:   true,
+					EngagementID: &cachedPerms.EngagementID,
+					Permissions:  cachedPerms.Permissions,
+				}
+				ctx := context.WithValue(r.Context(), TenantContextKey, tenantCtx)
+				next(w, r.WithContext(ctx))
+				return
+			}
+		}
+
 		var engagementID string
 		err = db.Pool.QueryRow(r.Context(), `
 			SELECT e.id FROM engagements e
@@ -369,6 +430,14 @@ func RequireTenant(next http.HandlerFunc) http.HandlerFunc {
 						permissions[strings.ToLower(p.ModuleCode)] = p
 					}
 				}
+			}
+
+			// Cache consultant permissions in Redis for 15 minutes
+			if cache.DefaultClient != nil {
+				_ = cache.DefaultClient.SetJSON(r.Context(), permsCacheKey, CachedConsultantPermissions{
+					EngagementID: engagementID,
+					Permissions:  permissions,
+				}, 15*time.Minute)
 			}
 
 			tenantCtx := &TenantContext{

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/services"
 
@@ -70,6 +71,11 @@ func ForgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("🔐 Password reset token generated for %s: %s (expires: %s)", email, resetToken, expiresAt.Format(time.RFC3339))
 
+	// Store in Redis with 15-minute TTL for fast single-use validation
+	if cache.DefaultClient != nil {
+		_ = cache.DefaultClient.StoreResetToken(ctx, resetToken, userID, 15*time.Minute)
+	}
+
 	// Dispatch password reset email via Brevo SMTP relay
 	if services.MailService != nil {
 		recipientName := fullName
@@ -105,6 +111,13 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var userID string
 	var isUsed bool
 	var expiresAt time.Time
+
+	// Atomic consumption via Redis GETDEL (eliminates replay windows)
+	if cache.DefaultClient != nil {
+		if uid, err := cache.DefaultClient.ConsumeResetToken(ctx, req.Token); err == nil && uid != "" {
+			userID = uid
+		}
+	}
 
 	err := db.Pool.QueryRow(ctx, `
 		SELECT user_id, is_used, expires_at

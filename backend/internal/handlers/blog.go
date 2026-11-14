@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"compliancehub-backend/internal/cache"
 	"compliancehub-backend/internal/db"
 	"compliancehub-backend/internal/models"
 )
@@ -152,6 +154,19 @@ func GetBlogPostBySlug(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(strings.TrimSuffix(r.URL.Path, "/"), "/")
 	target := parts[len(parts)-1]
 
+	cacheKey := fmt.Sprintf("chub:%s:shared:global:blog:slug:%s", cache.GetEnvNamespace(), strings.ToLower(target))
+
+	// Check Redis cache first (fail-open)
+	if cache.DefaultClient != nil {
+		var cachedResp SinglePostResponse
+		if err := cache.DefaultClient.GetJSON(ctx, cacheKey, &cachedResp); err == nil && cachedResp.BlogPost.ID != 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Cache", "HIT")
+			json.NewEncoder(w).Encode(cachedResp)
+			return
+		}
+	}
+
 	var p models.BlogPost
 	query := `
 		SELECT id, title, slug, excerpt, content, 
@@ -246,11 +261,17 @@ func GetBlogPostBySlug(w http.ResponseWriter, r *http.Request) {
 		RelatedPosts: related,
 	}
 
+	// Cache in Redis for 2 hours
+	if cache.DefaultClient != nil {
+		_ = cache.DefaultClient.SetJSON(ctx, cacheKey, resp, 2*time.Hour)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Cache", "MISS")
 	json.NewEncoder(w).Encode(resp)
 }
 
-// IncrementBlogPostView atomically increments the view counter for an article
+// IncrementBlogPostView atomically increments the view counter for an article using Redis buffer
 func IncrementBlogPostView(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -276,6 +297,23 @@ func IncrementBlogPostView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If Redis is active, buffer the increment in Redis hash map (no row lock on Neon DB)
+	if cache.DefaultClient != nil && cache.DefaultClient.IsAvailable() {
+		viewsKey := cache.DefaultClient.GetGlobalKey("shared", "blog", "views")
+		bufferedCount, err := cache.DefaultClient.HIncrBy(ctx, viewsKey, target, 1)
+		if err == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Buffer", "REDIS")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":        true,
+				"buffered_views": bufferedCount,
+				"mode":           "redis_buffered",
+			})
+			return
+		}
+	}
+
+	// Fallback directly to Neon SQL update if Redis is unavailable
 	var newViewCount int64
 	query := `
 		UPDATE blog_posts 
@@ -292,6 +330,7 @@ func IncrementBlogPostView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Buffer", "DIRECT_SQL")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":    true,
 		"view_count": newViewCount,
@@ -397,6 +436,12 @@ func CreateBlogPost(w http.ResponseWriter, r *http.Request) {
 		ON CONFLICT (name) DO NOTHING
 	`, p.Category, slugify(p.Category))
 
+	// Invalidate blog caches in Redis
+	if cache.DefaultClient != nil {
+		_ = cache.DefaultClient.DeleteKey(ctx, cache.DefaultClient.GetGlobalKey("shared", "blog", "slug:"+p.Slug))
+		_ = cache.DefaultClient.DeletePattern(ctx, fmt.Sprintf("chub:%s:shared:global:blog:list:*", cache.GetEnvNamespace()))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(p)
@@ -459,6 +504,13 @@ func UpdateBlogPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Invalidate blog caches in Redis
+	if cache.DefaultClient != nil {
+		_ = cache.DefaultClient.DeleteKey(ctx, cache.DefaultClient.GetGlobalKey("shared", "blog", "slug:"+p.Slug))
+		_ = cache.DefaultClient.DeleteKey(ctx, cache.DefaultClient.GetGlobalKey("shared", "blog", "slug:"+idOrSlug))
+		_ = cache.DefaultClient.DeletePattern(ctx, fmt.Sprintf("chub:%s:shared:global:blog:list:*", cache.GetEnvNamespace()))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(p)
 }
@@ -485,8 +537,60 @@ func DeleteBlogPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Invalidate blog caches in Redis
+	if cache.DefaultClient != nil {
+		_ = cache.DefaultClient.DeleteKey(ctx, cache.DefaultClient.GetGlobalKey("shared", "blog", "slug:"+idOrSlug))
+		_ = cache.DefaultClient.DeletePattern(ctx, fmt.Sprintf("chub:%s:shared:global:blog:list:*", cache.GetEnvNamespace()))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// StartBlogViewFlusher periodically drains buffered blog post view increments from Redis to Neon
+func StartBlogViewFlusher(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Minute)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				flushBlogViews(ctx)
+			}
+		}
+	}()
+	log.Printf("📊 Blog view counter flusher initialized (5-minute interval)")
+}
+
+func flushBlogViews(ctx context.Context) {
+	if cache.DefaultClient == nil || !cache.DefaultClient.IsAvailable() {
+		return
+	}
+
+	viewsKey := cache.DefaultClient.GetGlobalKey("shared", "blog", "views")
+	items, err := cache.DefaultClient.HGetAll(ctx, viewsKey)
+	if err != nil || len(items) == 0 {
+		return
+	}
+
+	for target, countStr := range items {
+		count, pErr := strconv.ParseInt(countStr, 10, 64)
+		if pErr != nil || count <= 0 {
+			continue
+		}
+
+		// Update database view count without blocking user requests
+		_, dbErr := db.Pool.Exec(ctx, `
+			UPDATE blog_posts 
+			SET view_count = COALESCE(view_count, 0) + $1 
+			WHERE slug = $2 OR LOWER(slug) = LOWER($2) OR id::text = $2
+		`, count, target)
+
+		if dbErr == nil {
+			_ = cache.DefaultClient.HDel(ctx, viewsKey, target)
+		}
+	}
 }
 
 // ListCategories returns all regulatory categories with article counts
