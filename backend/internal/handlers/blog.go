@@ -385,6 +385,25 @@ func CreateBlogPost(w http.ResponseWriter, r *http.Request) {
 		p.Category = "Taxation & FIRS"
 	}
 
+	// Ensure unique slug so creating a post never overwrites an existing one
+	baseSlug := p.Slug
+	if baseSlug == "" {
+		baseSlug = slugify(p.Title)
+	}
+	finalSlug := baseSlug
+	counter := 1
+	for {
+		var existsID int
+		err := db.Pool.QueryRow(ctx, "SELECT id FROM blog_posts WHERE slug = $1 LIMIT 1", finalSlug).Scan(&existsID)
+		if err != nil {
+			// No existing post with this slug
+			break
+		}
+		counter++
+		finalSlug = fmt.Sprintf("%s-%d", baseSlug, counter)
+	}
+	p.Slug = finalSlug
+
 	query := `
 		INSERT INTO blog_posts (
 			title, slug, excerpt, content, 
@@ -394,24 +413,6 @@ func CreateBlogPost(w http.ResponseWriter, r *http.Request) {
 			view_count, published_at, created_at, updated_at
 		)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 0, NOW(), NOW(), NOW())
-		ON CONFLICT (slug) DO UPDATE SET
-			title = EXCLUDED.title,
-			excerpt = EXCLUDED.excerpt,
-			content = EXCLUDED.content,
-			author_name = EXCLUDED.author_name,
-			author_role = EXCLUDED.author_role,
-			author_avatar = EXCLUDED.author_avatar,
-			author_bio = EXCLUDED.author_bio,
-			category = EXCLUDED.category,
-			tags = EXCLUDED.tags,
-			read_time = EXCLUDED.read_time,
-			status = EXCLUDED.status,
-			cover_image = EXCLUDED.cover_image,
-			meta_title = EXCLUDED.meta_title,
-			meta_description = EXCLUDED.meta_description,
-			canonical_url = EXCLUDED.canonical_url,
-			og_image = EXCLUDED.og_image,
-			updated_at = NOW()
 		RETURNING id, published_at, created_at, updated_at
 	`
 

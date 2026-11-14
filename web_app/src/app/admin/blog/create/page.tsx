@@ -33,7 +33,8 @@ import {
   Quote,
   List,
   ListOrdered,
-  Minus
+  Minus,
+  Plus,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { 
@@ -52,15 +53,19 @@ const WRITER_PROFILE_STORAGE_KEY = "compliancehub_blog_writer_profile";
 export default function BlogCreatePage() {
   return (
     <Suspense fallback={<div className="p-12 text-center text-slate-500 font-bold">Loading editorial studio...</div>}>
-      <BlogCreateContent />
+      <BlogCreateWrapper />
     </Suspense>
   );
 }
 
-function BlogCreateContent() {
-  const router = useRouter();
+function BlogCreateWrapper() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
+  return <BlogCreateContent key={editId || "new-dispatch"} editId={editId} />;
+}
+
+function BlogCreateContent({ editId }: { editId: string | null }) {
+  const router = useRouter();
   const [postId, setPostId] = useState<string | null>(editId);
 
   const [title, setTitle] = useState("");
@@ -171,8 +176,35 @@ function BlogCreateContent() {
           setStatus(post.status === "DRAFT" ? "DRAFT" : "PUBLISHED");
         }
       }).catch((e) => console.warn("Failed loading post to edit", e));
+    } else {
+      setPostId(null);
+      setTitle("");
+      setSlug("");
+      setExcerpt("");
+      setContent("");
+      setCoverImage("");
+      setMetaTitle("");
+      setMetaDescription("");
+      setCanonicalUrl("");
+      setOgImage("");
+      setStatus("PUBLISHED");
     }
   }, [editId]);
+
+  const handleStartNewPost = () => {
+    setPostId(null);
+    setTitle("");
+    setSlug("");
+    setExcerpt("");
+    setContent("");
+    setCoverImage("");
+    setMetaTitle("");
+    setMetaDescription("");
+    setCanonicalUrl("");
+    setOgImage("");
+    setStatus("PUBLISHED");
+    router.push("/admin/blog/create");
+  };
 
   // Update preview HTML and KaTeX
   useEffect(() => {
@@ -566,13 +598,33 @@ function BlogCreateContent() {
                 {status === "DRAFT" ? "Draft Mode" : "Published"}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Draft comprehensive legal breakdowns, Nigerian act circulars, and executive advisories.
+            <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-2">
+              <span>{postId || editId ? `Editing existing dispatch (ID: #${postId || editId})` : "Authoring a new dispatch"}</span>
+              {(postId || editId) && (
+                <button
+                  type="button"
+                  onClick={handleStartNewPost}
+                  className="text-[#0089C1] hover:underline font-bold text-xs cursor-pointer"
+                >
+                  • Start New Dispatch Instead
+                </button>
+              )}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          {(postId || editId) && (
+            <button
+              type="button"
+              onClick={handleStartNewPost}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs transition-all shadow-xs cursor-pointer"
+              title="Start a fresh blank article without editing this dispatch"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ New Dispatch</span>
+            </button>
+          )}
           {(slug || title) && (
             <button
               type="button"

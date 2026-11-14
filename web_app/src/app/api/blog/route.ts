@@ -119,7 +119,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Article title is required" }, { status: 400 });
     }
 
-    const slug = slugify(body.slug || title);
+    const baseSlug = slugify(body.slug || title);
+    let slug = baseSlug;
+    let collisionCount = 1;
+    while (true) {
+      const existing = await sql`SELECT id FROM blog_posts WHERE slug = ${slug} LIMIT 1`;
+      if (!existing || existing.length === 0) {
+        break;
+      }
+      collisionCount++;
+      slug = `${baseSlug}-${collisionCount}`;
+    }
+
     const content = String(body.content || "");
     const readTime = body.read_time || calculateReadTime(content);
     const coverImage = body.cover_image || "/article_professional.jpg";
@@ -133,70 +144,42 @@ export async function POST(request: Request) {
       : typeof body.tags === "string"
       ? body.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
       : [];
+    const excerpt = body.excerpt || "";
+    const metaTitle = body.meta_title || title;
+    const metaDescription = body.meta_description || excerpt || "";
+    const canonicalUrl = body.canonical_url || "";
+    const ogImage = body.og_image || coverImage;
 
-    const rows = await sql.query(
-      `INSERT INTO blog_posts (
-         title, slug, excerpt, content,
-         author_name, author_role, author_avatar, author_bio,
-         category, tags, read_time, status, cover_image,
-         meta_title, meta_description, canonical_url, og_image,
-         view_count, published_at, created_at, updated_at
-       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 0, NOW(), NOW(), NOW())
-       ON CONFLICT (slug) DO UPDATE SET
-         title = EXCLUDED.title,
-         excerpt = EXCLUDED.excerpt,
-         content = EXCLUDED.content,
-         author_name = EXCLUDED.author_name,
-         author_role = EXCLUDED.author_role,
-         author_avatar = EXCLUDED.author_avatar,
-         author_bio = EXCLUDED.author_bio,
-         category = EXCLUDED.category,
-         tags = EXCLUDED.tags,
-         read_time = EXCLUDED.read_time,
-         status = EXCLUDED.status,
-         cover_image = EXCLUDED.cover_image,
-         meta_title = EXCLUDED.meta_title,
-         meta_description = EXCLUDED.meta_description,
-         canonical_url = EXCLUDED.canonical_url,
-         og_image = EXCLUDED.og_image,
-         updated_at = NOW()
-       RETURNING *`,
-      [
-        title,
-        slug,
-        body.excerpt || "",
-        content,
-        authorName,
-        authorRole,
-        authorAvatar,
-        authorBio,
-        category,
-        tags,
-        readTime,
-        status,
-        coverImage,
-        body.meta_title || title,
-        body.meta_description || body.excerpt || "",
-        body.canonical_url || "",
-        body.og_image || coverImage,
-      ]
-    );
-
-    await sql
-      .query(
-        "INSERT INTO blog_categories (name, slug) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING",
-        [category, slugify(category)]
+    const rows = await sql`
+      INSERT INTO blog_posts (
+        title, slug, excerpt, content,
+        author_name, author_role, author_avatar, author_bio,
+        category, tags, read_time, status, cover_image,
+        meta_title, meta_description, canonical_url, og_image,
+        view_count, published_at, created_at, updated_at
       )
-      .catch(() => {});
+      VALUES (
+        ${title}, ${slug}, ${excerpt}, ${content},
+        ${authorName}, ${authorRole}, ${authorAvatar}, ${authorBio},
+        ${category}, ${tags}, ${readTime}, ${status}, ${coverImage},
+        ${metaTitle}, ${metaDescription}, ${canonicalUrl}, ${ogImage},
+        0, NOW(), NOW(), NOW()
+      )
+      RETURNING *
+    `;
+
+    await sql`
+      INSERT INTO blog_categories (name, slug) 
+      VALUES (${category}, ${slugify(category)}) 
+      ON CONFLICT (name) DO NOTHING
+    `.catch(() => {});
 
     for (const tag of tags) {
-      await sql
-        .query(
-          "INSERT INTO blog_tags (name, slug) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING",
-          [tag, slugify(tag)]
-        )
-        .catch(() => {});
+      await sql`
+        INSERT INTO blog_tags (name, slug) 
+        VALUES (${tag}, ${slugify(tag)}) 
+        ON CONFLICT (name) DO NOTHING
+      `.catch(() => {});
     }
 
     return NextResponse.json(rows[0] || {}, { status: 201 });

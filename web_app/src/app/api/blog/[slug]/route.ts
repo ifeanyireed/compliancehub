@@ -275,10 +275,9 @@ export async function PUT(
     const sql = neon(dbUrl);
     const body = await request.json();
 
-    const existingRows = await sql.query(
-      "SELECT * FROM blog_posts WHERE id::text = $1 OR slug = $1 OR LOWER(slug) = LOWER($1) LIMIT 1",
-      [cleanSlug]
-    );
+    const existingRows = await sql`
+      SELECT * FROM blog_posts WHERE id::text = ${cleanSlug} OR slug = ${cleanSlug} OR LOWER(slug) = LOWER(${cleanSlug}) LIMIT 1
+    `;
     const existing = existingRows?.[0] || {};
 
     const title = String(body.title ?? existing.title ?? "Untitled Regulatory Dispatch").trim();
@@ -286,10 +285,9 @@ export async function PUT(
 
     // Ensure slug does not collide with a different post
     if (existing.id) {
-      const collision = await sql.query(
-        "SELECT id FROM blog_posts WHERE slug = $1 AND id != $2 LIMIT 1",
-        [newSlug, existing.id]
-      );
+      const collision = await sql`
+        SELECT id FROM blog_posts WHERE slug = ${newSlug} AND id != ${existing.id} LIMIT 1
+      `;
       if (collision && collision.length > 0) {
         newSlug = `${newSlug}-${existing.id}`;
       }
@@ -311,54 +309,33 @@ export async function PUT(
     const authorRole = body.author_role || existing.author_role || "Super Administrator & Compliance Director";
     const authorAvatar = body.author_avatar !== undefined ? body.author_avatar : (existing.author_avatar || "");
     const authorBio = body.author_bio !== undefined ? body.author_bio : (existing.author_bio || "");
+    const excerpt = body.excerpt !== undefined ? body.excerpt : (existing.excerpt || "");
+    const metaTitle = body.meta_title !== undefined ? body.meta_title : (existing.meta_title || title);
+    const metaDescription = body.meta_description !== undefined ? body.meta_description : (existing.meta_description || excerpt || "");
+    const canonicalUrl = body.canonical_url !== undefined ? body.canonical_url : (existing.canonical_url || "");
+    const ogImage = body.og_image !== undefined ? body.og_image : (existing.og_image || coverImage);
 
-    const rows = await sql.query(
-      `UPDATE blog_posts SET
-         title = $1, slug = $2, excerpt = $3, content = $4,
-         author_name = $5, author_role = $6, author_avatar = $7, author_bio = $8,
-         category = $9, tags = $10, read_time = $11, status = $12, cover_image = $13,
-         meta_title = $14, meta_description = $15, canonical_url = $16, og_image = $17,
-         updated_at = NOW()
-       WHERE id::text = $18 OR slug = $18 OR LOWER(slug) = LOWER($18)
-       RETURNING *`,
-      [
-        title,
-        newSlug,
-        body.excerpt !== undefined ? body.excerpt : (existing.excerpt || ""),
-        content,
-        authorName,
-        authorRole,
-        authorAvatar,
-        authorBio,
-        category,
-        tags,
-        readTime,
-        status,
-        coverImage,
-        body.meta_title !== undefined ? body.meta_title : (existing.meta_title || title),
-        body.meta_description !== undefined ? body.meta_description : (existing.meta_description || body.excerpt || ""),
-        body.canonical_url !== undefined ? body.canonical_url : (existing.canonical_url || ""),
-        body.og_image !== undefined ? body.og_image : (existing.og_image || coverImage),
-        cleanSlug,
-      ]
-    );
+    const rows = await sql`
+      UPDATE blog_posts SET
+        title = ${title}, slug = ${newSlug}, excerpt = ${excerpt}, content = ${content},
+        author_name = ${authorName}, author_role = ${authorRole}, author_avatar = ${authorAvatar}, author_bio = ${authorBio},
+        category = ${category}, tags = ${tags}, read_time = ${readTime}, status = ${status}, cover_image = ${coverImage},
+        meta_title = ${metaTitle}, meta_description = ${metaDescription}, canonical_url = ${canonicalUrl}, og_image = ${ogImage},
+        updated_at = NOW()
+      WHERE id::text = ${cleanSlug} OR slug = ${cleanSlug} OR LOWER(slug) = LOWER(${cleanSlug})
+      RETURNING *
+    `;
 
     if (category) {
-      await sql
-        .query(
-          "INSERT INTO blog_categories (name, slug) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING",
-          [category, slugify(category)]
-        )
-        .catch(() => {});
+      await sql`
+        INSERT INTO blog_categories (name, slug) VALUES (${category}, ${slugify(category)}) ON CONFLICT (name) DO NOTHING
+      `.catch(() => {});
     }
 
     for (const tag of tags) {
-      await sql
-        .query(
-          "INSERT INTO blog_tags (name, slug) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING",
-          [tag, slugify(tag)]
-        )
-        .catch(() => {});
+      await sql`
+        INSERT INTO blog_tags (name, slug) VALUES (${tag}, ${slugify(tag)}) ON CONFLICT (name) DO NOTHING
+      `.catch(() => {});
     }
 
     return NextResponse.json(rows[0] || {});
