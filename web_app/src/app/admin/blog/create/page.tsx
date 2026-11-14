@@ -102,6 +102,9 @@ function BlogCreateContent() {
   const coverFileInputRef = useRef<HTMLInputElement | null>(null);
   const inlineFileInputRef = useRef<HTMLInputElement | null>(null);
   const authorFileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastSelectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [isDraggingOverEditor, setIsDraggingOverEditor] = useState(false);
 
   const [categories, setCategories] = useState<string[]>([
     "Taxation & FIRS",
@@ -190,8 +193,83 @@ function BlogCreateContent() {
     }
   };
 
-  const insertMarkdown = (syntax: string) => {
-    setContent(prev => prev + "\n" + syntax + "\n");
+  const saveSelection = () => {
+    if (textareaRef.current) {
+      lastSelectionRef.current = {
+        start: textareaRef.current.selectionStart ?? 0,
+        end: textareaRef.current.selectionEnd ?? 0,
+      };
+    }
+  };
+
+  const insertMarkdown = (
+    syntax: string,
+    options?: {
+      prefix?: string;
+      suffix?: string;
+      defaultText?: string;
+      block?: boolean;
+    }
+  ) => {
+    const textarea = textareaRef.current;
+
+    // Determine start & end from saved selection or textarea element
+    let start = lastSelectionRef.current?.start ?? (textarea ? textarea.selectionStart : content.length);
+    let end = lastSelectionRef.current?.end ?? (textarea ? textarea.selectionEnd : content.length);
+
+    // Guard bounds against content length
+    if (typeof start !== "number" || start < 0 || start > content.length) start = content.length;
+    if (typeof end !== "number" || end < 0 || end > content.length) end = content.length;
+    if (end < start) end = start;
+
+    const currentText = content;
+    const selectedText = currentText.substring(start, end);
+
+    let replacement = "";
+    let cursorOffset = 0;
+
+    if (options?.prefix !== undefined || options?.suffix !== undefined) {
+      // Wrapper mode (e.g. bold, italic, code)
+      const prefix = options.prefix || "";
+      const suffix = options.suffix || "";
+      const innerText = selectedText || options.defaultText || "";
+      replacement = `${prefix}${innerText}${suffix}`;
+      cursorOffset = prefix.length + innerText.length;
+    } else if (options?.block) {
+      // Block mode (e.g. headings, images, blockquotes, lists, tables)
+      const hasHeadingSyntax = syntax.startsWith("#");
+      let inner = syntax;
+      if (hasHeadingSyntax && selectedText) {
+        inner = `${syntax}${selectedText}`;
+      } else if (!hasHeadingSyntax && selectedText && options.defaultText) {
+        inner = selectedText;
+      }
+
+      const needsLead = start > 0 && !currentText.slice(0, start).endsWith("\n");
+      const needsTrail = end < currentText.length && !currentText.slice(end).startsWith("\n");
+
+      const lead = needsLead ? (currentText.slice(0, start).endsWith("\n\n") ? "" : "\n\n") : "";
+      const trail = needsTrail ? (currentText.slice(end).startsWith("\n\n") ? "" : "\n\n") : "";
+
+      replacement = `${lead}${inner}${trail}`;
+      cursorOffset = replacement.length;
+    } else {
+      replacement = syntax;
+      cursorOffset = syntax.length;
+    }
+
+    const nextContent = currentText.substring(0, start) + replacement + currentText.substring(end);
+    setContent(nextContent);
+
+    const newCursorPos = start + cursorOffset;
+    lastSelectionRef.current = { start: newCursorPos, end: newCursorPos };
+
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    });
   };
 
   const processCoverFileUpload = async (file: File) => {
@@ -243,22 +321,64 @@ function BlogCreateContent() {
     await processCoverFileUpload(file);
   };
 
-  const handleInlineFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processInlineFileUpload = async (file: File) => {
     setUploadingInline(true);
     try {
       const uploadedUrl = await uploadBlogImageFile(file);
       if (uploadedUrl) {
         const cleanCaption = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, " ");
-        insertMarkdown(`![${cleanCaption}](${uploadedUrl})`);
-        showToast("Inline image uploaded and inserted into editor!");
+        insertMarkdown(`![${cleanCaption}](${uploadedUrl})`, { block: true });
+        showToast("Inline image inserted at cursor position!");
       }
     } catch (err: any) {
       alert("Failed to upload inline image: " + (err?.message || err));
     } finally {
       setUploadingInline(false);
       if (inlineFileInputRef.current) inlineFileInputRef.current.value = "";
+    }
+  };
+
+  const handleInlineFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processInlineFileUpload(file);
+  };
+
+  const handleEditorPaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) {
+          saveSelection();
+          await processInlineFileUpload(file);
+          return;
+        }
+      }
+    }
+  };
+
+  const handleEditorDrop = async (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    setIsDraggingOverEditor(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      if (typeof document !== "undefined") {
+        if ("caretPositionFromPoint" in document) {
+          const pos = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
+          if (pos && typeof pos.offset === "number") {
+            lastSelectionRef.current = { start: pos.offset, end: pos.offset };
+          }
+        } else if ("caretRangeFromPoint" in document) {
+          const range = (document as any).caretRangeFromPoint(e.clientX, e.clientY);
+          if (range && typeof range.startOffset === "number") {
+            lastSelectionRef.current = { start: range.startOffset, end: range.startOffset };
+          }
+        }
+      }
+      await processInlineFileUpload(file);
     }
   };
 
@@ -583,88 +703,99 @@ function BlogCreateContent() {
                 <div className="flex items-center gap-1 overflow-x-auto">
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("# Main Section Heading")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("# ", { block: true, defaultText: "Main Section Heading" })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Heading 1"
                   >
                     <Heading1 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("## Heading 2 Title")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("## ", { block: true, defaultText: "Heading 2 Title" })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Heading 2"
                   >
                     <Heading2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("### Heading 3 Title")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("### ", { block: true, defaultText: "Heading 3 Title" })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Heading 3"
                   >
                     <Heading3 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("**Bold text**")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("", { prefix: "**", suffix: "**", defaultText: "Bold text" })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Bold"
                   >
                     <Bold className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("*Italic text*")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("", { prefix: "*", suffix: "*", defaultText: "Italic text" })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Italic"
                   >
                     <Italic className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("> **► WHAT THIS MEANS FOR OPERATORS:**\n> Executive compliance summary...")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("> **► WHAT THIS MEANS FOR OPERATORS:**\n> Executive compliance summary...", { block: true })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Callout Blockquote"
                   >
                     <Quote className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("- Key obligation\n- Statutory penalty\n- Recommended action")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("- Key obligation\n- Statutory penalty\n- Recommended action", { block: true })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Bullet List"
                   >
                     <List className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("1. First statutory step\n2. Second verification step\n3. Final filing submission")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("1. First statutory step\n2. Second verification step\n3. Final filing submission", { block: true })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Numbered List"
                   >
                     <ListOrdered className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("---")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("---", { block: true })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Section Divider"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("| Obligation | Statutory Deadline | Governing Act |\n|:---|:---|:---|\n| CIT Return | 6 Months Post-FYE | Tax Act 2026 |")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("| Obligation | Statutory Deadline | Governing Act |\n|:---|:---|:---|\n| CIT Return | 6 Months Post-FYE | Tax Act 2026 |", { block: true })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="Statutory Table"
                   >
                     <FileText className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertMarkdown("$$ \\text{Penalty} = \\text{Base FIRS Fine} + (\\text{Days Late} \\times ₦25,000) $$")}
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => insertMarkdown("$$ \\text{Penalty} = \\text{Base FIRS Fine} + (\\text{Days Late} \\times ₦25,000) $$", { block: true })}
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
                     title="KaTeX Math Formula"
                   >
                     <Code className="w-3.5 h-3.5" />
@@ -672,9 +803,13 @@ function BlogCreateContent() {
                   <button
                     type="button"
                     disabled={uploadingInline}
-                    onClick={() => inlineFileInputRef.current?.click()}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-[#0089C1] border border-sky-200/70 text-[11px] font-bold transition-all"
-                    title="Upload Inline Image"
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => {
+                      saveSelection();
+                      inlineFileInputRef.current?.click();
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-[#0089C1] border border-sky-200/70 text-[11px] font-bold transition-all shadow-xs"
+                    title="Upload Inline Image at Cursor Position"
                   >
                     {uploadingInline ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -696,14 +831,72 @@ function BlogCreateContent() {
 
             {/* Editor Workspace */}
             {editorMode === "write" ? (
-              <div className="p-6">
+              <div className="p-6 relative">
                 <textarea
+                  ref={textareaRef}
                   rows={20}
-                  placeholder="Draft your regulatory analysis using GitHub Flavored Markdown (headings, lists, blockquotes, statutory tables, and KaTeX formulas)..."
+                  placeholder="Draft your regulatory analysis using GitHub Flavored Markdown (headings, lists, blockquotes, statutory tables, and KaTeX formulas)... Drop or paste images directly into this editor!"
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="w-full font-mono text-xs leading-relaxed text-slate-900 bg-transparent border-0 focus:outline-none resize-y"
+                  onChange={(e) => {
+                    setContent(e.target.value);
+                    lastSelectionRef.current = {
+                      start: e.target.selectionStart,
+                      end: e.target.selectionEnd,
+                    };
+                  }}
+                  onSelect={(e) => {
+                    lastSelectionRef.current = {
+                      start: e.currentTarget.selectionStart,
+                      end: e.currentTarget.selectionEnd,
+                    };
+                  }}
+                  onKeyUp={(e) => {
+                    lastSelectionRef.current = {
+                      start: e.currentTarget.selectionStart,
+                      end: e.currentTarget.selectionEnd,
+                    };
+                  }}
+                  onMouseUp={(e) => {
+                    lastSelectionRef.current = {
+                      start: e.currentTarget.selectionStart,
+                      end: e.currentTarget.selectionEnd,
+                    };
+                  }}
+                  onTouchEnd={(e) => {
+                    lastSelectionRef.current = {
+                      start: e.currentTarget.selectionStart,
+                      end: e.currentTarget.selectionEnd,
+                    };
+                  }}
+                  onPaste={handleEditorPaste}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingOverEditor(true);
+                  }}
+                  onDragLeave={() => setIsDraggingOverEditor(false)}
+                  onDrop={handleEditorDrop}
+                  className={`w-full font-mono text-xs leading-relaxed text-slate-900 bg-transparent border-0 focus:outline-none resize-y transition-all ${
+                    isDraggingOverEditor
+                      ? "bg-sky-50/70 ring-2 ring-[#0089C1] ring-dashed rounded-xl p-3"
+                      : ""
+                  }`}
                 />
+                {uploadingInline && (
+                  <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-10 transition-all">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#0089C1]" />
+                      <span>Uploading image and placing at cursor...</span>
+                    </div>
+                  </div>
+                )}
+                {isDraggingOverEditor && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#0089C1]/5 border-2 border-dashed border-[#0089C1] rounded-xl z-20">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-[#0089C1] text-white text-xs font-bold rounded-lg shadow-lg">
+                      <ImageIcon className="w-4 h-4" />
+                      <span>Drop image here to insert at cursor</span>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-8 sm:p-12 article-prose max-w-none text-slate-800 leading-relaxed text-sm space-y-6">
