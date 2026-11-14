@@ -25,7 +25,6 @@ import {
   Copy,
   MessageCircle
 } from "lucide-react";
-import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
 import { api } from "@/lib/api";
@@ -237,7 +236,6 @@ export default function SingleBlogPostPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans">
-        <CompliancePublicNav />
         <div className="flex-1 flex flex-col items-center justify-center p-16">
           <Loader2 className="w-10 h-10 animate-spin text-[#0089C1] mb-3" />
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loading Regulatory Dispatch...</p>
@@ -250,7 +248,6 @@ export default function SingleBlogPostPage() {
   if (!post) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans">
-        <CompliancePublicNav />
         <div className="flex-1 flex flex-col items-center justify-center p-16 text-center space-y-4">
           <h2 className="text-2xl font-bold text-slate-900">Dispatch Not Found</h2>
           <p className="text-xs text-slate-500 max-w-sm">The requested regulatory intelligence briefing does not exist or has been archived.</p>
@@ -271,7 +268,16 @@ export default function SingleBlogPostPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans">
-      <CompliancePublicNav />
+      {/* Sticky Floating Glassmorphic Back Button */}
+      <div className="fixed top-5 left-4 sm:left-6 z-50 pointer-events-auto">
+        <Link 
+          href="/blog" 
+          className="group flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full bg-slate-950/85 hover:bg-slate-900 text-white backdrop-blur-md text-xs font-bold transition-all shadow-2xl border border-white/20 hover:border-[#0089C1]/60 hover:scale-105 active:scale-95"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0089C1] group-hover:-translate-x-0.5 transition-transform" />
+          <span>Back to Compliance Journal</span>
+        </Link>
+      </div>
 
       {/* Hero Cover Image (Full Width with Overlapping Depth) */}
       <div className="w-full h-[48vh] sm:h-[55vh] relative bg-slate-950 overflow-hidden">
@@ -283,15 +289,6 @@ export default function SingleBlogPostPage() {
           className="w-full h-full object-cover opacity-90 scale-100 hover:scale-105 transition-transform duration-700 ease-out"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/30 to-black/40" />
-
-        {/* Floating Glassmorphic Back Button */}
-        <Link 
-          href="/blog" 
-          className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white backdrop-blur-md text-xs font-bold transition-all shadow-md border border-white/10"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Compliance Journal</span>
-        </Link>
       </div>
 
       {/* Main Container Overlapping Hero */}

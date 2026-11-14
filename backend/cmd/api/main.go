@@ -68,6 +68,9 @@ func main() {
 	services.InitEmail()
 
 	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = os.Getenv("KV_URL")
+	}
 	log.Printf("⚡ Initializing Upstash Redis Connection...")
 	redisClient, err := cache.InitRedis(redisURL)
 	if err != nil {
