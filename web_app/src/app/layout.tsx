@@ -19,6 +19,21 @@ export const metadata: Metadata = {
     shortcut: "/logo.png",
     apple: "/logo.png",
   },
+  openGraph: {
+    title: "ComplianceHub.ng — Everything Compliance. One Workspace.",
+    description: "Nigeria's integrated compliance management, professional services marketplace, and compliance practice management ecosystem across CAC, FIRS, NDPC, and SCUML.",
+    url: "https://compliancehub.ng",
+    siteName: "ComplianceHub Nigeria",
+    locale: "en_NG",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ComplianceHub.ng — Everything Compliance. One Workspace.",
+    description: "Nigeria's integrated compliance management, professional services marketplace, and compliance practice management ecosystem.",
+    creator: "@compliancehubng",
+    site: "@compliancehubng",
+  },
 };
 
 export default function RootLayout({

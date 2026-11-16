@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { ShieldCheck, Mail, MapPin, Phone, ExternalLink, ArrowUpRight } from "lucide-react";
+import { IconBrandX, IconBrandLinkedin, IconBrandInstagram, IconBrandFacebook } from "@tabler/icons-react";
 
 export function CompliancePublicFooter() {
   return (
@@ -39,6 +40,51 @@ export function CompliancePublicFooter() {
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
                 SCUML AML/CFT Standard
               </span>
+            </div>
+
+            {/* Social Media Links @compliancehubng */}
+            <div className="pt-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                Follow @compliancehubng
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://x.com/compliancehubng"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="ComplianceHub on X"
+                  className="w-8 h-8 rounded-lg bg-white border border-slate-200/90 text-slate-700 hover:text-black hover:border-slate-400 hover:shadow-xs flex items-center justify-center transition-all"
+                >
+                  <IconBrandX className="w-4 h-4" />
+                </a>
+                <a
+                  href="https://www.linkedin.com/company/compliancehubng"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="ComplianceHub on LinkedIn"
+                  className="w-8 h-8 rounded-lg bg-white border border-slate-200/90 text-slate-700 hover:text-[#0A66C2] hover:border-[#0A66C2]/40 hover:shadow-xs flex items-center justify-center transition-all"
+                >
+                  <IconBrandLinkedin className="w-4 h-4" />
+                </a>
+                <a
+                  href="https://www.instagram.com/compliancehubng"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="ComplianceHub on Instagram"
+                  className="w-8 h-8 rounded-lg bg-white border border-slate-200/90 text-slate-700 hover:text-[#E4405F] hover:border-[#E4405F]/40 hover:shadow-xs flex items-center justify-center transition-all"
+                >
+                  <IconBrandInstagram className="w-4 h-4" />
+                </a>
+                <a
+                  href="https://www.facebook.com/compliancehubng"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="ComplianceHub on Facebook"
+                  className="w-8 h-8 rounded-lg bg-white border border-slate-200/90 text-slate-700 hover:text-[#1877F2] hover:border-[#1877F2]/40 hover:shadow-xs flex items-center justify-center transition-all"
+                >
+                  <IconBrandFacebook className="w-4 h-4" />
+                </a>
+              </div>
             </div>
           </div>
 
