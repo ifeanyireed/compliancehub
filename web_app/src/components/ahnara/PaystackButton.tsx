@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { AhnaraButton } from "@/components/ahnara/AhnaraButton";
-import { Lock } from "lucide-react";
+import { Lock, Loader2 } from "lucide-react";
 
 interface PaystackButtonProps {
   config: {
@@ -97,12 +97,12 @@ export default function PaystackButton({
     <AhnaraButton
       size="lg"
       className={className}
-      leftIcon={<Lock className="w-5 h-5" />}
-      disabled={disabled}
+      leftIcon={isSubmitting ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Lock className="w-4 h-4" />}
+      disabled={disabled || isSubmitting}
       isLoading={isSubmitting}
       onClick={handleClick}
     >
-      {text}
+      {isSubmitting ? "Connecting Paystack..." : text}
     </AhnaraButton>
   );
 }

@@ -11,7 +11,36 @@ import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssista
 import { MotionPage, MotionSection, MotionCard, RiseIn, defaultEase } from "@/components/motion/MotionTransitions";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { api } from "@/lib/api";
-import PaystackButton from "@/components/ahnara/PaystackButton";
+
+function loadPaystackScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+    if ((window as any).PaystackPop) {
+      resolve(true);
+      return;
+    }
+    const existing = document.getElementById("paystack-inline-script");
+    if (existing) {
+      if ((window as any).PaystackPop) {
+        resolve(true);
+        return;
+      }
+      existing.addEventListener("load", () => resolve(true));
+      existing.addEventListener("error", () => resolve(false));
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "paystack-inline-script";
+    script.src = "https://js.paystack.co/v1/inline.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function PricingPage() {
   const router = useRouter();
@@ -19,7 +48,7 @@ export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annually">("monthly");
   const [userTrack, setUserTrack] = useState<"business" | "professional">("business");
   const [upgradedBanner, setUpgradedBanner] = useState<string | null>(null);
-  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const discountMultiplier = billingCycle === "annually" ? 0.8 : 1.0;
 
@@ -150,6 +179,87 @@ export default function PricingPage() {
 
   const activePlans = userTrack === "business" ? businessPlans : professionalPlans;
 
+  const handlePlanClick = async (plan: any) => {
+    if (loadingPlan) return;
+    setLoadingPlan(plan.name);
+
+    // Scenario 1: Unauthenticated Public Visitor
+    if (!user) {
+      const planCode = plan.name.toLowerCase().replace(/\s+/g, "_");
+      if (userTrack === "business") {
+        router.push(`/onboarding?plan=${planCode}&billing=${billingCycle}`);
+      } else {
+        const agencyPlans = ["agency_growth", "agency"];
+        const role = agencyPlans.includes(planCode) ? "AGENCY" : "EXPERT";
+        router.push(`/register?role=${role}&plan=${planCode}`);
+      }
+      return;
+    }
+
+    // Scenario 2: Authenticated User choosing Free Plan
+    const price = Math.round(plan.monthlyPrice * discountMultiplier);
+    if (price === 0) {
+      try {
+        await api.subscriptions.upgrade({ plan_tier: plan.name });
+        setUpgradedBanner(plan.name);
+        setTimeout(() => router.push("/business/dashboard/"), 1200);
+      } catch (err) {
+        console.error("Upgrade error:", err);
+      } finally {
+        setLoadingPlan(null);
+      }
+      return;
+    }
+
+    // Scenario 3: Authenticated User choosing Paid Plan (Launch Paystack Inline Popup)
+    try {
+      const loaded = await loadPaystackScript();
+      if (!loaded || typeof window === "undefined" || !(window as any).PaystackPop) {
+        setLoadingPlan(null);
+        alert("Payment gateway failed to initialize. Please check your internet connection.");
+        return;
+      }
+
+      const totalAmount = (billingCycle === "annually" ? price * 12 : price) * 100;
+      const handler = (window as any).PaystackPop.setup({
+        key: paystackKey,
+        email: user.email || "billing@compliancehub.ng",
+        amount: totalAmount,
+        currency: "NGN",
+        ref: `ps_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+        metadata: {
+          tenant_id: activeTenantId,
+          plan_tier: plan.name,
+          billing_cycle: billingCycle,
+          user_id: user.id,
+        },
+        callback: async (response: any) => {
+          try {
+            await api.subscriptions.verifyPayment({
+              reference: response.reference || response.trans,
+              plan_tier: plan.name,
+              billing_cycle: billingCycle,
+            });
+            setUpgradedBanner(plan.name);
+            setTimeout(() => router.push("/business/settings"), 1200);
+          } catch (e) {
+            console.error("Payment verification error:", e);
+          } finally {
+            setLoadingPlan(null);
+          }
+        },
+        onClose: () => {
+          setLoadingPlan(null);
+        },
+      });
+
+      handler.openIframe();
+    } catch (err) {
+      console.error("Paystack popup error:", err);
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col">
       <CompliancePublicNav />
@@ -270,77 +380,39 @@ export default function PricingPage() {
                 </div>
 
                 {upgradedBanner === plan.name ? (
-                  <div className="w-full py-3 rounded-2xl bg-emerald-100 text-emerald-800 font-bold text-xs text-center flex items-center justify-center gap-2">
+                  <div className="w-full py-3.5 rounded-2xl bg-emerald-100 text-emerald-800 font-bold text-xs text-center flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-700" />
                     <span>Plan Activated!</span>
                   </div>
-                ) : user && userTrack === "business" ? (
-                  price === 0 ? (
-                    <button
-                      onClick={async () => {
-                        setProcessingPlan(plan.name);
-                        try {
-                          await api.subscriptions.upgrade({ plan_tier: plan.name });
-                          setUpgradedBanner(plan.name);
-                          setTimeout(() => router.push("/business/dashboard/"), 1500);
-                        } catch (err) {
-                          console.error("Upgrade error:", err);
-                        } finally {
-                          setProcessingPlan(null);
-                        }
-                      }}
-                      disabled={processingPlan === plan.name}
-                      className="w-full py-3 rounded-2xl font-bold text-xs transition-all shadow-xs bg-[#1E293B] hover:bg-slate-800 text-white cursor-pointer"
-                    >
-                      {processingPlan === plan.name ? "Switching Plan..." : plan.cta}
-                    </button>
-                  ) : (
-                    <PaystackButton
-                      config={{
-                        reference: `ps_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
-                        email: user.email,
-                        amount: (billingCycle === "annually" ? price * 12 : price) * 100,
-                        publicKey: paystackKey,
-                        metadata: {
-                          tenant_id: activeTenantId,
-                          plan_tier: plan.name,
-                          billing_cycle: billingCycle,
-                        },
-                      }}
-                      onSuccess={async (ref) => {
-                        try {
-                          await api.subscriptions.verifyPayment({
-                            reference: ref.reference || ref.trans,
-                            plan_tier: plan.name,
-                            billing_cycle: billingCycle,
-                          });
-                          setUpgradedBanner(plan.name);
-                          setTimeout(() => router.push("/business/settings"), 1500);
-                        } catch (err) {
-                          console.error("Payment verification error:", err);
-                        }
-                      }}
-                      onClose={() => {}}
-                      text={plan.cta}
-                      className={`w-full py-3 rounded-2xl font-bold text-xs transition-all shadow-xs cursor-pointer justify-center ${
-                        plan.highlight
-                          ? "bg-[#0089C1] hover:bg-sky-600 text-white"
-                          : "bg-[#1E293B] hover:bg-slate-800 text-white"
-                      }`}
-                    />
-                  )
                 ) : (
-                  <Link href={userTrack === "business" ? "/onboarding" : "/register?role=EXPERT"}>
-                    <button
-                      className={`w-full py-3 rounded-2xl font-bold text-xs transition-all shadow-xs cursor-pointer ${
-                        plan.highlight
-                          ? "bg-[#0089C1] hover:bg-sky-600 text-white"
-                          : "bg-[#1E293B] hover:bg-slate-800 text-white"
-                      }`}
-                    >
-                      {plan.cta}
-                    </button>
-                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handlePlanClick(plan)}
+                    disabled={Boolean(loadingPlan)}
+                    className={`w-full py-3.5 rounded-2xl font-bold text-xs transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-wait ${
+                      plan.highlight
+                        ? "bg-[#0089C1] hover:bg-sky-600 active:scale-[0.98] text-white"
+                        : "bg-[#1E293B] hover:bg-slate-800 active:scale-[0.98] text-white"
+                    }`}
+                  >
+                    {loadingPlan === plan.name ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
+                        <span>
+                          {!user
+                            ? "Opening Onboarding..."
+                            : price === 0
+                            ? "Switching Plan..."
+                            : "Connecting Paystack..."}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{plan.cta}</span>
+                        {!user && <ArrowRight className="w-3.5 h-3.5 opacity-80" />}
+                      </>
+                    )}
+                  </button>
                 )}
               </MotionCard>
             );
