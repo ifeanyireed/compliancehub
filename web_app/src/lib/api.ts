@@ -1,27 +1,50 @@
-export const getAuthToken = () => {
+import { TOKEN_COOKIE_NAME, decodeJWT } from "@/lib/jwt";
+
+export const getAuthToken = (): string | null => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("compliancehub_token") || "demo-token-business";
+    const token = localStorage.getItem("compliancehub_token");
+    if (token) return token;
+
+    // Check cookies as fallback
+    const match = document.cookie.match(new RegExp(`(?:^|; )${TOKEN_COOKIE_NAME}=([^;]*)`));
+    if (match && match[1]) {
+      const cookieToken = decodeURIComponent(match[1]);
+      localStorage.setItem("compliancehub_token", cookieToken);
+      return cookieToken;
+    }
   }
-  return "demo-token-business";
+  return null;
 };
 
 export const setAuthToken = (token: string) => {
   if (typeof window !== "undefined") {
     localStorage.setItem("compliancehub_token", token);
+    const maxAge = 72 * 3600; // 72 hours
+    document.cookie = `${TOKEN_COOKIE_NAME}=${encodeURIComponent(token)}; path=/; max-age=${maxAge}; SameSite=Lax`;
   }
 };
 
 export const clearAuthToken = () => {
   if (typeof window !== "undefined") {
     localStorage.removeItem("compliancehub_token");
+    document.cookie = `${TOKEN_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
   }
 };
 
-export const getActiveTenantID = () => {
+export const getActiveTenantID = (): string | null => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("compliancehub_tenant_id") || "55555555-5555-5555-5555-555555555501";
+    const stored = localStorage.getItem("compliancehub_tenant_id");
+    if (stored) return stored;
+    const token = getAuthToken();
+    if (token) {
+      const claims = decodeJWT(token);
+      if (claims?.tenant_id) {
+        localStorage.setItem("compliancehub_tenant_id", claims.tenant_id);
+        return claims.tenant_id;
+      }
+    }
   }
-  return "55555555-5555-5555-5555-555555555501";
+  return null;
 };
 
 export const setActiveTenantID = (tenantId: string) => {
@@ -30,11 +53,20 @@ export const setActiveTenantID = (tenantId: string) => {
   }
 };
 
-export const getActiveRole = () => {
+export const getActiveRole = (): string | null => {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("compliancehub_role") || "BUSINESS";
+    const stored = localStorage.getItem("compliancehub_role");
+    if (stored) return stored;
+    const token = getAuthToken();
+    if (token) {
+      const claims = decodeJWT(token);
+      if (claims?.role) {
+        localStorage.setItem("compliancehub_role", claims.role);
+        return claims.role;
+      }
+    }
   }
-  return "BUSINESS";
+  return null;
 };
 
 const getApiBaseUrl = () => {
@@ -68,15 +100,8 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  const isAuthEndpoint =
-    endpoint.startsWith("/v1/auth/login") ||
-    endpoint.startsWith("/v1/auth/register") ||
-    endpoint.startsWith("/v1/auth/forgot-password") ||
-    endpoint.startsWith("/v1/auth/reset-password") ||
-    endpoint.startsWith("/v1/onboarding/classify");
-
   // Prefer same-origin Next.js Neon API route on the client to avoid CORS/cold-start failures
-  if (typeof window !== "undefined" && !isAuthEndpoint) {
+  if (typeof window !== "undefined") {
     try {
       const localResponse = await fetch(`/api${endpoint}`, {
         ...options,
@@ -85,8 +110,25 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
       if (localResponse.ok) {
         return await localResponse.json();
       }
-    } catch (_) {
-      // Fall through to external API_BASE_URL
+      // If server returned structured error (4xx / 5xx), parse and throw with code & status
+      const contentType = localResponse.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const errorData = await localResponse.json().catch(() => ({}));
+        const err = new Error(errorData.error || errorData.message || localResponse.statusText);
+        (err as any).status = localResponse.status;
+        (err as any).code = errorData.code;
+        (err as any).data = errorData;
+        throw err;
+      } else {
+        const err = new Error(localResponse.statusText);
+        (err as any).status = localResponse.status;
+        throw err;
+      }
+    } catch (localErr: any) {
+      if (localErr && (localErr.status || localErr.code)) {
+        throw localErr;
+      }
+      // If network fetch failed entirely, fall through to external API_BASE_URL
     }
   }
 
@@ -98,27 +140,26 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
 
     if (!response.ok) {
       let errorMessage = response.statusText;
+      let errorCode: string | undefined;
+      let errorData: any = null;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
         const error = await response.json().catch(() => ({ message: "Unknown JSON error" }));
         errorMessage = error.message || error.error || errorMessage;
+        errorCode = error.code;
+        errorData = error;
       }
-      throw new Error(errorMessage);
+      const err = new Error(errorMessage);
+      (err as any).status = response.status;
+      (err as any).code = errorCode;
+      (err as any).data = errorData;
+      throw err;
     }
 
     return await response.json();
-  } catch (err) {
-    // Fallback to local Next.js API route if primary external backend failed
-    if (typeof window !== "undefined" && isAuthEndpoint) {
-      try {
-        const fallbackRes = await fetch(`/api${endpoint}`, {
-          ...options,
-          headers,
-        });
-        if (fallbackRes.ok) {
-          return await fallbackRes.json();
-        }
-      } catch (_) {}
+  } catch (err: any) {
+    if (err && (err.status || err.code)) {
+      throw err;
     }
     console.warn(`[ComplianceHub API] Request fallback notice for ${endpoint}:`, err);
     return null;
@@ -318,7 +359,18 @@ export const api = {
       service_preference?: string;
       contact_email?: string;
       contact_name?: string;
+      password?: string;
+      phone?: string;
     }) => apiFetch("/v1/onboarding/classify", { method: "POST", body: JSON.stringify(data) }),
+  },
+
+  // Subscriptions & Quota Enforcement
+  subscriptions: {
+    getUsage: () => apiFetch("/v1/subscriptions/usage", { method: "GET" }),
+    verifyPayment: (data: { reference: string; plan_tier: string; billing_cycle?: string }) =>
+      apiFetch("/v1/subscriptions/verify", { method: "POST", body: JSON.stringify(data) }),
+    upgrade: (data: { plan_tier: string; billing_cycle?: string }) =>
+      apiFetch("/v1/subscriptions/upgrade", { method: "POST", body: JSON.stringify(data) }),
   },
 
   // Corporate Audit Diagnostic Engine

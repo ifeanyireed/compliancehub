@@ -414,6 +414,8 @@ func MigrateSchema(ctx context.Context, pool *pgxpool.Pool) error {
 
 		`ALTER TABLE organisations ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '';`,
 		`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '';`,
+		`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;`,
+		`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'ACTIVE';`,
 
 		`CREATE TABLE IF NOT EXISTS knowledge_articles (
 			id TEXT PRIMARY KEY,

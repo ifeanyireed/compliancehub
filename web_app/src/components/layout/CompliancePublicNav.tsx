@@ -182,14 +182,25 @@ export function CompliancePublicNav() {
                   Corporate Compliance Audit
                 </button>
               </Link>
-              <Link 
-                href={getDashboardHref()} 
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <button className="w-full bg-[#1E293B] text-white hover:bg-slate-800 font-bold py-3 rounded-full text-sm shadow-sm text-center">
-                  Open Workspace Dashboard
-                </button>
-              </Link>
+              {user ? (
+                <Link 
+                  href={getDashboardHref()} 
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <button className="w-full bg-[#1E293B] text-white hover:bg-slate-800 font-bold py-3 rounded-full text-sm shadow-sm text-center">
+                    Open Workspace Dashboard
+                  </button>
+                </Link>
+              ) : (
+                <Link 
+                  href="/login" 
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <button className="w-full bg-[#1E293B] text-white hover:bg-slate-800 font-bold py-3 rounded-full text-sm shadow-sm text-center">
+                    Sign In
+                  </button>
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

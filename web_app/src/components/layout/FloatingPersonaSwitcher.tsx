@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, 
@@ -25,6 +25,7 @@ export function FloatingPersonaSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
   const { user, switchRole } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close when clicking outside
@@ -130,16 +131,21 @@ export function FloatingPersonaSwitcher() {
     }
   ];
 
-  const currentRole = user?.role || "BUSINESS";
+  const currentRole = user?.role;
   const currentPersona = personas.find(p => p.role === currentRole) || personas[0];
 
-  const handleSelectRole = (role: "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN", redirectPath?: string) => {
-    switchRole(role);
+  const handleSelectRole = async (role: "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN", redirectPath?: string) => {
+    await switchRole(role);
     if (redirectPath) {
       router.push(redirectPath);
       setIsOpen(false);
     }
   };
+
+  // Strict guard: Hide role switcher from public pages and restrict strictly to admin pages
+  if (!pathname?.startsWith("/admin") || user?.role !== "ADMIN") {
+    return null;
+  }
 
   return (
     <div 
@@ -192,7 +198,7 @@ export function FloatingPersonaSwitcher() {
             {/* Persona Cards List */}
             <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-0.5">
               {personas.map((p) => {
-                const isSelected = currentRole === p.role;
+                const isSelected = !!user && currentRole === p.role;
                 const IconComponent = p.icon;
 
                 return (
@@ -304,22 +310,22 @@ export function FloatingPersonaSwitcher() {
             alt={currentPersona.name}
             className="w-7 h-7 rounded-full object-cover border border-slate-500 shadow-xs"
           />
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900 animate-pulse" />
+          <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-slate-900 ${user ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
         </div>
 
         {/* Text information */}
         <div className="flex flex-col text-left pr-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 leading-none">
-              Persona Demo
+              {user ? "Persona Demo" : "Interactive Demos"}
             </span>
             <span className="w-1 h-1 rounded-full bg-slate-600" />
             <span className="text-[10px] font-bold text-sky-400 leading-none">
-              {currentPersona.badge.split(" ")[0]}
+              {user ? currentPersona.badge.split(" ")[0] : "Preview"}
             </span>
           </div>
           <span className="text-xs font-bold text-white leading-tight truncate max-w-[150px] sm:max-w-[190px]">
-            {currentPersona.name}
+            {user ? currentPersona.name : "Select Demo Persona"}
           </span>
         </div>
 

@@ -15,21 +15,27 @@ import {
   Briefcase, 
   AlertTriangle,
   Lock,
-  Calendar
+  Calendar,
+  User as UserIcon,
+  Mail,
+  KeyRound,
+  Phone
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { api } from "@/lib/api";
 import { CAC_SECTORS, COMPLIANCE_HEADCOUNT_TIERS } from "@/lib/cacIndustries";
 import { defaultEase } from "@/components/motion/MotionTransitions";
+import { calculateDynamicReadiness } from "@/lib/SubscriptionHelper";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, switchRole, switchTenant } = useAuth();
+  const { user, switchRole, switchTenant, login } = useAuth();
   const [step, setStep] = useState(1);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // Step 1: Business profile
-  const [businessName, setBusinessName] = useState("PayWave Technologies Ltd");
-  const [rcNumber, setRcNumber] = useState("RC-1894231");
+  // Step 1: Business profile (Starts clean with placeholder prompts)
+  const [businessName, setBusinessName] = useState("");
+  const [rcNumber, setRcNumber] = useState("");
   const [industry, setIndustry] = useState("Payment Solutions Service Provider (PSSP) & Payment Gateway");
   const [state, setState] = useState("Lagos");
   const [employeeCount, setEmployeeCount] = useState("5-14");
@@ -49,13 +55,51 @@ export default function OnboardingPage() {
   const [engagesVendors, setEngagesVendors] = useState(true);
   const [operatesBranches, setOperatesBranches] = useState(false);
 
-  // Step 4: Engagement preference
+  // Step 4: Engagement preference & Account Setup
   const [servicePreference, setServicePreference] = useState<"self" | "expert" | "agency">("expert");
-
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [provisioning, setProvisioning] = useState(false);
 
+  // Dynamic Assessment Calculation based on Diagnostic Engine
+  const dynamicAssessment = calculateDynamicReadiness({
+    businessName,
+    industry,
+    employeeCount,
+    collectsPersonalData,
+    processesPayments,
+    isDnfbp,
+    engagesVendors,
+    operatesBranches,
+  });
+
+  const handleStep1Continue = () => {
+    if (!businessName.trim()) {
+      setErrorMsg("Please provide your registered company name to proceed.");
+      return;
+    }
+    setErrorMsg("");
+    setStep(2);
+  };
+
   const handleFinishOnboarding = async () => {
+    // Validate credentials if not already signed in
+    if (!user) {
+      if (!contactEmail.trim() || !contactName.trim() || !password) {
+        setErrorMsg("Please provide your Full Name, Work Email, and Password to set up your workspace.");
+        return;
+      }
+      if (password.length < 6) {
+        setErrorMsg("Password must be at least 6 characters long.");
+        return;
+      }
+    }
+
     setProvisioning(true);
+    setErrorMsg("");
+
     try {
       const result = await api.onboarding.classify({
         business_name: businessName,
@@ -69,18 +113,35 @@ export default function OnboardingPage() {
         engages_vendors: engagesVendors,
         operates_branches: operatesBranches,
         service_preference: servicePreference,
-        contact_email: user?.email,
-        contact_name: user?.name,
+        contact_email: user?.email || contactEmail,
+        contact_name: user?.name || contactName,
+        password: password || undefined,
+        phone: phone || undefined,
       });
 
-      if (result && result.tenant_id) {
+      if (result && result.token && result.user) {
+        // Authenticate new session with signed JWT token
+        login(result.token, {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name || result.user.full_name || contactName,
+          role: "BUSINESS",
+          title: "Managing Director",
+          company: businessName,
+          rcNumber: rcNumber,
+          tenant_id: result.tenant_id,
+          plan_tier: "Trial",
+        });
+      } else if (result && result.tenant_id) {
         switchTenant(result.tenant_id);
+        switchRole("BUSINESS");
       }
-    } catch (err) {
-      console.warn("Onboarding API error, continuing:", err);
-    } finally {
-      switchRole("BUSINESS");
+
       router.push("/business/dashboard/");
+    } catch (err: any) {
+      console.warn("Onboarding API error:", err);
+      setErrorMsg(err?.message || "Failed to provision workspace. Please check your network and try again.");
+      setProvisioning(false);
     }
   };
 
@@ -129,6 +190,13 @@ export default function OnboardingPage() {
           transition={{ duration: 0.5, ease: defaultEase }}
           className="bg-white rounded-[36px] max-w-2xl w-full p-6 sm:p-10 border border-slate-200/90 shadow-xl space-y-8"
         >
+          {/* Error Banner */}
+          {errorMsg && (
+            <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs font-medium flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
           
           {/* STEP 1: BUSINESS PROFILE */}
           {step === 1 && (
@@ -147,12 +215,18 @@ export default function OnboardingPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Registered Company Name</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Registered Company Name <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                    onChange={(e) => {
+                      setBusinessName(e.target.value);
+                      if (errorMsg) setErrorMsg("");
+                    }}
+                    placeholder="e.g. PayWave Technologies Ltd or Konga Logistics Ltd"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30 font-medium"
                   />
                 </div>
 
@@ -197,7 +271,6 @@ export default function OnboardingPage() {
                     onChange={(e) => {
                       const selectedVal = e.target.value;
                       setIndustry(selectedVal);
-                      // Auto-detect DNFBP if subcategory matches
                       for (const sec of CAC_SECTORS) {
                         const matchedSub = sec.subCategories.find(s => s.name === selectedVal);
                         if (matchedSub?.isDnfbp) {
@@ -217,91 +290,43 @@ export default function OnboardingPage() {
                       </optgroup>
                     ))}
                   </select>
-
-                  {/* Dynamic Sector Telemetry & Regulatory Supervisor Badge */}
-                  {(() => {
-                    for (const sec of CAC_SECTORS) {
-                      const matched = sec.subCategories.find(s => s.name === industry);
-                      if (matched) {
-                        return (
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
-                            <span className="font-semibold text-slate-800">CAC Sector:</span> {sec.name}
-                            <span className="w-1 h-1 rounded-full bg-slate-300" />
-                            {sec.regulatoryBody && (
-                              <span className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-sky-200">
-                                Regulator: {sec.regulatoryBody}
-                              </span>
-                            )}
-                            {matched.isDnfbp && (
-                              <span className="bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-bold border border-amber-200">
-                                SCUML DNFBP Entity (AML/CFT Required)
-                              </span>
-                            )}
-                            {matched.requiresSpecialLicense && (
-                              <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-purple-200">
-                                Special Operating License Required
-                              </span>
-                            )}
-                          </div>
-                        );
-                      }
-                    }
-                    return null;
-                  })()}
                 </div>
 
-                {/* Employee Headcount & Statutory Compliance Tiers */}
+                {/* Compliance Headcount Bracket */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700">
-                      Employee Headcount & Compliance Tier
+                      Workforce Headcount (FIRS / ITF / NSITF Threshold)
                     </label>
-                    <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
-                      PENCOM, ITF & CAMA Thresholds
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      Determines statutory training contribution mandates
                     </span>
                   </div>
-                  <select
-                    value={employeeCount}
-                    onChange={(e) => setEmployeeCount(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30 font-medium"
-                  >
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {COMPLIANCE_HEADCOUNT_TIERS.map((tier) => (
-                      <option key={tier.id} value={tier.id}>
-                        {tier.label}
-                      </option>
+                      <button
+                        key={tier.id}
+                        type="button"
+                        onClick={() => setEmployeeCount(tier.id)}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          employeeCount === tier.id
+                            ? "bg-sky-50 border-[#0089C1] text-[#0089C1] font-bold shadow-xs"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                        }`}
+                      >
+                        <span className="text-xs block font-bold">{tier.id}</span>
+                        <span className="text-[9px] text-slate-500 block truncate">{tier.category}</span>
+                      </button>
                     ))}
-                  </select>
-
-                  {/* Statutory Legal Threshold Implications Box */}
-                  {(() => {
-                    const selectedTier = COMPLIANCE_HEADCOUNT_TIERS.find(t => t.id === employeeCount) || COMPLIANCE_HEADCOUNT_TIERS[1];
-                    return (
-                      <div className="mt-2.5 p-3 rounded-2xl bg-slate-100/90 border border-slate-200/90 text-[11px] text-slate-600 space-y-1.5">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                          <ShieldCheck className="w-4 h-4 text-[#0089C1]" />
-                          <span>{selectedTier.category} Tier Statutory Requirements:</span>
-                        </div>
-                        <p className="leading-relaxed text-[11px] text-slate-600">
-                          {selectedTier.statutoryImplications}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {selectedTier.mandatoryStatutes.map((statute, i) => (
-                            <span key={i} className="bg-white border border-slate-200/80 text-slate-700 text-[10px] font-semibold px-2 py-0.5 rounded-lg shadow-2xs">
-                              {statute}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  </div>
                 </div>
               </div>
 
               <div className="pt-4 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
-                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-7 py-3 rounded-2xl text-xs shadow-xs flex items-center gap-2"
+                  onClick={handleStep1Continue}
+                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-7 py-3 rounded-2xl text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <span>Continue to Classification</span>
                   <ArrowRight className="w-4 h-4" />
@@ -340,8 +365,8 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => setCollectsPersonalData(true)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                        collectsPersonalData ? "bg-[#0089C1] text-white" : "bg-white text-slate-700 border"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        collectsPersonalData ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
                       }`}
                     >
                       Yes
@@ -349,8 +374,8 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => setCollectsPersonalData(false)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                        !collectsPersonalData ? "bg-[#0089C1] text-white" : "bg-white text-slate-700 border"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        !collectsPersonalData ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
                       }`}
                     >
                       No
@@ -372,8 +397,8 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => setProcessesPayments(true)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                        processesPayments ? "bg-[#0089C1] text-white" : "bg-white text-slate-700 border"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        processesPayments ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
                       }`}
                     >
                       Yes
@@ -381,8 +406,8 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => setProcessesPayments(false)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                        !processesPayments ? "bg-[#0089C1] text-white" : "bg-white text-slate-700 border"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        !processesPayments ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
                       }`}
                     >
                       No
@@ -404,8 +429,8 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => setIsDnfbp(true)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                        isDnfbp ? "bg-[#0089C1] text-white" : "bg-white text-slate-700 border"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        isDnfbp ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
                       }`}
                     >
                       Yes
@@ -413,8 +438,8 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => setIsDnfbp(false)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                        !isDnfbp ? "bg-[#0089C1] text-white" : "bg-white text-slate-700 border"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        !isDnfbp ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
                       }`}
                     >
                       No
@@ -436,8 +461,8 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => setEngagesVendors(true)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                        engagesVendors ? "bg-[#0089C1] text-white" : "bg-white text-slate-700 border"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        engagesVendors ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
                       }`}
                     >
                       Yes
@@ -445,8 +470,40 @@ export default function OnboardingPage() {
                     <button
                       type="button"
                       onClick={() => setEngagesVendors(false)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                        !engagesVendors ? "bg-[#0089C1] text-white" : "bg-white text-slate-700 border"
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        !engagesVendors ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+
+                {/* Question 5: Multi-state Branches */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-900">
+                      Do you operate physical offices or branches across multiple states?
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Requires multi-state Internal Revenue Service (SIRS) PAYE remittances.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOperatesBranches(true)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        operatesBranches ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
+                      }`}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOperatesBranches(false)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        !operatesBranches ? "bg-[#0089C1] text-white shadow-xs" : "bg-white text-slate-700 border"
                       }`}
                     >
                       No
@@ -459,7 +516,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
+                  className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Previous</span>
@@ -467,7 +524,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-7 py-3 rounded-2xl text-xs shadow-xs flex items-center gap-2"
+                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-7 py-3 rounded-2xl text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <span>Generate Obligations Profile</span>
                   <ArrowRight className="w-4 h-4" />
@@ -476,7 +533,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* STEP 3: AUTOMATED COMPLIANCE ASSESSMENT (Blueprint Part 1.1 Question 1-5) */}
+          {/* STEP 3: AUTOMATED COMPLIANCE ASSESSMENT (Dynamic Real-Time Diagnostic Engine) */}
           {step === 3 && (
             <div className="space-y-6">
               <div>
@@ -487,80 +544,76 @@ export default function OnboardingPage() {
                   Your Statutory Compliance Profile
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Based on your classification, our engine matched <strong>6 primary statutory obligations</strong> across 4 Nigerian authorities.
+                  Based on your classification, our engine matched <strong>{dynamicAssessment.matchedObligations.length} primary statutory obligations</strong> across Nigerian regulatory authorities.
                 </p>
               </div>
 
-              {/* Preliminary Readiness Score Banner */}
-              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-base font-mono">
-                    78%
+              {/* Dynamic Readiness Score Banner */}
+              <div className={`p-5 rounded-2xl border flex items-center justify-between ${
+                dynamicAssessment.riskLevel === "Low Risk"
+                  ? "bg-emerald-50 border-emerald-200"
+                  : dynamicAssessment.riskLevel === "Moderate Risk"
+                  ? "bg-amber-50 border-amber-200"
+                  : "bg-rose-50 border-rose-200"
+              }`}>
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg font-mono text-white shadow-xs ${
+                    dynamicAssessment.riskLevel === "Low Risk"
+                      ? "bg-emerald-600"
+                      : dynamicAssessment.riskLevel === "Moderate Risk"
+                      ? "bg-amber-500"
+                      : "bg-rose-600"
+                  }`}>
+                    {dynamicAssessment.score}%
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-xs text-amber-950">
-                      Preliminary Internal Readiness Indicator
+                    <h4 className="font-extrabold text-xs text-slate-900">
+                      Preliminary Statutory Readiness Indicator
                     </h4>
-                    <p className="text-[11px] text-amber-800">
-                      3 urgent obligations require documentation or professional verification.
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      {dynamicAssessment.urgentCount} urgent statutory obligations require active documentation or accredited sign-off.
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] uppercase font-bold bg-amber-200 text-amber-900 px-2 py-1 rounded">
-                  Moderate Risk
+                <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full ${
+                  dynamicAssessment.riskLevel === "Low Risk"
+                    ? "bg-emerald-200 text-emerald-900"
+                    : dynamicAssessment.riskLevel === "Moderate Risk"
+                    ? "bg-amber-200 text-amber-900"
+                    : "bg-rose-200 text-rose-900"
+                }`}>
+                  {dynamicAssessment.riskLevel}
                 </span>
               </div>
 
-              {/* Matched Obligations List */}
+              {/* Dynamically Matched Obligations List */}
               <div className="space-y-2.5">
-                <div className="p-3 rounded-xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-bold text-slate-900 block">CAC Annual Return Filing (CAMA 2020)</span>
-                    <span className="text-[11px] text-slate-500">Corporate Affairs Commission • Due June 30</span>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                    In Progress
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-bold text-slate-900 block">Nigeria Tax Act 2025/2026 CIT & VAT Remittance</span>
-                    <span className="text-[11px] text-slate-500">NRS / FIRS TaxPro-MAX • Transition Framework</span>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-800">
-                    Urgent (18d)
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-bold text-slate-900 block">NDPA 2023 Statutory Privacy Audit Return</span>
-                    <span className="text-[11px] text-slate-500">Nigeria Data Protection Commission • Due March 15</span>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                    Audit Due
-                  </span>
-                </div>
-
-                {isDnfbp && (
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
+                {dynamicAssessment.matchedObligations.map((ob) => (
+                  <div key={ob.id} className="p-3.5 rounded-xl bg-[#F8FAFC] border border-slate-200 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-bold text-slate-900 block">SCUML AML/CFT Annual Return</span>
-                      <span className="text-[11px] text-slate-500">Special Control Unit Against Money Laundering</span>
+                      <span className="font-bold text-slate-900 block">{ob.title}</span>
+                      <span className="text-[11px] text-slate-500">{ob.authority} • {ob.deadlineNotice}</span>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
-                      DNFBP Mandate
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
+                      ob.statusColor === "red"
+                        ? "bg-red-100 text-red-800"
+                        : ob.statusColor === "purple"
+                        ? "bg-purple-100 text-purple-800"
+                        : ob.statusColor === "amber"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-sky-100 text-[#0089C1]"
+                    }`}>
+                      {ob.status}
                     </span>
                   </div>
-                )}
+                ))}
               </div>
 
               <div className="pt-4 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
+                  className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Previous</span>
@@ -568,7 +621,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setStep(4)}
-                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-7 py-3 rounded-2xl text-xs shadow-xs flex items-center gap-2"
+                  className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-7 py-3 rounded-2xl text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
                 >
                   <span>Select Operating Model</span>
                   <ArrowRight className="w-4 h-4" />
@@ -577,7 +630,7 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* STEP 4: SELECT SERVICE / OPERATING MODEL (Blueprint Part 3.2 Step 4) */}
+          {/* STEP 4: SELECT SERVICE / OPERATING MODEL & CREDENTIAL PROVISIONING */}
           {step === 4 && (
             <div className="space-y-6">
               <div>
@@ -596,13 +649,13 @@ export default function OnboardingPage() {
                 {/* Option 1: Engage Verified Compliance Officer */}
                 <div
                   onClick={() => setServicePreference("expert")}
-                  className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-start gap-4 ${
+                  className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all flex items-start gap-4 ${
                     servicePreference === "expert"
                       ? "bg-sky-50/50 border-[#0089C1] shadow-xs"
                       : "bg-white border-slate-200 hover:border-slate-300"
                   }`}
                 >
-                  <div className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center ${
+                  <div className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
                     servicePreference === "expert" ? "border-[#0089C1] bg-[#0089C1] text-white" : "border-slate-300"
                   }`}>
                     {servicePreference === "expert" && <div className="w-2 h-2 rounded-full bg-white" />}
@@ -625,13 +678,13 @@ export default function OnboardingPage() {
                 {/* Option 2: Manage Independently */}
                 <div
                   onClick={() => setServicePreference("self")}
-                  className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-start gap-4 ${
+                  className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all flex items-start gap-4 ${
                     servicePreference === "self"
                       ? "bg-sky-50/50 border-[#0089C1] shadow-xs"
                       : "bg-white border-slate-200 hover:border-slate-300"
                   }`}
                 >
-                  <div className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center ${
+                  <div className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
                     servicePreference === "self" ? "border-[#0089C1] bg-[#0089C1] text-white" : "border-slate-300"
                   }`}>
                     {servicePreference === "self" && <div className="w-2 h-2 rounded-full bg-white" />}
@@ -649,13 +702,13 @@ export default function OnboardingPage() {
                 {/* Option 3: Engage Consulting Agency */}
                 <div
                   onClick={() => setServicePreference("agency")}
-                  className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-start gap-4 ${
+                  className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all flex items-start gap-4 ${
                     servicePreference === "agency"
                       ? "bg-sky-50/50 border-[#0089C1] shadow-xs"
                       : "bg-white border-slate-200 hover:border-slate-300"
                   }`}
                 >
-                  <div className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center ${
+                  <div className={`w-5 h-5 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
                     servicePreference === "agency" ? "border-[#0089C1] bg-[#0089C1] text-white" : "border-slate-300"
                   }`}>
                     {servicePreference === "agency" && <div className="w-2 h-2 rounded-full bg-white" />}
@@ -671,11 +724,129 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
+              {/* 14-Day Free Trial Spotlight */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-sky-50 via-sky-50/70 to-indigo-50 border border-sky-200 flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-[#0089C1] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-black text-xs text-slate-900 uppercase tracking-wide">
+                      14-Day Full Professional Trial Included
+                    </h4>
+                    <span className="text-[10px] bg-sky-200 text-[#0089C1] font-extrabold px-2 py-0.5 rounded-full">
+                      ₦45,000 Free Value
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    Your workspace is provisioned with 14 days of unrestricted access to HubAML, NDPA 2023 RoPA, HubDocs, and TaxPro-MAX automated preparation. No credit card required upfront.
+                  </p>
+                </div>
+              </div>
+
+              {/* Account Credentials (Shown if not authenticated) */}
+              {!user ? (
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">Create Administrator Credentials</h4>
+                    <p className="text-[11px] text-slate-500">
+                      You will use these credentials to sign in and securely govern {businessName || "your workspace"}.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Full Name <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <UserIcon className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={contactName}
+                          onChange={(e) => {
+                            setContactName(e.target.value);
+                            if (errorMsg) setErrorMsg("");
+                          }}
+                          placeholder="e.g. Babatunde Fashola"
+                          className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30 font-medium"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Work Email <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="email"
+                          value={contactEmail}
+                          onChange={(e) => {
+                            setContactEmail(e.target.value);
+                            if (errorMsg) setErrorMsg("");
+                          }}
+                          placeholder="e.g. md@company.ng"
+                          className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30 font-medium"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Password <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <KeyRound className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="password"
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (errorMsg) setErrorMsg("");
+                          }}
+                          placeholder="•••••••••••• (min 6 characters)"
+                          className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Phone Number (Optional)</label>
+                      <div className="relative">
+                        <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="e.g. +234 803 123 4567"
+                          className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30 font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-[11px] text-slate-500 block">Workspace Administrator</span>
+                    <span className="font-bold text-slate-900">{user.name} ({user.email})</span>
+                  </div>
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                    Signed In
+                  </span>
+                </div>
+              )}
+
               <div className="pt-4 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setStep(3)}
-                  className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5"
+                  className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span>Previous</span>
@@ -684,13 +855,13 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={handleFinishOnboarding}
                   disabled={provisioning}
-                  className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-8 py-3 rounded-2xl text-xs shadow-md flex items-center gap-2"
+                  className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-8 py-3 rounded-2xl text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all"
                 >
                   {provisioning ? (
-                    <span>Provisioning Isolated Workspace...</span>
+                    <span>Provisioning Workspace & Trial...</span>
                   ) : (
                     <>
-                      <span>Enter Workspace Cockpit</span>
+                      <span>Activate Free Trial & Enter Cockpit</span>
                       <Sparkles className="w-4 h-4 text-[#0089C1]" />
                     </>
                   )}

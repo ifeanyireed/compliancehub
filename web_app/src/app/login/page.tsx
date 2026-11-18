@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, 
@@ -20,8 +20,10 @@ import { useAuth, DEMO_USERS } from "@/components/ahnara/AuthContext";
 import { api } from "@/lib/api";
 import { defaultEase } from "@/components/motion/MotionTransitions";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams?.get("redirect");
   const { switchRole, login } = useAuth();
   const [selectedRole, setSelectedRole] = useState<"BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN">("BUSINESS");
   const [email, setEmail] = useState("adaeze@paywave.ng");
@@ -59,6 +61,22 @@ export default function LoginPage() {
     }
   };
 
+  const navigateToDestination = (role: string) => {
+    if (redirectUrl) {
+      router.push(redirectUrl);
+      return;
+    }
+    if (role === "BUSINESS") {
+      router.push("/business/dashboard/");
+    } else if (role === "ADMIN") {
+      router.push("/admin/dashboard/");
+    } else if (role === "STAFF") {
+      router.push("/staff/dashboard/");
+    } else {
+      router.push("/practice/dashboard/");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -80,33 +98,17 @@ export default function LoginPage() {
           tenant_id: resp.active_tenant?.id || DEMO_USERS[selectedRole].tenant_id,
         });
 
-        if (selectedRole === "BUSINESS") {
-          router.push("/business/dashboard/");
-        } else if (selectedRole === "ADMIN") {
-          router.push("/admin/dashboard/");
-        } else if (selectedRole === "STAFF") {
-          router.push("/staff/dashboard/");
-        } else {
-          router.push("/practice/dashboard/");
-        }
+        navigateToDestination(selectedRole);
         return;
       }
     } catch (err: any) {
       console.warn("Backend login failed or offline, using fallback:", err);
     }
 
-    // Fallback for seamless demo testing
-    switchRole(selectedRole);
+    // Fallback: issue genuine cryptographically signed JWT for the selected persona
+    await switchRole(selectedRole);
     setLoading(false);
-    if (selectedRole === "BUSINESS") {
-      router.push("/business/dashboard/");
-    } else if (selectedRole === "ADMIN") {
-      router.push("/admin/dashboard/");
-    } else if (selectedRole === "STAFF") {
-      router.push("/staff/dashboard/");
-    } else {
-      router.push("/practice/dashboard/");
-    }
+    navigateToDestination(selectedRole);
   };
 
   return (
@@ -338,5 +340,17 @@ export default function LoginPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#E8EFF4] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-[#0089C1]" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

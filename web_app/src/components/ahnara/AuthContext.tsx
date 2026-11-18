@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { setAuthToken, clearAuthToken, setActiveTenantID, getActiveTenantID } from "@/lib/api";
+import { setAuthToken, clearAuthToken, setActiveTenantID, getActiveTenantID, getAuthToken } from "@/lib/api";
+import { decodeJWT, isTokenExpired, createDemoJWT } from "@/lib/jwt";
 
 export interface User {
   id: string;
@@ -82,7 +83,7 @@ interface AuthContextType {
   activeTenantId: string;
   login: (token: string, user: User) => void;
   logout: () => void;
-  switchRole: (role: "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN") => void;
+  switchRole: (role: "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN") => Promise<void>;
   switchTenant: (tenantId: string) => void;
 }
 
@@ -97,33 +98,69 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initAuth = () => {
       if (typeof window !== "undefined") {
-        const storedRole = localStorage.getItem("compliancehub_role") as "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN" | null;
+        const token = getAuthToken();
         const storedTenant = getActiveTenantID();
-        const storedUser = localStorage.getItem("compliancehub_user");
 
         if (storedTenant) {
           setActiveTenantIdState(storedTenant);
         }
 
+        // If no token or token is expired, user is unauthenticated
+        if (!token || isTokenExpired(token)) {
+          clearAuthToken();
+          localStorage.removeItem("compliancehub_role");
+          localStorage.removeItem("compliancehub_user");
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        const claims = decodeJWT(token);
+        if (!claims || !claims.user_id) {
+          clearAuthToken();
+          localStorage.removeItem("compliancehub_role");
+          localStorage.removeItem("compliancehub_user");
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        const storedUser = localStorage.getItem("compliancehub_user");
         if (storedUser) {
           try {
-            const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
-            setLoading(false);
-            return;
+            const parsedUser: User = JSON.parse(storedUser);
+            if (parsedUser.id === claims.user_id) {
+              setUser(parsedUser);
+              if (parsedUser.tenant_id) {
+                setActiveTenantIdState(parsedUser.tenant_id);
+              }
+              setLoading(false);
+              return;
+            }
           } catch (e) {
-            console.warn("Failed to parse stored user, falling back to role preset", e);
+            console.warn("Failed to parse stored user, reconstructing from JWT claims", e);
           }
         }
 
-        if (storedRole && DEMO_USERS[storedRole]) {
-          setUser(DEMO_USERS[storedRole]);
-        } else {
-          setUser(DEMO_USERS.BUSINESS);
-          localStorage.setItem("compliancehub_role", "BUSINESS");
-          localStorage.setItem("compliancehub_user", JSON.stringify(DEMO_USERS.BUSINESS));
-          setAuthToken("demo-token-business");
-          setActiveTenantID("55555555-5555-5555-5555-555555555501");
+        // Reconstruct user from verified JWT claims
+        const reconstructedRole = (claims.role || (claims.system_role === "ADMIN" ? "ADMIN" : claims.system_role === "STAFF" ? "STAFF" : "BUSINESS")) as "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN";
+        const reconstructedUser: User = {
+          id: claims.user_id,
+          email: claims.email,
+          name: claims.full_name,
+          role: reconstructedRole,
+          title: claims.title || (DEMO_USERS[reconstructedRole]?.title),
+          company: claims.company || (DEMO_USERS[reconstructedRole]?.company),
+          avatar: claims.avatar || (DEMO_USERS[reconstructedRole]?.avatar) || "/character3.jpg",
+          plan_tier: claims.plan_tier || (DEMO_USERS[reconstructedRole]?.plan_tier),
+          tenant_id: claims.tenant_id || (DEMO_USERS[reconstructedRole]?.tenant_id),
+        };
+
+        setUser(reconstructedUser);
+        localStorage.setItem("compliancehub_user", JSON.stringify(reconstructedUser));
+        localStorage.setItem("compliancehub_role", reconstructedUser.role);
+        if (reconstructedUser.tenant_id) {
+          setActiveTenantIdState(reconstructedUser.tenant_id);
         }
       }
       setLoading(false);
@@ -145,13 +182,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const switchRole = (role: "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN") => {
+  const switchRole = async (role: "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN") => {
     const newUser = DEMO_USERS[role];
     setUser(newUser);
     if (typeof window !== "undefined") {
+      const jwtToken = await createDemoJWT(role);
+      setAuthToken(jwtToken);
       localStorage.setItem("compliancehub_role", role);
       localStorage.setItem("compliancehub_user", JSON.stringify(newUser));
-      setAuthToken(`demo-token-${role.toLowerCase()}`);
       if (newUser.tenant_id) {
         setActiveTenantID(newUser.tenant_id);
         setActiveTenantIdState(newUser.tenant_id);

@@ -9,10 +9,49 @@ import {
   acquireWebhookIdempotency,
   getGlobalKey,
 } from "@/lib/redis";
+import {
+  verifyJWT,
+  signJWT,
+  createDemoJWT,
+  DEMO_JWT_USERS,
+} from "@/lib/jwt";
+import {
+  getTierLimits,
+  normalizePlanTier,
+  canUploadDocument,
+  canInviteMember,
+  hasModuleAccess,
+  isTrialActive,
+  getDaysRemainingInTrial,
+} from "@/lib/SubscriptionHelper";
+import { SubscriptionService } from "@/lib/SubscriptionService";
 
 export const dynamic = "force-dynamic";
 
 const DEFAULT_TENANT_ID = "55555555-5555-5555-5555-555555555501";
+
+let schemaMigrated = false;
+async function ensureTenantColumns(sql: any) {
+  if (schemaMigrated) return;
+  try {
+    await sql.query(`
+      ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
+      ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'ACTIVE';
+    `);
+    schemaMigrated = true;
+  } catch (_) {
+    // Non-blocking if table or permission already configured
+  }
+}
+
+const DEFAULT_FALLBACK_USER = {
+  id: "33333333-3333-3333-3333-333333333301",
+  email: "adaeze@paywave.ng",
+  full_name: "Adaeze Nwosu",
+  system_role: "USER" as const,
+  role: "BUSINESS",
+  tenant_id: DEFAULT_TENANT_ID,
+};
 
 function getSql() {
   const dbUrl = process.env.DATABASE_URL || "";
@@ -31,25 +70,44 @@ function getTenantId(request: Request): string {
   );
 }
 
-function getDemoUser(request: Request) {
-  const roleHeader = (request.headers.get("x-demo-role") || "BUSINESS").toUpperCase();
+async function getAuthUser(request: Request) {
   const authHeader = request.headers.get("authorization") || "";
-  let role = roleHeader;
-  if (authHeader.toLowerCase().startsWith("bearer demo-token-")) {
-    role = authHeader.slice("bearer demo-token-".length).trim().toUpperCase();
+  let token = "";
+  if (authHeader.toLowerCase().startsWith("bearer ")) {
+    token = authHeader.substring(7).trim();
   }
-  switch (role) {
-    case "ADMIN":
-      return { id: "33333333-3333-3333-3333-333333333305", email: "admin@compliancehub.ng", full_name: "Dr. Olumide Adeleke", system_role: "ADMIN" };
-    case "STAFF":
-      return { id: "33333333-3333-3333-3333-333333333304", email: "bsanwo@compliancehub.ng", full_name: "Babajide Sanwo", system_role: "STAFF" };
-    case "AGENCY":
-      return { id: "33333333-3333-3333-3333-333333333303", email: "chiamaka@apexcompliance.ng", full_name: "Chiamaka Eze", system_role: "USER" };
-    case "EXPERT":
-      return { id: "33333333-3333-3333-3333-333333333302", email: "tunde@bakarecompliance.com", full_name: "Tunde Bakare, CAMS", system_role: "USER" };
-    default:
-      return { id: "33333333-3333-3333-3333-333333333301", email: "adaeze@paywave.ng", full_name: "Adaeze Nwosu", system_role: "USER" };
+
+  if (token) {
+    const claims = await verifyJWT(token);
+    if (claims && claims.user_id) {
+      return {
+        id: claims.user_id,
+        email: claims.email,
+        full_name: claims.full_name,
+        system_role: (claims.system_role || "USER") as "ADMIN" | "STAFF" | "USER",
+        role: claims.role || (claims.system_role === "ADMIN" ? "ADMIN" : claims.system_role === "STAFF" ? "STAFF" : "BUSINESS"),
+        tenant_id: claims.tenant_id || DEFAULT_TENANT_ID,
+      };
+    }
   }
+
+  // Check headers forwarded by Next.js edge middleware
+  const headerUserId = request.headers.get("x-user-id");
+  if (headerUserId) {
+    const headerEmail = request.headers.get("x-user-email") || "";
+    const headerRole = request.headers.get("x-user-role") || "BUSINESS";
+    const headerTenant = request.headers.get("x-tenant-id") || DEFAULT_TENANT_ID;
+    return {
+      id: headerUserId,
+      email: headerEmail,
+      full_name: headerEmail ? headerEmail.split("@")[0] : "Authorized User",
+      system_role: (headerRole === "ADMIN" ? "ADMIN" : headerRole === "STAFF" ? "STAFF" : "USER") as "ADMIN" | "STAFF" | "USER",
+      role: headerRole,
+      tenant_id: headerTenant,
+    };
+  }
+
+  return null;
 }
 
 function slugify(text: string): string {
@@ -116,7 +174,8 @@ async function handleRequest(
   try {
     const sql = getSql();
     const tenantId = getTenantId(request);
-    const demoUser = getDemoUser(request);
+    const authUser = await getAuthUser(request);
+    const demoUser = authUser || DEFAULT_FALLBACK_USER;
 
     // ==========================================
     // Health Check with Redis Connectivity Status
@@ -197,13 +256,34 @@ async function handleRequest(
           "UPDATE invoices SET status = 'SETTLED', paid_at = NOW(), payout_ref = $1 WHERE invoice_number = $2 OR id::text = $2",
           [reference, reference]
         );
+
+        const meta = body?.data?.metadata || {};
+        const metaTenantId = meta.tenant_id;
+        const metaPlan = meta.plan_tier;
+        if (metaTenantId && metaPlan) {
+          const limits = getTierLimits(metaPlan);
+          await sql.query(
+            "UPDATE tenants SET plan_tier = $1, updated_at = NOW() WHERE id = $2",
+            [limits.name, metaTenantId]
+          );
+        }
       }
       return NextResponse.json({ status: "success", message: "Paystack webhook processed successfully" });
     }
 
     // ==========================================
-    // Admin Cockpit Routes
+    // Admin Cockpit Routes (Requires Verified ADMIN role)
     // ==========================================
+    if (cleanPath.startsWith("/admin/")) {
+      const isAuthorizedAdmin = authUser && (authUser.system_role === "ADMIN" || authUser.role === "ADMIN");
+      if (!isAuthorizedAdmin) {
+        return NextResponse.json(
+          { error: "Forbidden: Super Administrator privileges required" },
+          { status: 403 }
+        );
+      }
+    }
+
     if (cleanPath === "/admin/metrics" && method === "GET") {
       const [
         ticketsRes,
@@ -324,13 +404,136 @@ async function handleRequest(
     // ==========================================
     // Auth & Tenants
     // ==========================================
+    if (cleanPath === "/v1/auth/login" && method === "POST") {
+      const body = await request.json().catch(() => ({}));
+      const email = (body.email || "").trim().toLowerCase();
+
+      if (!email) {
+        return NextResponse.json({ error: "Email is required" }, { status: 400 });
+      }
+
+      // 1. Check known interactive demo personas
+      const demoRoles: Record<string, "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN"> = {
+        "adaeze@paywave.ng": "BUSINESS",
+        "tunde@bakarecompliance.com": "EXPERT",
+        "chiamaka@apexcompliance.ng": "AGENCY",
+        "bsanwo@compliancehub.ng": "STAFF",
+        "admin@compliancehub.ng": "ADMIN",
+      };
+
+      if (demoRoles[email]) {
+        const role = demoRoles[email];
+        const profile = DEMO_JWT_USERS[role];
+        const token = await createDemoJWT(role);
+        return NextResponse.json({
+          token,
+          user: {
+            id: profile.user_id,
+            email: profile.email,
+            full_name: profile.full_name,
+            system_role: profile.system_role,
+            title: profile.title,
+            avatar_url: profile.avatar,
+          },
+          active_tenant: {
+            id: profile.tenant_id,
+            workspace_name: profile.company,
+            plan_tier: profile.plan_tier,
+            compliance_score: 85,
+            is_active: true,
+          },
+          tenants: [
+            {
+              tenant_id: profile.tenant_id,
+              workspace_name: profile.company,
+              role: role === "EXPERT" || role === "AGENCY" ? "DELEGATED_EXPERT" : "OWNER",
+              plan_tier: profile.plan_tier,
+              score: 85,
+            },
+          ],
+        });
+      }
+
+      // 2. Query Neon Database for registered user account
+      const userRows = await sql.query(`
+        SELECT id, email, password_hash, full_name, phone, title, avatar_url, system_role, is_email_verified
+        FROM users
+        WHERE LOWER(email) = LOWER($1)
+      `, [email]);
+
+      if (!userRows || userRows.length === 0) {
+        return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      }
+
+      const dbUser = userRows[0];
+
+      // Verify password if provided
+      if (body.password && dbUser.password_hash && dbUser.password_hash !== "hashed_demo_pw") {
+        const testHash = crypto.createHash("sha256").update(body.password + "compliancehub_regtech_salt").digest("hex");
+        if (testHash !== dbUser.password_hash) {
+          return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+        }
+      }
+
+      const tenantRows = await sql.query(`
+        SELECT t.id, t.workspace_name, tm.role, t.plan_tier, t.compliance_score
+        FROM tenant_members tm
+        JOIN tenants t ON tm.tenant_id = t.id
+        WHERE tm.user_id = $1
+        ORDER BY tm.is_primary DESC, t.created_at ASC
+      `, [dbUser.id]);
+
+      const primaryTenant = tenantRows[0] || {
+        id: DEFAULT_TENANT_ID,
+        workspace_name: "My Enterprise Workspace",
+        role: "OWNER",
+        plan_tier: "Professional",
+        compliance_score: 85,
+      };
+
+      const systemRole = dbUser.system_role === "ADMIN" ? "ADMIN" : dbUser.system_role === "STAFF" ? "STAFF" : "USER";
+      const userRole = systemRole === "ADMIN" ? "ADMIN" : systemRole === "STAFF" ? "STAFF" : primaryTenant.role || "BUSINESS";
+
+      const token = await signJWT({
+        user_id: dbUser.id,
+        email: dbUser.email,
+        full_name: dbUser.full_name,
+        system_role: systemRole,
+        role: userRole as any,
+        tenant_id: primaryTenant.id,
+      });
+
+      return NextResponse.json({
+        token,
+        user: {
+          id: dbUser.id,
+          email: dbUser.email,
+          full_name: dbUser.full_name,
+          system_role: dbUser.system_role,
+          title: dbUser.title || "Managing Director",
+          avatar_url: dbUser.avatar_url || "/character1.jpg",
+        },
+        active_tenant: {
+          id: primaryTenant.id,
+          workspace_name: primaryTenant.workspace_name,
+          plan_tier: primaryTenant.plan_tier,
+          compliance_score: primaryTenant.compliance_score,
+          is_active: true,
+        },
+        tenants: tenantRows || [primaryTenant],
+      });
+    }
+
     if (cleanPath === "/v1/auth/me" && method === "GET") {
+      if (!authUser) {
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      }
       const tenants = await sql.query(
         `SELECT t.id AS tenant_id, t.workspace_name, tm.role, t.plan_tier, t.compliance_score AS score
          FROM tenant_members tm
          JOIN tenants t ON tm.tenant_id = t.id
          WHERE tm.user_id = $1`,
-        [demoUser.id]
+        [authUser.id]
       );
       const activeRows = await sql.query(
         `SELECT t.id, t.organisation_id, t.workspace_name, t.slug, t.plan_tier, t.compliance_score, t.is_active,
@@ -341,7 +544,7 @@ async function handleRequest(
         [tenantId]
       );
       return NextResponse.json({
-        user: demoUser,
+        user: authUser,
         active_tenant: activeRows[0] || null,
         tenants: tenants || [],
       });
@@ -426,10 +629,130 @@ async function handleRequest(
     }
 
     // ==========================================
+    // Subscriptions & Quota Enforcement
+    // ==========================================
+    if (cleanPath === "/v1/subscriptions/usage" && method === "GET") {
+      await ensureTenantColumns(sql);
+      const tenantRows = await sql.query(
+        `SELECT id, workspace_name, plan_tier, trial_ends_at, subscription_status
+         FROM tenants WHERE id = $1`,
+        [tenantId]
+      );
+      const tenant = tenantRows[0] || { plan_tier: "Professional", trial_ends_at: null };
+      const [docsRes, memRes] = await Promise.all([
+        sql.query("SELECT COUNT(*)::int AS count FROM documents WHERE tenant_id = $1", [tenantId]),
+        sql.query("SELECT COUNT(*)::int AS count FROM tenant_members WHERE tenant_id = $1", [tenantId]),
+      ]);
+      const docCount = Number(docsRes[0]?.count ?? 0);
+      const memberCount = Number(memRes[0]?.count ?? 1);
+
+      const state = SubscriptionService.computeState({
+        rawPlanTier: tenant.plan_tier,
+        docCount,
+        memberCount,
+        trialEndsAt: tenant.trial_ends_at,
+      });
+
+      return NextResponse.json({
+        success: true,
+        tenant_id: tenantId,
+        workspace_name: tenant.workspace_name,
+        ...state,
+      });
+    }
+
+    if (cleanPath === "/v1/subscriptions/upgrade" && method === "POST") {
+      await ensureTenantColumns(sql);
+      const body = await request.json().catch(() => ({}));
+      const requestedTier = normalizePlanTier(body.plan_tier);
+      const limits = getTierLimits(requestedTier);
+
+      await sql.query(
+        `UPDATE tenants
+         SET plan_tier = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+        [limits.name, tenantId]
+      );
+
+      return NextResponse.json({
+        success: true,
+        plan_tier: limits.name,
+        message: `Workspace plan upgraded to ${limits.name} successfully`,
+      });
+    }
+
+    if (cleanPath === "/v1/subscriptions/verify" && method === "POST") {
+      await ensureTenantColumns(sql);
+      const body = await request.json().catch(() => ({}));
+      const reference = body.reference || `paystack_${Date.now()}`;
+      const planTier = normalizePlanTier(body.plan_tier || "Professional");
+      const limits = getTierLimits(planTier);
+      const billingCycle = body.billing_cycle === "annually" ? "annually" : "monthly";
+      const amount = billingCycle === "annually" ? limits.annualPriceNgn : limits.monthlyPriceNgn;
+
+      await sql.query(
+        `UPDATE tenants
+         SET plan_tier = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+        [limits.name, tenantId]
+      );
+
+      const invNum = `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      await sql.query(
+        `INSERT INTO invoices (invoice_number, tenant_id, client_name, amount_ngn, invoice_type, status, payout_ref, due_date, paid_at)
+         VALUES ($1, $2, $3, $4, 'SUBSCRIPTION', 'SETTLED', $5, CURRENT_DATE, NOW())
+         ON CONFLICT (invoice_number) DO NOTHING`,
+        [invNum, tenantId, `${limits.name} Plan (${billingCycle})`, amount, reference]
+      );
+
+      return NextResponse.json({
+        success: true,
+        plan_tier: limits.name,
+        invoice_number: invNum,
+        amount_ngn: amount,
+        message: `Subscription successfully activated on ${limits.name} plan`,
+      });
+    }
+
+    // ==========================================
     // Onboarding & Classification
     // ==========================================
     if (cleanPath === "/v1/onboarding/classify" && method === "POST") {
+      await ensureTenantColumns(sql);
       const body = await request.json();
+
+      // 1. Resolve user ID: if unauthenticated, create user account with password or lookup
+      let targetUserId = authUser?.id;
+      const contactEmail = (body.contact_email || "").trim().toLowerCase();
+      const contactName = (body.contact_name || "").trim();
+      const password = body.password;
+      const phone = body.phone || "";
+
+      if (!targetUserId) {
+        if (contactEmail) {
+          const existing = await sql.query("SELECT id FROM users WHERE LOWER(email) = LOWER($1)", [contactEmail]);
+          if (existing.length > 0) {
+            targetUserId = existing[0].id;
+          } else {
+            const pwHash = password
+              ? crypto.createHash("sha256").update(password + "compliancehub_regtech_salt").digest("hex")
+              : "hashed_demo_pw";
+            const created = await sql.query(
+              `INSERT INTO users (email, password_hash, full_name, phone, title, avatar_url, system_role, is_email_verified)
+               VALUES ($1, $2, $3, $4, 'Managing Director', '/character1.jpg', 'USER', true)
+               RETURNING id, email, full_name, system_role`,
+              [contactEmail, pwHash, contactName || body.business_name, phone]
+            );
+            targetUserId = created[0]?.id;
+          }
+        } else {
+          targetUserId = demoUser.id;
+        }
+      }
+
+      // 2. Insert Organisation
       const orgRows = await sql.query(
         `INSERT INTO organisations (legal_name, rc_number, org_type, industry, state_of_operation, employee_bracket)
          VALUES ($1, $2, 'BUSINESS', $3, $4, $5)
@@ -444,38 +767,101 @@ async function handleRequest(
       );
       const orgId = orgRows[0]?.id;
       const slug = `${slugify(body.business_name)}-${Date.now() % 10000}`;
-      const initialScore = body.collects_personal_data && body.processes_payments ? 64 : 72;
+
+      // 3. Dynamic readiness score calculation
+      let score = 92;
+      if (body.collects_personal_data) score -= 14;
+      if (body.processes_payments) score -= 16;
+      if (body.is_dnfbp) score -= 14;
+      if (body.engages_vendors) score -= 6;
+      if (body.operates_branches) score -= 4;
+      const initialScore = Math.max(42, Math.min(94, score));
+
+      // 4. Create Tenant with 14-day Professional Free Trial
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
       const tenantRows = await sql.query(
-        `INSERT INTO tenants (organisation_id, workspace_name, slug, plan_tier, compliance_score)
-         VALUES ($1, $2, $3, 'Professional', $4)
+        `INSERT INTO tenants (organisation_id, workspace_name, slug, plan_tier, compliance_score, trial_ends_at, subscription_status)
+         VALUES ($1, $2, $3, 'Trial', $4, $5, 'ACTIVE')
          RETURNING id`,
-        [orgId, body.business_name, slug, initialScore]
+        [orgId, body.business_name, slug, initialScore, trialEndsAt]
       );
       const newTenantId = tenantRows[0]?.id;
+
+      // 5. Link Tenant Member as Owner
       await sql.query(
         `INSERT INTO tenant_members (tenant_id, user_id, role, is_primary)
          VALUES ($1, $2, 'OWNER', true)
-         ON CONFLICT (tenant_id, user_id) DO NOTHING`,
-        [newTenantId, demoUser.id]
+         ON CONFLICT (tenant_id, user_id) DO UPDATE SET role = 'OWNER'`,
+        [newTenantId, targetUserId]
       );
+
+      // 6. Dynamic Seed Statutory Obligations based on Diagnostic Answers
       await sql.query(
         `INSERT INTO tenant_obligations (tenant_id, title, authority, due_date, status, estimated_penalty_ngn, is_urgent)
          VALUES
-         ($1, 'Monthly TaxPro-MAX VAT Filing (2026 Transition Window)', 'FIRS / NRS', CURRENT_DATE + INTERVAL '18 days', 'PENDING', 50000, true),
+         ($1, 'Monthly TaxPro-MAX VAT Filing & NRS Remittance', 'FIRS / NRS', CURRENT_DATE + INTERVAL '18 days', 'PENDING', 50000, true),
          ($1, 'CAMA 2020 Annual Returns Preparation & Filing (Form CAC 19)', 'CAC', CURRENT_DATE + INTERVAL '150 days', 'PENDING', 25000, false)`,
         [newTenantId]
       );
-      return NextResponse.json(
+
+      if (body.collects_personal_data) {
+        await sql.query(
+          `INSERT INTO tenant_obligations (tenant_id, title, authority, due_date, status, estimated_penalty_ngn, is_urgent)
+           VALUES ($1, 'NDPA 2023 Statutory Privacy Audit Return & RoPA Registration', 'NDPC', CURRENT_DATE + INTERVAL '45 days', 'PENDING', 1000000, true)`,
+          [newTenantId]
+        );
+      }
+
+      if (body.is_dnfbp) {
+        await sql.query(
+          `INSERT INTO tenant_obligations (tenant_id, title, authority, due_date, status, estimated_penalty_ngn, is_urgent)
+           VALUES ($1, 'SCUML AML/CFT Compliance Certification & Currency Transaction Reports', 'SCUML / EFCC', CURRENT_DATE + INTERVAL '30 days', 'PENDING', 500000, true)`,
+          [newTenantId]
+        );
+      }
+
+      // 7. Generate Signed HS256 JWT Token for immediate session activation
+      const userEmail = contactEmail || authUser?.email || "owner@compliancehub.ng";
+      const userName = contactName || authUser?.full_name || body.business_name;
+      const token = await signJWT({
+        user_id: targetUserId || "33333333-3333-3333-3333-333333333301",
+        email: userEmail,
+        full_name: userName,
+        system_role: "USER",
+        role: "BUSINESS",
+        tenant_id: newTenantId,
+      });
+
+      const response = NextResponse.json(
         {
+          success: true,
+          token,
+          user: {
+            id: targetUserId,
+            email: userEmail,
+            name: userName,
+            system_role: "USER",
+            role: "BUSINESS",
+            tenant_id: newTenantId,
+          },
           tenant_id: newTenantId,
           organisation_id: orgId,
           workspace_name: body.business_name,
           compliance_score: initialScore,
-          obligations_seeded: 2,
-          message: "Workspace classified and statutory obligations generated",
+          plan_tier: "Trial",
+          trial_ends_at: trialEndsAt,
+          message: "Workspace successfully provisioned with 14-day Professional Free Trial",
         },
         { status: 201 }
       );
+
+      response.cookies.set("compliancehub_token", token, {
+        path: "/",
+        maxAge: 60 * 60 * 72,
+        sameSite: "lax",
+      });
+
+      return response;
     }
 
     // ==========================================
@@ -1169,6 +1555,26 @@ async function handleRequest(
     // HubDocs: Cloudinary Evidence Vault
     // ==========================================
     if (cleanPath === "/v1/documents/upload-signature" && method === "POST") {
+      // 1. Quota Hard-Block Check
+      const [tenantRows, countRows] = await Promise.all([
+        sql.query("SELECT plan_tier, trial_ends_at FROM tenants WHERE id = $1", [tenantId]),
+        sql.query("SELECT COUNT(*)::int AS count FROM documents WHERE tenant_id = $1", [tenantId]),
+      ]);
+      const currentTier = tenantRows[0]?.plan_tier || "Starter";
+      const docCount = Number(countRows[0]?.count ?? 0);
+      const quotaCheck = SubscriptionService.evaluateDocumentUpload(docCount, currentTier);
+      if (quotaCheck.blocked) {
+        return NextResponse.json(
+          {
+            error: quotaCheck.error,
+            code: quotaCheck.code,
+            limit: quotaCheck.limit,
+            current: quotaCheck.current,
+          },
+          { status: 402 }
+        );
+      }
+
       const body = await request.json().catch(() => ({}));
       const cleanFileName = String(body.file_name || "document").replace(/\s+/g, "_");
       const timestamp = Math.floor(Date.now() / 1000);
@@ -1218,6 +1624,26 @@ async function handleRequest(
       }
 
       if (method === "POST") {
+        // Quota Hard-Block Check
+        const [tenantRows, countRows] = await Promise.all([
+          sql.query("SELECT plan_tier, trial_ends_at FROM tenants WHERE id = $1", [tenantId]),
+          sql.query("SELECT COUNT(*)::int AS count FROM documents WHERE tenant_id = $1", [tenantId]),
+        ]);
+        const currentTier = tenantRows[0]?.plan_tier || "Starter";
+        const docCount = Number(countRows[0]?.count ?? 0);
+        const quotaCheck = SubscriptionService.evaluateDocumentUpload(docCount, currentTier);
+        if (quotaCheck.blocked) {
+          return NextResponse.json(
+            {
+              error: quotaCheck.error,
+              code: quotaCheck.code,
+              limit: quotaCheck.limit,
+              current: quotaCheck.current,
+            },
+            { status: 402 }
+          );
+        }
+
         const body = await request.json();
         const version = body.version || "v1.0";
         const fileFormat = body.file_format || "pdf";
@@ -1583,6 +2009,26 @@ async function handleRequest(
       }
 
       if (method === "POST") {
+        // Seat Quota Hard-Block Check
+        const [tenantRows, memberCountRows] = await Promise.all([
+          sql.query("SELECT plan_tier, trial_ends_at FROM tenants WHERE id = $1", [tenantId]),
+          sql.query("SELECT COUNT(*)::int AS count FROM tenant_members WHERE tenant_id = $1", [tenantId]),
+        ]);
+        const currentTier = tenantRows[0]?.plan_tier || "Starter";
+        const memberCount = Number(memberCountRows[0]?.count ?? 1);
+        const quotaCheck = SubscriptionService.evaluateSeatInvite(memberCount, currentTier);
+        if (quotaCheck.blocked) {
+          return NextResponse.json(
+            {
+              error: quotaCheck.error,
+              code: quotaCheck.code,
+              limit: quotaCheck.limit,
+              current: quotaCheck.current,
+            },
+            { status: 402 }
+          );
+        }
+
         const body = await request.json();
         const role = body.role || "MEMBER";
         const existing = await sql.query("SELECT id FROM users WHERE email = $1", [body.email]);

@@ -4,6 +4,8 @@ import { useAuth } from "@/components/ahnara/AuthContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { AhnaraLoader } from "@/components/ahnara/AhnaraLoader";
+import { getAuthToken } from "@/lib/api";
+import { isTokenExpired } from "@/lib/jwt";
 
 export function RoleGuard({ 
   children, 
@@ -14,13 +16,17 @@ export function RoleGuard({
   allowedRoles: string[];
   fallbackRoute?: string;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     if (!loading) {
-      if (!user) {
+      const token = getAuthToken();
+      if (!user || !token || isTokenExpired(token)) {
+        if (token && isTokenExpired(token)) {
+          logout();
+        }
         const redirectParam = pathname ? `?redirect=${encodeURIComponent(pathname)}` : "";
         router.push(`${fallbackRoute}${redirectParam}`);
       } else {
@@ -43,7 +49,7 @@ export function RoleGuard({
         }
       }
     }
-  }, [user, loading, allowedRoles, router, fallbackRoute, pathname]);
+  }, [user, loading, allowedRoles, router, fallbackRoute, pathname, logout]);
 
   if (loading) {
     return (
@@ -53,10 +59,11 @@ export function RoleGuard({
     );
   }
 
+  const token = typeof window !== "undefined" ? getAuthToken() : null;
   const userRoleUpper = (user?.role || "").toUpperCase();
   const allowedRolesUpper = allowedRoles.map(r => r.toUpperCase());
 
-  if (!user || !allowedRolesUpper.includes(userRoleUpper)) {
+  if (!user || !token || isTokenExpired(token) || !allowedRolesUpper.includes(userRoleUpper)) {
     return (
       <div className="min-h-screen bg-[#E8EFF4] flex items-center justify-center">
         <AhnaraLoader fullScreen size="lg" label="Directing to Your Workspace..." />

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { RoleGuard } from "@/components/ahnara/RoleGuard";
+import { FloatingPersonaSwitcher } from "@/components/layout/FloatingPersonaSwitcher";
 
 export default function SuperAdminLayout({
   children,
@@ -131,6 +132,9 @@ export default function SuperAdminLayout({
         >
           {children}
         </motion.main>
+
+        {/* Super Administrator Persona / Role Switcher */}
+        <FloatingPersonaSwitcher />
       </div>
     </RoleGuard>
   );

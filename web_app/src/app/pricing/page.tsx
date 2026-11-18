@@ -2,18 +2,31 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { CheckCircle2, Sparkles, Building2, Briefcase, ArrowRight, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle2, Sparkles, Building2, Briefcase, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
 import { CompliancePublicNav } from "@/components/layout/CompliancePublicNav";
 import { CompliancePublicFooter } from "@/components/layout/CompliancePublicFooter";
 import { ComplianceAssistantDrawer } from "@/components/layout/ComplianceAssistantDrawer";
 import { MotionPage, MotionSection, MotionCard, RiseIn, defaultEase } from "@/components/motion/MotionTransitions";
+import { useAuth } from "@/components/ahnara/AuthContext";
+import { api } from "@/lib/api";
+import PaystackButton from "@/components/ahnara/PaystackButton";
 
 export default function PricingPage() {
+  const router = useRouter();
+  const { user, activeTenantId } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annually">("monthly");
   const [userTrack, setUserTrack] = useState<"business" | "professional">("business");
+  const [upgradedBanner, setUpgradedBanner] = useState<string | null>(null);
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
   const discountMultiplier = billingCycle === "annually" ? 0.8 : 1.0;
+
+  const paystackKey =
+    process.env.NEXT_PUBLIC_PAYSTACK_KEY ||
+    process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
+    "pk_live_29e6ae6c232946453f9b3689ff70cd27dcac16bf";
 
   const businessPlans = [
     {
@@ -256,17 +269,79 @@ export default function PricingPage() {
                   </ul>
                 </div>
 
-                <Link href={userTrack === "business" ? "/onboarding" : "/register?role=EXPERT"}>
-                  <button
-                    className={`w-full py-3 rounded-2xl font-bold text-xs transition-all shadow-xs ${
-                      plan.highlight
-                        ? "bg-[#0089C1] hover:bg-sky-600 text-white"
-                        : "bg-[#1E293B] hover:bg-slate-800 text-white"
-                    }`}
-                  >
-                    {plan.cta}
-                  </button>
-                </Link>
+                {upgradedBanner === plan.name ? (
+                  <div className="w-full py-3 rounded-2xl bg-emerald-100 text-emerald-800 font-bold text-xs text-center flex items-center justify-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                    <span>Plan Activated!</span>
+                  </div>
+                ) : user && userTrack === "business" ? (
+                  price === 0 ? (
+                    <button
+                      onClick={async () => {
+                        setProcessingPlan(plan.name);
+                        try {
+                          await api.subscriptions.upgrade({ plan_tier: plan.name });
+                          setUpgradedBanner(plan.name);
+                          setTimeout(() => router.push("/business/dashboard/"), 1500);
+                        } catch (err) {
+                          console.error("Upgrade error:", err);
+                        } finally {
+                          setProcessingPlan(null);
+                        }
+                      }}
+                      disabled={processingPlan === plan.name}
+                      className="w-full py-3 rounded-2xl font-bold text-xs transition-all shadow-xs bg-[#1E293B] hover:bg-slate-800 text-white cursor-pointer"
+                    >
+                      {processingPlan === plan.name ? "Switching Plan..." : plan.cta}
+                    </button>
+                  ) : (
+                    <PaystackButton
+                      config={{
+                        reference: `ps_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+                        email: user.email,
+                        amount: (billingCycle === "annually" ? price * 12 : price) * 100,
+                        publicKey: paystackKey,
+                        metadata: {
+                          tenant_id: activeTenantId,
+                          plan_tier: plan.name,
+                          billing_cycle: billingCycle,
+                        },
+                      }}
+                      onSuccess={async (ref) => {
+                        try {
+                          await api.subscriptions.verifyPayment({
+                            reference: ref.reference || ref.trans,
+                            plan_tier: plan.name,
+                            billing_cycle: billingCycle,
+                          });
+                          setUpgradedBanner(plan.name);
+                          setTimeout(() => router.push("/business/settings"), 1500);
+                        } catch (err) {
+                          console.error("Payment verification error:", err);
+                        }
+                      }}
+                      onClose={() => {}}
+                      text={plan.cta}
+                      className={`w-full py-3 rounded-2xl font-bold text-xs transition-all shadow-xs cursor-pointer justify-center ${
+                        plan.highlight
+                          ? "bg-[#0089C1] hover:bg-sky-600 text-white"
+                          : "bg-[#1E293B] hover:bg-slate-800 text-white"
+                      }`}
+                    />
+                  )
+                ) : (
+                  <Link href={userTrack === "business" ? "/onboarding" : "/register?role=EXPERT"}>
+                    <button
+                      className={`w-full py-3 rounded-2xl font-bold text-xs transition-all shadow-xs cursor-pointer ${
+                        plan.highlight
+                          ? "bg-[#0089C1] hover:bg-sky-600 text-white"
+                          : "bg-[#1E293B] hover:bg-slate-800 text-white"
+                      }`}
+                    >
+                      {plan.cta}
+                    </button>
+                  </Link>
+                )}
               </MotionCard>
             );
           })}

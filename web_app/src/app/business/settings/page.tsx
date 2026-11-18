@@ -15,10 +15,15 @@ import {
   AlertTriangle,
   Smartphone,
   LogOut,
-  Loader2
+  Loader2,
+  Sparkles,
+  Clock,
+  ArrowUpRight,
+  FolderArchive
 } from "lucide-react";
 import { useAuth } from "@/components/ahnara/AuthContext";
 import { api } from "@/lib/api";
+import UpgradeQuotaModal from "@/components/subscription/UpgradeQuotaModal";
 
 export default function BusinessSettingsPage() {
   const { user, activeTenantId } = useAuth();
@@ -33,6 +38,7 @@ export default function BusinessSettingsPage() {
 
   const [members, setMembers] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -40,36 +46,53 @@ export default function BusinessSettingsPage() {
   const [inviting, setInviting] = useState(false);
   const [sessionsCleared, setSessionsCleared] = useState(false);
 
-  useEffect(() => {
-    async function loadTenantProfile() {
-      try {
-        const [resp, memResp, invResp] = await Promise.all([
-          api.tenants.getCurrent(),
-          api.tenantMembers.list(),
-          api.invoices.list(),
-        ]);
-        if (resp && resp.tenant) {
-          setCompanyName(resp.tenant.workspace_name || resp.tenant.organisation_name || "");
-          setRcNumber(resp.tenant.rc_number || "");
-          setTin(resp.tenant.tin || "");
-          setAddress(resp.tenant.address || "");
-        }
-        if (Array.isArray(memResp)) {
-          setMembers(memResp);
-        }
-        if (Array.isArray(invResp)) {
-          setInvoices(invResp);
-        }
-      } catch (err) {
-        console.error("Failed to load tenant settings:", err);
+  // Quota Upgrade Modal State
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
+  const [quotaType, setQuotaType] = useState<"DOCUMENT" | "SEAT" | "TRIAL_EXPIRED" | "FEATURE">("SEAT");
+
+  async function loadTenantProfile() {
+    try {
+      const [resp, memResp, invResp, subResp] = await Promise.all([
+        api.tenants.getCurrent(),
+        api.tenantMembers.list(),
+        api.invoices.list(),
+        api.subscriptions.getUsage(),
+      ]);
+      if (resp && resp.tenant) {
+        setCompanyName(resp.tenant.workspace_name || resp.tenant.organisation_name || "");
+        setRcNumber(resp.tenant.rc_number || "");
+        setTin(resp.tenant.tin || "");
+        setAddress(resp.tenant.address || "");
       }
+      if (Array.isArray(memResp)) {
+        setMembers(memResp);
+      }
+      if (Array.isArray(invResp)) {
+        setInvoices(invResp);
+      }
+      if (subResp && subResp.success) {
+        setSubscription(subResp);
+      }
+    } catch (err) {
+      console.error("Failed to load tenant settings:", err);
     }
+  }
+
+  useEffect(() => {
     loadTenantProfile();
   }, [activeTenantId]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteName || !inviteEmail) return;
+
+    if (subscription?.seats?.isBlocked) {
+      setShowInviteModal(false);
+      setQuotaType("SEAT");
+      setQuotaModalOpen(true);
+      return;
+    }
+
     setInviting(true);
     try {
       await api.tenantMembers.invite({
@@ -77,13 +100,22 @@ export default function BusinessSettingsPage() {
         email: inviteEmail,
         role: inviteRole,
       });
-      const updated = await api.tenantMembers.list();
+      const [updated, subUpdated] = await Promise.all([
+        api.tenantMembers.list(),
+        api.subscriptions.getUsage(),
+      ]);
       if (Array.isArray(updated)) setMembers(updated);
+      if (subUpdated && subUpdated.success) setSubscription(subUpdated);
       setShowInviteModal(false);
       setInviteName("");
       setInviteEmail("");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Invite failed:", err);
+      if (err?.code === "SEAT_QUOTA_EXCEEDED" || err?.status === 402) {
+        setShowInviteModal(false);
+        setQuotaType("SEAT");
+        setQuotaModalOpen(true);
+      }
     } finally {
       setInviting(false);
     }
@@ -245,18 +277,83 @@ export default function BusinessSettingsPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-5"
+          className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6"
         >
+          {/* Seat Quota Status Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#0089C1]" />
+                <span className="text-xs font-bold text-slate-900">
+                  Team Member Seats Allocation
+                </span>
+                {subscription?.seats?.isBlocked && (
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                    Quota Full (Hard-Blocked)
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Using {subscription?.seats?.used ?? members.length} of {subscription?.seats?.limit === Infinity ? "Unlimited" : (subscription?.seats?.limit ?? 5)} seats allowed on {subscription?.limits?.name || "your"} plan.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-32 sm:w-44 bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all ${
+                    subscription?.seats?.percentage >= 100
+                      ? "bg-red-500"
+                      : subscription?.seats?.percentage >= 80
+                      ? "bg-amber-500"
+                      : "bg-[#0089C1]"
+                  }`}
+                  style={{ width: `${Math.min(subscription?.seats?.percentage || (members.length * 20), 100)}%` }}
+                />
+              </div>
+              {subscription?.seats?.isBlocked ? (
+                <button
+                  onClick={() => {
+                    setQuotaType("SEAT");
+                    setQuotaModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Upgrade Seats
+                </button>
+              ) : null}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-extrabold text-base text-slate-900">Tenant Workspace Users</h3>
               <p className="text-xs text-slate-500">Internal authorized employees for {companyName || "your organization"}.</p>
             </div>
             <button 
-              onClick={() => setShowInviteModal(true)}
-              className="bg-[#1E293B] hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs cursor-pointer transition-all"
+              onClick={() => {
+                if (subscription?.seats?.isBlocked) {
+                  setQuotaType("SEAT");
+                  setQuotaModalOpen(true);
+                  return;
+                }
+                setShowInviteModal(true);
+              }}
+              className={`font-bold px-4 py-2 rounded-xl text-xs shadow-xs cursor-pointer transition-all flex items-center gap-1.5 ${
+                subscription?.seats?.isBlocked
+                  ? "bg-slate-200 text-slate-500 hover:bg-slate-300"
+                  : "bg-[#1E293B] hover:bg-slate-800 text-white"
+              }`}
             >
-              + Invite Team Member
+              {subscription?.seats?.isBlocked ? (
+                <>
+                  <Lock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Seats Locked (Upgrade)</span>
+                </>
+              ) : (
+                <span>+ Invite Team Member</span>
+              )}
             </button>
           </div>
 
@@ -299,24 +396,164 @@ export default function BusinessSettingsPage() {
           transition={{ duration: 0.35 }}
           className="bg-white rounded-3xl p-6 md:p-8 border border-slate-200/80 shadow-xs space-y-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-sky-50/60 border border-sky-200">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-[#0089C1] tracking-wider">Active Plan</span>
-              <h3 className="text-xl font-black text-slate-900">Professional SaaS Plan</h3>
-              <p className="text-xs text-slate-600 mt-0.5">₦45,000 billed monthly via Paystack • Renews on 28th of next month</p>
+          {/* Plan Overview Card */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 rounded-3xl bg-linear-to-br from-sky-50/80 via-white to-slate-50 border border-sky-200 shadow-xs">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-black text-[#0089C1] tracking-wider px-2.5 py-0.5 rounded-full bg-sky-100">
+                  {subscription?.isTrial ? "Trial Mode" : "Active Subscription"}
+                </span>
+                {subscription?.isTrial && (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-amber-600" />
+                    {subscription?.trialDaysLeft ?? 14} days left in trial
+                  </span>
+                )}
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 text-display">
+                {subscription?.limits?.name || subscription?.plan_tier || "Professional Plan"}
+              </h3>
+              <p className="text-xs text-slate-600 max-w-md">
+                {subscription?.isTrial
+                  ? `Enjoying full Professional compliance privileges until ${subscription?.trialEndsAt ? new Date(subscription.trialEndsAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }) : "end of trial"}. Lock in your workspace with Paystack.`
+                  : "Secured with Paystack recurring subscription. Billed monthly with automated tax receipts."}
+              </p>
             </div>
-            <Link href="/pricing">
-              <button className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs cursor-pointer">
-                Change Subscription Plan
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <button
+                onClick={() => {
+                  setQuotaType("FEATURE");
+                  setQuotaModalOpen(true);
+                }}
+                className="bg-[#0089C1] hover:bg-sky-600 text-white font-bold px-6 py-3 rounded-2xl text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>{subscription?.isTrial ? "Subscribe via Paystack" : "Upgrade / Change Plan"}</span>
               </button>
-            </Link>
+              <Link href="/pricing" className="text-center">
+                <button className="w-full px-4 py-3 rounded-2xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer">
+                  View All Tiers
+                </button>
+              </Link>
+            </div>
           </div>
 
+          {/* Quotas & Capacity Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Document Vault Quota */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <FolderArchive className="w-4 h-4 text-[#0089C1]" />
+                  <span className="font-bold text-slate-900">HubDocs Vault Storage</span>
+                </div>
+                <span className="font-mono font-bold text-slate-700">
+                  {subscription?.documents?.used ?? 0} / {subscription?.documents?.limit === Infinity ? "Unlimited" : (subscription?.documents?.limit ?? 50)} docs
+                </span>
+              </div>
+              <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all ${
+                    (subscription?.documents?.percentage ?? 0) >= 100 
+                      ? "bg-red-500" 
+                      : (subscription?.documents?.percentage ?? 0) >= 80 
+                      ? "bg-amber-500" 
+                      : "bg-[#0089C1]"
+                  }`}
+                  style={{ width: `${Math.min(subscription?.documents?.percentage || 0, 100)}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>{subscription?.documents?.percentage || 0}% quota consumed</span>
+                {subscription?.documents?.isBlocked ? (
+                  <span className="text-red-600 font-bold flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Hard-Blocked
+                  </span>
+                ) : (
+                  <span className="text-emerald-700 font-bold">Available</span>
+                )}
+              </div>
+            </div>
+
+            {/* Team Seats Quota */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#0089C1]" />
+                  <span className="font-bold text-slate-900">Team Member Seats</span>
+                </div>
+                <span className="font-mono font-bold text-slate-700">
+                  {subscription?.seats?.used ?? members.length} / {subscription?.seats?.limit === Infinity ? "Unlimited" : (subscription?.seats?.limit ?? 5)} seats
+                </span>
+              </div>
+              <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all ${
+                    (subscription?.seats?.percentage ?? 0) >= 100 
+                      ? "bg-red-500" 
+                      : (subscription?.seats?.percentage ?? 0) >= 80 
+                      ? "bg-amber-500" 
+                      : "bg-[#0089C1]"
+                  }`}
+                  style={{ width: `${Math.min(subscription?.seats?.percentage || (members.length * 20), 100)}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>{subscription?.seats?.percentage || (members.length * 20)}% seats allocated</span>
+                {subscription?.seats?.isBlocked ? (
+                  <span className="text-red-600 font-bold flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Hard-Blocked
+                  </span>
+                ) : (
+                  <span className="text-emerald-700 font-bold">Available</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Feature Matrix for Current Plan */}
+          <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Regulatory Coverage & Module Capabilities
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+              {[
+                { name: "CAC Annual Returns Sync", enabled: true },
+                { name: "FIRS / NRS Tax Deadlines", enabled: true },
+                { name: "HubDocs Cloudinary Vault", enabled: true },
+                { name: "SCUML AML/CFT Reporting", enabled: subscription?.plan_tier !== "FREE" && subscription?.plan_tier !== "STARTER" },
+                { name: "NDPC Data Protection Audit", enabled: subscription?.plan_tier !== "FREE" && subscription?.plan_tier !== "STARTER" },
+                { name: "Direct Practice Auditor Signoff", enabled: subscription?.plan_tier === "PROFESSIONAL" || subscription?.plan_tier === "TRIAL" || subscription?.plan_tier === "ENTERPRISE" },
+              ].map((feat, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-slate-200">
+                  {feat.enabled ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+                  )}
+                  <span className={`font-bold ${feat.enabled ? "text-slate-800" : "text-slate-400 line-through"}`}>
+                    {feat.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Past Invoices & Receipts */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Past Invoices & Receipts</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Past Invoices & Receipts</h4>
+              <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                Paystack Settled
+              </span>
+            </div>
             {invoices.length === 0 ? (
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
-                No billing transactions recorded yet.
+              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 space-y-1">
+                <CreditCard className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                <p className="font-bold text-slate-700">No external invoices recorded yet.</p>
+                <p className="text-[11px]">Your 14-day free trial on the Professional tier is currently active at zero cost.</p>
               </div>
             ) : (
               invoices.map((inv: any) => (
@@ -470,6 +707,17 @@ export default function BusinessSettingsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Upgrade Quota Modal */}
+      <UpgradeQuotaModal
+        isOpen={quotaModalOpen}
+        onClose={() => setQuotaModalOpen(false)}
+        quotaType={quotaType}
+        currentUsage={quotaType === "DOCUMENT" ? subscription?.documents?.used : subscription?.seats?.used}
+        limit={quotaType === "DOCUMENT" ? subscription?.documents?.limit : subscription?.seats?.limit}
+        currentPlan={subscription?.limits?.name || subscription?.plan_tier}
+        onUpgradeSuccess={loadTenantProfile}
+      />
 
     </div>
   );

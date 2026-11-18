@@ -3,7 +3,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ahnara/ThemeProvider";
 import { AuthProvider } from "@/components/ahnara/AuthContext";
-import { FloatingPersonaSwitcher } from "@/components/layout/FloatingPersonaSwitcher";
 
 const dropa = localFont({
   src: "../fonts/Dropa-Regular.woff2",
@@ -50,7 +49,6 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             {children}
-            <FloatingPersonaSwitcher />
           </AuthProvider>
         </ThemeProvider>
       </body>
