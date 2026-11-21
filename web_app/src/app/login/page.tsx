@@ -3,17 +3,11 @@
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
-  Building2, 
-  Briefcase, 
-  Users2, 
   ArrowRight, 
   Lock, 
   Mail, 
-  ShieldCheck, 
-  Sparkles,
-  CheckCircle2,
   Loader2
 } from "lucide-react";
 import { useAuth, DEMO_USERS, SUPER_ADMIN_USER } from "@/components/ahnara/AuthContext";
@@ -26,9 +20,8 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams?.get("redirect");
   const { switchRole, login } = useAuth();
-  const [selectedRole, setSelectedRole] = useState<"BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN">("BUSINESS");
-  const [email, setEmail] = useState("adaeze@paywave.ng");
-  const [password, setPassword] = useState("••••••••••••");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -47,18 +40,6 @@ function LoginContent() {
       setForgotStatus("If this email is registered, password reset instructions have been dispatched.");
     } finally {
       setForgotSubmitting(false);
-    }
-  };
-
-  const handleRoleSelect = (role: "BUSINESS" | "EXPERT" | "AGENCY") => {
-    setSelectedRole(role);
-    setErrorMsg(null);
-    if (role === "BUSINESS") {
-      setEmail("adaeze@paywave.ng");
-    } else if (role === "EXPERT") {
-      setEmail("tunde@bakarecompliance.com");
-    } else {
-      setEmail("chiamaka@apexcompliance.ng");
     }
   };
 
@@ -91,10 +72,7 @@ function LoginContent() {
     if (explicitRole === "AGENCY" || normalizedEmail === "chiamaka@apexcompliance.ng") {
       return "AGENCY";
     }
-    if (explicitRole === "BUSINESS" || normalizedEmail === "adaeze@paywave.ng") {
-      return "BUSINESS";
-    }
-    return selectedRole;
+    return "BUSINESS";
   };
 
   const navigateToDestination = (role: string) => {
@@ -119,10 +97,9 @@ function LoginContent() {
     setErrorMsg(null);
 
     const normalizedEmail = email.trim().toLowerCase();
-    const actualPassword = password === "••••••••••••" ? "password123" : password;
 
     try {
-      const resp = await api.auth.login({ email: normalizedEmail, password: actualPassword });
+      const resp = await api.auth.login({ email: normalizedEmail, password });
       if (resp && resp.token && resp.user) {
         const effectiveRole = resolveRoleFromAccount(resp.user.email || normalizedEmail, resp.user);
         const fallbackProfile =
@@ -154,29 +131,36 @@ function LoginContent() {
       console.warn("Backend login failed or offline, using fallback:", err);
     }
 
-    // Offline fallback: issue genuine cryptographically signed JWT for the matching account/role
-    if (normalizedEmail === SUPER_ADMIN_USER.email) {
-      const jwtToken = await createSuperAdminJWT();
-      login(jwtToken, SUPER_ADMIN_USER);
-      setLoading(false);
-      navigateToDestination("ADMIN");
-      return;
+    // Offline fallback only when API is unreachable and credentials match a seeded account
+    if (password === "password123") {
+      if (normalizedEmail === SUPER_ADMIN_USER.email) {
+        const jwtToken = await createSuperAdminJWT();
+        login(jwtToken, SUPER_ADMIN_USER);
+        setLoading(false);
+        navigateToDestination("ADMIN");
+        return;
+      }
+
+      const knownDemoEmails: Record<string, "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN"> = {
+        "adaeze@paywave.ng": "BUSINESS",
+        "tunde@bakarecompliance.com": "EXPERT",
+        "chiamaka@apexcompliance.ng": "AGENCY",
+        "bsanwo@compliancehub.ng": "STAFF",
+        "admin@compliancehub.ng": "ADMIN",
+      };
+
+      if (knownDemoEmails[normalizedEmail]) {
+        const fallbackRole = knownDemoEmails[normalizedEmail];
+        await switchRole(fallbackRole);
+        setLoading(false);
+        navigateToDestination(fallbackRole);
+        return;
+      }
     }
 
-    const fallbackRole = resolveRoleFromAccount(normalizedEmail);
-    await switchRole(fallbackRole);
+    setErrorMsg("Invalid email or password");
     setLoading(false);
-    navigateToDestination(fallbackRole);
   };
-
-  const activePreviewUser =
-    email.trim().toLowerCase() === SUPER_ADMIN_USER.email
-      ? SUPER_ADMIN_USER
-      : email.trim().toLowerCase() === DEMO_USERS.ADMIN.email
-      ? DEMO_USERS.ADMIN
-      : email.trim().toLowerCase() === DEMO_USERS.STAFF.email
-      ? DEMO_USERS.STAFF
-      : DEMO_USERS[selectedRole];
 
   return (
     <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col items-center justify-center p-4 select-none">
@@ -211,7 +195,7 @@ function LoginContent() {
         <div>
           <h1 className="text-xl font-black text-slate-900 text-display">Sign In to Your Workspace</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Choose a quick demo persona or enter your enterprise credentials.
+            Enter your enterprise credentials to access your workspace.
           </p>
         </div>
 
@@ -220,69 +204,6 @@ function LoginContent() {
             {errorMsg}
           </div>
         )}
-
-        {/* 1-Click Interactive Persona Switcher */}
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Select Demo Persona:
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("BUSINESS")}
-              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                selectedRole === "BUSINESS"
-                  ? "bg-[#0089C1] text-white border-[#0089C1] shadow-xs font-bold"
-                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              <span className="text-[11px] leading-tight font-bold">Business Admin</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("EXPERT")}
-              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                selectedRole === "EXPERT"
-                  ? "bg-[#245C44] text-white border-[#245C44] shadow-xs font-bold"
-                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-              }`}
-            >
-              <Briefcase className="w-4 h-4" />
-              <span className="text-[11px] leading-tight font-bold">Compliance Officer</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleRoleSelect("AGENCY")}
-              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                selectedRole === "AGENCY"
-                  ? "bg-purple-700 text-white border-purple-700 shadow-xs font-bold"
-                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-              }`}
-            >
-              <Users2 className="w-4 h-4" />
-              <span className="text-[11px] leading-tight font-bold">Agency Partner</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Active Profile Info Banner */}
-        <div className="p-3.5 rounded-2xl bg-[#E8EFF4] border border-slate-200/80 flex items-center gap-3">
-          <img
-            src={activePreviewUser.avatar}
-            alt={activePreviewUser.name}
-            className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-900 truncate">{activePreviewUser.name}</p>
-            <p className="text-[10px] text-slate-500 truncate">{activePreviewUser.company}</p>
-          </div>
-          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-white text-slate-800 shadow-xs">
-            {activePreviewUser.role}
-          </span>
-        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -293,9 +214,11 @@ function LoginContent() {
               <input
                 type="email"
                 required
+                autoComplete="email"
+                placeholder="name@company.ng"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
               />
             </div>
           </div>
@@ -320,9 +243,11 @@ function LoginContent() {
               <input
                 type="password"
                 required
+                autoComplete="current-password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0089C1]/30"
               />
             </div>
           </div>
