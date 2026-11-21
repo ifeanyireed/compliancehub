@@ -16,7 +16,8 @@ import {
   CheckCircle2,
   Loader2
 } from "lucide-react";
-import { useAuth, DEMO_USERS } from "@/components/ahnara/AuthContext";
+import { useAuth, DEMO_USERS, SUPER_ADMIN_USER } from "@/components/ahnara/AuthContext";
+import { createSuperAdminJWT } from "@/lib/jwt";
 import { api } from "@/lib/api";
 import { defaultEase } from "@/components/motion/MotionTransitions";
 
@@ -61,6 +62,41 @@ function LoginContent() {
     }
   };
 
+  const resolveRoleFromAccount = (
+    accountEmail: string,
+    respUser?: { system_role?: string; role?: string }
+  ): "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN" => {
+    const normalizedEmail = accountEmail.trim().toLowerCase();
+    const sysRole = (respUser?.system_role || "").toUpperCase();
+    const explicitRole = (respUser?.role || "").toUpperCase();
+
+    if (
+      sysRole === "ADMIN" ||
+      explicitRole === "ADMIN" ||
+      normalizedEmail === "superadmin@compliancehub.ng" ||
+      normalizedEmail === "admin@compliancehub.ng"
+    ) {
+      return "ADMIN";
+    }
+    if (
+      sysRole === "STAFF" ||
+      explicitRole === "STAFF" ||
+      normalizedEmail === "bsanwo@compliancehub.ng"
+    ) {
+      return "STAFF";
+    }
+    if (explicitRole === "EXPERT" || normalizedEmail === "tunde@bakarecompliance.com") {
+      return "EXPERT";
+    }
+    if (explicitRole === "AGENCY" || normalizedEmail === "chiamaka@apexcompliance.ng") {
+      return "AGENCY";
+    }
+    if (explicitRole === "BUSINESS" || normalizedEmail === "adaeze@paywave.ng") {
+      return "BUSINESS";
+    }
+    return selectedRole;
+  };
+
   const navigateToDestination = (role: string) => {
     if (redirectUrl) {
       router.push(redirectUrl);
@@ -82,34 +118,65 @@ function LoginContent() {
     setLoading(true);
     setErrorMsg(null);
 
+    const normalizedEmail = email.trim().toLowerCase();
     const actualPassword = password === "••••••••••••" ? "password123" : password;
 
     try {
-      const resp = await api.auth.login({ email, password: actualPassword });
+      const resp = await api.auth.login({ email: normalizedEmail, password: actualPassword });
       if (resp && resp.token && resp.user) {
+        const effectiveRole = resolveRoleFromAccount(resp.user.email || normalizedEmail, resp.user);
+        const fallbackProfile =
+          normalizedEmail === SUPER_ADMIN_USER.email
+            ? SUPER_ADMIN_USER
+            : DEMO_USERS[effectiveRole];
+
         login(resp.token, {
           id: resp.user.id,
           name: resp.user.full_name,
           email: resp.user.email,
-          role: selectedRole,
-          title: resp.user.title || DEMO_USERS[selectedRole].title,
-          company: resp.active_tenant?.workspace_name || DEMO_USERS[selectedRole].company,
-          avatar: resp.user.avatar_url || DEMO_USERS[selectedRole].avatar,
-          tenant_id: resp.active_tenant?.id || DEMO_USERS[selectedRole].tenant_id,
+          role: effectiveRole,
+          title: resp.user.title || fallbackProfile.title,
+          company: resp.active_tenant?.workspace_name || fallbackProfile.company,
+          avatar: resp.user.avatar_url || fallbackProfile.avatar,
+          plan_tier: resp.active_tenant?.plan_tier || fallbackProfile.plan_tier,
+          tenant_id: resp.active_tenant?.id || fallbackProfile.tenant_id,
         });
 
-        navigateToDestination(selectedRole);
+        navigateToDestination(effectiveRole);
         return;
       }
     } catch (err: any) {
+      if (err?.status === 401 || err?.status === 400) {
+        setErrorMsg(err.message || "Invalid email or password");
+        setLoading(false);
+        return;
+      }
       console.warn("Backend login failed or offline, using fallback:", err);
     }
 
-    // Fallback: issue genuine cryptographically signed JWT for the selected persona
-    await switchRole(selectedRole);
+    // Offline fallback: issue genuine cryptographically signed JWT for the matching account/role
+    if (normalizedEmail === SUPER_ADMIN_USER.email) {
+      const jwtToken = await createSuperAdminJWT();
+      login(jwtToken, SUPER_ADMIN_USER);
+      setLoading(false);
+      navigateToDestination("ADMIN");
+      return;
+    }
+
+    const fallbackRole = resolveRoleFromAccount(normalizedEmail);
+    await switchRole(fallbackRole);
     setLoading(false);
-    navigateToDestination(selectedRole);
+    navigateToDestination(fallbackRole);
   };
+
+  const activePreviewUser =
+    email.trim().toLowerCase() === SUPER_ADMIN_USER.email
+      ? SUPER_ADMIN_USER
+      : email.trim().toLowerCase() === DEMO_USERS.ADMIN.email
+      ? DEMO_USERS.ADMIN
+      : email.trim().toLowerCase() === DEMO_USERS.STAFF.email
+      ? DEMO_USERS.STAFF
+      : DEMO_USERS[selectedRole];
 
   return (
     <div className="min-h-screen bg-[#E8EFF4] text-[#0D090C] font-sans flex flex-col items-center justify-center p-4 select-none">
@@ -204,16 +271,16 @@ function LoginContent() {
         {/* Active Profile Info Banner */}
         <div className="p-3.5 rounded-2xl bg-[#E8EFF4] border border-slate-200/80 flex items-center gap-3">
           <img
-            src={DEMO_USERS[selectedRole].avatar}
-            alt={DEMO_USERS[selectedRole].name}
+            src={activePreviewUser.avatar}
+            alt={activePreviewUser.name}
             className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-xs"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-900 truncate">{DEMO_USERS[selectedRole].name}</p>
-            <p className="text-[10px] text-slate-500 truncate">{DEMO_USERS[selectedRole].company}</p>
+            <p className="text-xs font-bold text-slate-900 truncate">{activePreviewUser.name}</p>
+            <p className="text-[10px] text-slate-500 truncate">{activePreviewUser.company}</p>
           </div>
           <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-white text-slate-800 shadow-xs">
-            {selectedRole}
+            {activePreviewUser.role}
           </span>
         </div>
 

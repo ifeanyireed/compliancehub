@@ -242,6 +242,17 @@ func SeedInitialData(ctx context.Context, pool *pgxpool.Pool) error {
 		'/character1.jpg',
 		'USER',
 		true
+	),
+	(
+		'33333333-3333-3333-3333-333333333310',
+		'superadmin@compliancehub.ng',
+		$1,
+		'ComplianceHub Super Admin',
+		'+234 809 000 0001',
+		'Platform Super Administrator',
+		'/character5.jpg',
+		'ADMIN',
+		true
 	)
 	ON CONFLICT (email) DO NOTHING;`
 	if _, err := pool.Exec(ctx, usersSQL, pwStr); err != nil {

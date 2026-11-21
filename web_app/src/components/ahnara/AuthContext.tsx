@@ -77,6 +77,18 @@ export const DEMO_USERS: Record<string, User> = {
   },
 };
 
+export const SUPER_ADMIN_USER: User = {
+  id: "33333333-3333-3333-3333-333333333310",
+  name: "ComplianceHub Super Admin",
+  email: "superadmin@compliancehub.ng",
+  role: "ADMIN",
+  title: "Platform Super Administrator",
+  company: "ComplianceHub Technologies Nigeria Ltd",
+  avatar: "/character5.jpg",
+  plan_tier: "Platform Super Admin",
+  tenant_id: "55555555-5555-5555-5555-555555555501",
+};
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;

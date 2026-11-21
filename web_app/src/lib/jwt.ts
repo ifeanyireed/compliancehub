@@ -279,6 +279,43 @@ export const DEMO_JWT_USERS = {
 };
 
 /**
+ * Dedicated ComplianceHub Platform Super Admin profile
+ */
+export const SUPER_ADMIN_JWT_USER = {
+  user_id: "33333333-3333-3333-3333-333333333310",
+  email: "superadmin@compliancehub.ng",
+  full_name: "ComplianceHub Super Admin",
+  system_role: "ADMIN" as const,
+  role: "ADMIN" as const,
+  title: "Platform Super Administrator",
+  company: "ComplianceHub Technologies Nigeria Ltd",
+  avatar: "/character5.jpg",
+  tenant_id: "55555555-5555-5555-5555-555555555501",
+  plan_tier: "Platform Super Admin",
+};
+
+/**
+ * Creates a cryptographically signed JWT for the dedicated Platform Super Admin
+ */
+export async function createSuperAdminJWT(secret?: string): Promise<string> {
+  return signJWT(
+    {
+      user_id: SUPER_ADMIN_JWT_USER.user_id,
+      email: SUPER_ADMIN_JWT_USER.email,
+      full_name: SUPER_ADMIN_JWT_USER.full_name,
+      system_role: SUPER_ADMIN_JWT_USER.system_role,
+      role: SUPER_ADMIN_JWT_USER.role,
+      tenant_id: SUPER_ADMIN_JWT_USER.tenant_id,
+      title: SUPER_ADMIN_JWT_USER.title,
+      company: SUPER_ADMIN_JWT_USER.company,
+      avatar: SUPER_ADMIN_JWT_USER.avatar,
+      plan_tier: SUPER_ADMIN_JWT_USER.plan_tier,
+    },
+    secret
+  );
+}
+
+/**
  * Creates a cryptographically signed JWT for demo persona sessions
  */
 export async function createDemoJWT(

@@ -13,7 +13,9 @@ import {
   verifyJWT,
   signJWT,
   createDemoJWT,
+  createSuperAdminJWT,
   DEMO_JWT_USERS,
+  SUPER_ADMIN_JWT_USER,
 } from "@/lib/jwt";
 import {
   getTierLimits,
@@ -412,6 +414,43 @@ async function handleRequest(
         return NextResponse.json({ error: "Email is required" }, { status: 400 });
       }
 
+      // 0. Dedicated ComplianceHub Platform Super Admin account
+      if (email === SUPER_ADMIN_JWT_USER.email) {
+        const expectedPassword = process.env.TEST_USER_SUPER_ADMIN_PASSWORD || "password123";
+        if (body.password && body.password !== expectedPassword) {
+          return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+        }
+        const token = await createSuperAdminJWT();
+        return NextResponse.json({
+          token,
+          user: {
+            id: SUPER_ADMIN_JWT_USER.user_id,
+            email: SUPER_ADMIN_JWT_USER.email,
+            full_name: SUPER_ADMIN_JWT_USER.full_name,
+            system_role: SUPER_ADMIN_JWT_USER.system_role,
+            role: SUPER_ADMIN_JWT_USER.role,
+            title: SUPER_ADMIN_JWT_USER.title,
+            avatar_url: SUPER_ADMIN_JWT_USER.avatar,
+          },
+          active_tenant: {
+            id: SUPER_ADMIN_JWT_USER.tenant_id,
+            workspace_name: SUPER_ADMIN_JWT_USER.company,
+            plan_tier: SUPER_ADMIN_JWT_USER.plan_tier,
+            compliance_score: 100,
+            is_active: true,
+          },
+          tenants: [
+            {
+              tenant_id: SUPER_ADMIN_JWT_USER.tenant_id,
+              workspace_name: SUPER_ADMIN_JWT_USER.company,
+              role: "OWNER",
+              plan_tier: SUPER_ADMIN_JWT_USER.plan_tier,
+              score: 100,
+            },
+          ],
+        });
+      }
+
       // 1. Check known interactive demo personas
       const demoRoles: Record<string, "BUSINESS" | "EXPERT" | "AGENCY" | "STAFF" | "ADMIN"> = {
         "adaeze@paywave.ng": "BUSINESS",
@@ -432,6 +471,7 @@ async function handleRequest(
             email: profile.email,
             full_name: profile.full_name,
             system_role: profile.system_role,
+            role: profile.role,
             title: profile.title,
             avatar_url: profile.avatar,
           },
